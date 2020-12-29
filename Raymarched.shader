@@ -6,7 +6,11 @@
             _MaxSteps ("Max steps", Int) = 256
                 _MaxDist ("Max distance", Float) = 100
                 _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
-                _Thing ("thing distance threshold", Range(0, 1)) = 1
+                _Scale ("Scale", Range(0.1, 16)) = 1
+                [Header(Lighting)]
+                _SunPos ("Sun position", Vector) = (8, 4, 2)
+                    _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
+
     }
     SubShader
     {
@@ -34,8 +38,9 @@
                     float3 hitPos : TEXCOORD2;
                 };
 
-                struct rayReturn
+                struct rayData
                 {
+                    float3 color;
                     float dist;
                     int steps;
                 };
@@ -43,12 +48,14 @@
                 int _MaxSteps;
                 float _MaxDist;
                 float _SurfDist;
-                float _Thing;
+                float _Scale;
+                float3 _SunPos;
+                float4 _SkyColor;
 
                 float noise3(float a, float b, float c);
 
                 v2f vert (appdata v)
-                {
+                {//TODO: Setting in material
                     v2f o;
                     o.vertex = UnityObjectToClipPos(v.vertex);
                     //object space
@@ -62,22 +69,38 @@
 
                 //***** RAYMARCH STUFF *****
 
-                float smoothMin(float a, float b, float k)
+                float smin(float a, float b, float k)
                 {
-                    return min(a, b) - pow(max(k - abs(a-b), 0), 3)/(6*k*k);
+                    float h = max(k - abs(a-b), 0) / k;
+                    return min(a, b) - h*h*h*k * 1/6.0;
+                }
+
+                float smax(float a, float b, float k)
+                {   
+                    float h = max(k - abs(a-b), 0) / k;
+                    return max(a, b) + h*h*h*k * 1/6.0;
                 }
 
                 float sdSphere(float3 p, float3 o, float r) {
                     return length(p - o) - r;
                 }
 
-                float sdBox(float3 p, float3 dim)
+                float sdBox(float3 p, float3 o, float3 r)
                 {
-                    return length(float3(
-                                max(abs(p.x) - dim.x/2.0, 0),
-                                max(abs(p.y) - dim.y/2.0, 0),
-                                max(abs(p.z) - dim.z/2.0, 0)));
+                    return length(max(abs(p-o) - r/2.0, 0));
                 }
+
+                float3 repDomain(float3 p, float3 r)
+                {
+                    return fmod(abs(p + r/2.0), r) - r/2.0;
+                }
+
+                float sdLine(float3 p, float3 a, float3 b, float r)
+                {
+                    float h = min(1, max(0, dot(p-a, b-a) / dot(b-a, b-a)));
+                    return length(p-a-(b-a)*h)-r;
+                }
+
 
 #define Iterations 30
 #define Scale 2
@@ -114,96 +137,58 @@
                     return length(z) * pow(Scale, -n);
                 }
 
-                float GetDist(float3 z)
+                float DE_main(float3 z)
                 {
+                    //return sdSphere(z, 0, 1);
+                     float3 p[MAX_ARR_SIZE];
+                       float Spread = 0.2;
+                       p[0] = float3(1,1,1) * Spread;
+                       p[1] = float3(-1,-1,1) * Spread;
+                       p[2] = float3(1,-1,-1) * Spread;
+                       p[3] = float3(-1,1,-1) * Spread;
+                       p[4] = float3(-1,-1,-1) * Spread;
+                       return DE_Polyhedron(z, p, 5);
 
-                    int modelNum = 0;
-                    switch (modelNum)
-                    {
-
-                        case 0:
-                            float3 p[MAX_ARR_SIZE];
-
-                            float Spread = 0.5;
-                            p[0] = float3(1,1,1) * Spread;
-                            p[1] = float3(-1,-1,1) * Spread;
-                            p[2] = float3(1,-1,-1) * Spread;
-                            p[3] = float3(-1,1,-1) * Spread;
-                            p[4] = float3(-1,-1,-1) * Spread;
-
-                            return DE_Polyhedron(z, p, 5);
-
-                        case 1:
-
-                            return 42;
-                            break;
-
-
-                        case 2:
-
-                            return 42;
-                            break;
-
-
-                         default:
-                            return 42;
-
-                            break;
-
-
-
-                    }
-
-                    /*float d = 0;
-                    //float r = pow(sin(40*_Time), 2)*0.08;
-                    float r = 0.05;
-                    float ox = 0.2;
-                    p.x = fmod(p.x+ox*3,ox*3);
-                    p.y = fmod(p.y+ox*3,ox*3);
-                    p.z = fmod(p.z+ox*3,ox*3);
-                    d = sdSphere(p, float3(ox, ox, ox), r);
-
-
-                    //d = min(d, sdBox(p, float3(0.2, 0.2, 0.2)) - 0.00);//0.05
-
-                    //d = min(d, sdSphere(p, float3(0.2, 0.14, 0), r));//0.2
-                    return d;*/
 
                 }
 
                 //marches a ray through the scene
                 // OUT: number of steps and total distance
-                rayReturn Raymarch(float3 ro, float3 rd)
+                rayData castRay(float3 ro, float3 rd)
                 {
+                    float3 mat = 0.2;
                     float rayLen = 0;// total distance marched / distance from origin
                     float dist; // distance from the raymarched scene
-
-                    int i;
-                    for (i = 0; i < _MaxSteps; i++)
+                    for (int i = 0; i < _MaxSteps; i++)
                     {
                         //position = origin + distance * direction
                         float3 p = ro + rayLen * rd;
-                        dist = GetDist(p);
+                        
+                        dist = DE_main(p);
+
                         rayLen += dist;// move forward
-                        if (dist < _SurfDist || rayLen > _MaxDist) {
-                            break;
-                        }
+
+                        if (dist < _SurfDist) break;
+                        if (rayLen > _MaxDist) break;
                     }
+                    if (rayLen > _MaxDist) rayLen = -1;
 
-                    rayReturn ret;
-                    ret.dist = rayLen;
-                    ret.steps = i;
+                    rayData data;
+                    data.dist = rayLen;
+                    data.steps = i;
+                    //data.color = mat;
 
-                    return ret;
+                    return data; 
                 }
 
-                float3 GetNormal(float3 p)
+
+                float3 getNormal(float3 p)
                 {
                     float2 e = float2(0.001, 0);
-                    float3 n = GetDist(p) - float3(
-                            GetDist(p-e.xyy),
-                            GetDist(p-e.yxy),
-                            GetDist(p-e.yyx));
+                    float3 n = DE_main(p) - float3(
+                            DE_main(p-e.xyy),
+                            DE_main(p-e.yxy),
+                            DE_main(p-e.yyx));
                     return normalize(n);
                 }
 
@@ -212,28 +197,33 @@
                     float3 ro = i.ro;
                     float3 rd = normalize(i.hitPos - ro);
 
-                    rayReturn ret;
-                    ret = Raymarch(ro, rd);
+                    rayData ret;
+                    ret = castRay(ro, rd);
                     float d = ret.dist;
                     int numSteps = ret.steps;
                     fixed4 col = 1;
 
-                    if (d >= _MaxDist)
+                    if (d < 0)
                     {
                         discard;
                     }
                     float3 p = ro + rd * d;
-                    float3 n = GetNormal(p);
+                    float3 n = getNormal(p);
 
                     float br = 100.0/float(numSteps)/100;
 
                     col.rgb = float3(br,br,br);
                     //col.rgb = dot(n, normalize(float3(1,0.5,1)));
 
-                    return col;
+                    return col; 
                 }
 
-                // ***** NOISE *****
+                // ***** NOISE *************************************************
+                // ***** NOISE *************************************************
+                // ***** NOISE *************************************************
+                // ***** NOISE *************************************************
+                // ***** NOISE *************************************************
+                // ***** NOISE *************************************************
                 float3 mod289(float3 x) {
                     return x - floor(x * (1.0 / 289.0)) * 289.0;
                 }
