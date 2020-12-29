@@ -3,10 +3,10 @@
     Properties
     {
         [Header(Raymarcher Properties)]
-        _MaxSteps ("Max steps", Int) = 256
-        _MaxDist ("Max distance", Float) = 100
-        _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
-        _Thing ("thing distance threshold", Range(0, 1)) = 1
+            _MaxSteps ("Max steps", Int) = 256
+                _MaxDist ("Max distance", Float) = 100
+                _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
+                _Thing ("thing distance threshold", Range(0, 1)) = 1
     }
     SubShader
     {
@@ -22,10 +22,10 @@
 
 #include "UnityCG.cginc"
 
-                struct appdata
-                {
-                    float4 vertex : POSITION;
-                };
+                    struct appdata
+                    {
+                        float4 vertex : POSITION;
+                    };
 
                 struct v2f
                 {
@@ -46,8 +46,6 @@
                 float _Thing;
 
                 float noise3(float a, float b, float c);
-
-
 
                 v2f vert (appdata v)
                 {
@@ -118,17 +116,43 @@
 
                 float GetDist(float3 z)
                 {
-                    float3 p[MAX_ARR_SIZE];
 
-                    float Spread = 0.5;
-                    p[0] = float3(1,1,1) * Spread;
-                    p[1] = float3(-1,-1,1) * Spread;
-                    p[2] = float3(1,-1,-1) * Spread;
-                    p[3] = float3(-1,1,-1) * Spread;
-                    p[4] = float3(-1,-1,-1) * Spread;
-                    
-                    return DE_Polyhedron(z, p, 5);
- 
+                    int modelNum = 0;
+                    switch (modelNum)
+                    {
+
+                        case 0:
+                            float3 p[MAX_ARR_SIZE];
+
+                            float Spread = 0.5;
+                            p[0] = float3(1,1,1) * Spread;
+                            p[1] = float3(-1,-1,1) * Spread;
+                            p[2] = float3(1,-1,-1) * Spread;
+                            p[3] = float3(-1,1,-1) * Spread;
+                            p[4] = float3(-1,-1,-1) * Spread;
+
+                            return DE_Polyhedron(z, p, 5);
+
+                        case 1:
+
+                            return 42;
+                            break;
+
+
+                        case 2:
+
+                            return 42;
+                            break;
+
+
+                         default:
+                            return 42;
+
+                            break;
+
+
+
+                    }
 
                     /*float d = 0;
                     //float r = pow(sin(40*_Time), 2)*0.08;
@@ -144,75 +168,6 @@
 
                     //d = min(d, sdSphere(p, float3(0.2, 0.14, 0), r));//0.2
                     return d;*/
-
-                    float t = _Time;//sin(_Time);
-
-                    Spread = 0.5;
-                    float3 a1 = float3(1,1,1) * Spread;
-                    float3 a2 = float3(-1,-1,1) * Spread;
-                    float3 a3 = float3(1,-1,-1) * Spread;
-                    float3 a4 = float3(-1,1,-1) * Spread;
-                    //float3 a5 = float3(-1,-1,-1) * Spread;
-                    int q; 
-                    /*
-                       float3 a1 = float3(-1,-1,-1) * Spread;
-                       float3 a2 = float3(-1,-1,1) * Spread;
-                       float3 a3 = float3(-1,1,-1) * Spread;
-                       float3 a4 = float3(-1,1,1) * Spread;
-                       float3 a5 = float3(1,-1,-1) * Spread;
-                       float3 a6 = float3(1,-1,1) * Spread;
-                       float3 a7 = float3(1,1,-1) * Spread;
-                       float3 a8 = float3(1,1,1) * Spread;
-                     */
-
-
-                    /*q=500; float3 a1 = Spread*normalize(float3(noise3(t,q,100)*Spread,noise3(t,q,200)*Spread,noise3(t,q,300)*Spread));
-                      q=600; float3 a2 = Spread*normalize(float3(noise3(t,q,100)*Spread,noise3(t,q,200)*Spread,noise3(t,q,300)*Spread));
-                      q=700; float3 a3 = Spread*normalize(float3(noise3(t,q,100)*Spread,noise3(t,q,200)*Spread,noise3(t,q,300)*Spread));
-                      q=800; float3 a4 = Spread*normalize(float3(noise3(t,q,100)*Spread,noise3(t,q,200)*Spread,noise3(t,q,300)*Spread));
-                      q=900; float3 a5 = Spread*normalize(float3(noise3(t,q,100)*Spread,noise3(t,q,200)*Spread,noise3(t,q,300)*Spread));
-                     */
-                    float3 closest;
-
-                    float dist = 0;
-                    float d = 0;
-
-                    for (int n = 0; n < Iterations; n++) 
-                    {
-                        closest = a1; 
-                        dist = length(z-a1);
-
-                        d = length(z-a2); 
-                        if (d < dist) { closest = a2; dist=d; }
-
-                        d = length(z-a3); 
-                        if (d < dist) { closest = a3; dist=d; }
-
-                        d = length(z-a4); 
-                        if (d < dist) { closest = a4; dist=d; }
-
-                        /*d = length(z-a5); 
-                          if (d < dist) { closest = a5; dist=d; }
-
-                          d = length(z-a6); 
-                          if (d < dist) { closest = a6; dist=d; }
-
-                          d = length(z-a7); 
-                          if (d < dist) { closest = a7; dist=d; }
-
-                          d = length(z-a8); 
-                          if (d < dist) { closest = a8; dist=d; }*/
-
-
-
-
-
-                        //closest = a4;
-
-                        z = Scale*z-closest*(Scale-1.0);
-                    }
-
-                    return length(z) * pow(Scale, -n);
 
                 }
 
