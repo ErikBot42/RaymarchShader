@@ -1,4 +1,4 @@
-﻿Shader "Unlit/Raymarched"
+﻿Shader "Raymarched/Raymarched"
 {
     Properties
     {
@@ -11,12 +11,15 @@
                 _SunPos ("Sun position", Vector) = (8, 4, 2)
                     _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
                     _bWorldSpace ("Use world space", int) = 0
+                    _fDebug1 ("fDebug1", Range(0,10)) = 2
+                    _iDebug1 ("iDebug1", Range(0,10)) = 2
 
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
-        Cull Off
+        Tags { "RenderType"="Opaque" 
+            "LightMode"="ForwardBase" }//light stuff
+        Cull Off// make stuff render even when camera is inside object
             LOD 100
 
             Pass
@@ -25,7 +28,11 @@
 #pragma vertex vert
 #pragma fragment frag
 
+#define vec3 float3
+#define vec4 float4
+
 #include "UnityCG.cginc"
+#include "UnityLightingCommon.cginc" // for light stuff
 #include "sdf.cginc"
 #include "noise.cginc"
 
@@ -55,6 +62,8 @@
                 float3 _SunPos;
                 float4 _SkyColor;
                 bool _bWorldSpace;
+                float _fDebug1;
+                int _iDebug1;
 
                 v2f vert (appdata v)
                 {
@@ -78,42 +87,57 @@
 
                 //***** RAYMARCH STUFF *****
 
+                //#define Iterations 7
+                //#define Scale 1.4
+#define MAX_ARR_SIZE 8
 
-#define Iterations 7
-#define Scale 2
-#define MAX_ARR_SIZE 5
-
+                float de_tetrahedron(vec3 p, float r) 
+                {
+                    float md = max(max(-p.x - p.y - p.z, p.x + p.y - p.z),
+                            max(-p.x + p.y + p.z, p.x - p.y + p.z));
+                    return (md - r) / (sqrt(3.0));
+                }
 
                 // DE fractal polyhedron from given points,
                 // creates tetrahedron on 4 points.
                 // it works by finding the closest vertex of the fractal polyhedron, O(n)
-                float DE_Polyhedron(float3 z, float3 p[MAX_ARR_SIZE], int numPoints)
+                float DE_Polyhedron(float3 z, 
+                        float3 p[MAX_ARR_SIZE], 
+                        int iPoints, 
+                        float fScale = 2,
+                        int iIterations = 2)
                 {
+                    float3 z0 = z;
+                    //return sdSphere(z, 0, 0.02);
                     float3 closest;//current closest point
 
-                    float dist = 0;//current dist to closest
+                    float fDist = 0;//current fDist to closest
                     float d = 0;
 
-                    for (int n = 0; n < Iterations; n++) 
+                    for (int n = 0; n < iIterations; n++) 
                     {
                         closest = p[0]; 
-                        dist = length(z-p[0]);
+                        fDist = length(z-p[0]);
 
-                        for (int i = 1; i<numPoints; i++)
+                        for (int i = 1; i<iPoints; i++)
                         {
                             d = length(z-p[i]);
-                            if (d < dist)
+                            if (d < fDist)
                             {
                                 closest = p[i];
-                                dist = d;
+                                fDist = d;
                             }
                         }
 
-                        z = Scale*z-closest*(Scale-1.0);
+                        z = fScale*z-closest*(fScale-1.0);
                     }
-                    return length(z) * pow(Scale, -n);
+                    z *= pow(fScale, -n);
+                    //return length(z);//sdSphere(z, 0, 0.02);
+                    return de_tetrahedron(z, pow(fScale, -n)*0.2);
                 }
 
+
+                // to find stuff that the raymarch can read.
                 float DE_lights(float3 z)
                 {
                     float d = sdSphere(z, 0, 0.1);
@@ -126,40 +150,53 @@
                         wp.z = unity_4LightPosZ0[i];
 
                         float d2 = sdSphere(z, wp, 1);
-                        d = min(d,d2);
+                        d = smin(d,d2,0.2);
                     }
                     return d;
+                }
+                
+                // Get light position 
+                // max 4 for some reason >:(
+                float3 getLight(int iIndex)
+                {
+                   float3 vPos;
+                   vPos.x = unity_4LightPosX0[iIndex];
+                   vPos.y = unity_4LightPosY0[iIndex];
+                   vPos.z = unity_4LightPosZ0[iIndex];
+                   return vPos;
                 }
 
                 float DE_tetrahedronMerge(float3 z)
                 {
                     //return sdSphere(z, 0, 0.5);
                     float3 p[MAX_ARR_SIZE];
-                      float Spread = 0.2;
-                      int nPoints = 0;
-                      p[nPoints++] = float3(1,-1,1) * Spread;
-                      p[nPoints++] = float3(-1,-1,0) * Spread;
-                      p[nPoints++] = float3(1,-1,-1) * Spread;
-                      p[nPoints++] = float3(0,1,0) * Spread;
-                      //nPoints--;
-                      float d = DE_Polyhedron(z, p, nPoints);
+                    float Spread = 0.2;
+                    int nPoints = 0;
+                    p[nPoints++] = float3(1,1,1) * Spread;
+                    p[nPoints++] = float3(-1,1,-1) * Spread;
+                    p[nPoints++] = float3(1,-1,-1) * Spread;
+                    p[nPoints++] = float3(-1,-1,1) * Spread;
+                    //nPoints--;
+                    float d = DE_Polyhedron(z, p, nPoints,_fDebug1,_iDebug1);
                     return d;
-                    float d2 = DE_Polyhedron(sin(_Time), p, nPoints);
-                    return min(d,d2);
+                    float d2 = DE_Polyhedron(z + sin(_Time*0.3)/4, p, nPoints);
+                    return smin(d,d2,0.02);
 
 
                 }
 
                 float DE_main(float3 z)
                 {
-                    return DE_tetrahedronMerge(z);
+                    return sdTorus(z, 0, 5, 1);
+                    return sdPyramid(z, 0.5);
+                    //return de_tetrahedron(z,0.2);
+                    //return DE_tetrahedronMerge(z);
                     return DE_lights(z);
 
 
                 }
 
-                //marches a ray through the scene
-                // OUT: number of steps and total distance
+                // Marches a ray through the scene
                 rayData castRay(float3 ro, float3 rd)
                 {
                     float3 mat = 0.2;
@@ -200,6 +237,8 @@
 
                 fixed4 frag (v2f i) : SV_Target
                 {
+                    _SunPos = float4(getLight(0),0);
+
                     float3 ro = i.ro;
                     float3 rd = normalize(i.hitPos - ro);
 
@@ -220,6 +259,8 @@
                     float3 p = ro + rd * dist;// collision position
                     p /= _Scale;
                     float3 n = getNormal(p);// normal
+                    
+                    
 
                     // Sunlight
                     float sun_dif = clamp(dot(n, normalize(_SunPos)), 0, 1); 
@@ -245,13 +286,9 @@
                     return fixed4(col,1); 
                 }
 
-               
-
                 ENDCG
             }
+
     }
-
-
-
 
 }
