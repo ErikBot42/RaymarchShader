@@ -136,25 +136,6 @@
                     return de_tetrahedron(z, pow(fScale, -n)*0.2);
                 }
 
-
-                // to find stuff that the raymarch can read.
-                float DE_lights(float3 z)
-                {
-                    float d = sdSphere(z, 0, 0.1);
-                    for (int i = 0; i<4; i++)
-                    {
-                        float3 wp;
-
-                        wp.x = unity_4LightPosX0[i];
-                        wp.y = unity_4LightPosY0[i];
-                        wp.z = unity_4LightPosZ0[i];
-
-                        float d2 = sdSphere(z, wp, 1);
-                        d = smin(d,d2,0.2);
-                    }
-                    return d;
-                }
-                
                 // Get light position 
                 // max 4 for some reason >:(
                 float3 getLight(int iIndex)
@@ -164,6 +145,20 @@
                    vPos.y = unity_4LightPosY0[iIndex];
                    vPos.z = unity_4LightPosZ0[iIndex];
                    return vPos;
+                }
+
+                // to find stuff that the raymarch can read.
+                float DE_lights(float3 z)
+                {
+                    float d = sdSphere(z, 0, 1);
+                    for (int i = 0; i<1; i++)
+                    {
+                        //float wp = getLight(i);
+                        float3 vPos = getLight(i);
+                        float d2 = sdSphere(z, vPos, 1);
+                        d = smin(d,d2,0.2);
+                    }
+                    return d;
                 }
 
                 float DE_tetrahedronMerge(float3 z)
@@ -187,8 +182,8 @@
 
                 float DE_main(float3 z)
                 {
-                    return sdTorus(z, 0, 5, 1);
-                    return sdPyramid(z, 0.5);
+                    //return sdTorus(z, 0, 5, 1);
+                    //return sdPyramid(z, 0.5);
                     //return de_tetrahedron(z,0.2);
                     //return DE_tetrahedronMerge(z);
                     return DE_lights(z);
@@ -227,7 +222,7 @@
 
                 float3 getNormal(float3 p)
                 {
-                    float2 e = float2(0.001, 0);
+                    float2 e = float2(0.0001, 0);
                     float3 n = DE_main(p) - float3(
                             DE_main(p-e.xyy),
                             DE_main(p-e.yxy),
