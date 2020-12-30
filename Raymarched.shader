@@ -10,6 +10,7 @@
                 [Header(Lighting)]
                 _SunPos ("Sun position", Vector) = (8, 4, 2)
                     _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
+                    _bWorldSpace ("Use world space", bool) = 0
 
     }
     SubShader
@@ -25,6 +26,7 @@
 #pragma fragment frag
 
 #include "UnityCG.cginc"
+#include "sdf.cginc"
 
                     struct appdata
                     {
@@ -58,53 +60,29 @@
                 {//TODO: Setting in material
                     v2f o;
                     o.vertex = UnityObjectToClipPos(v.vertex);
-                    //object space
-                    o.ro = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
-                    o.hitPos = v.vertex;
-                    //world space
-                    //o.ro = _WorldSpaceCameraPos;
-                    //o.hitPos = mul(unity_ObjectToWorld, v.vertex);
+
+                    if (_bWorldSpace)
+                    {
+                        //world space
+                        o.ro = _WorldSpaceCameraPos;
+                        o.hitPos = mul(unity_ObjectToWorld, v.vertex);
+
+                    }
+                    else 
+                    {
+                        //object space
+                        o.ro = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
+                        o.hitPos = v.vertex;
+                    }
                     return o;
                 }
 
                 //***** RAYMARCH STUFF *****
 
-                float smin(float a, float b, float k)
-                {
-                    float h = max(k - abs(a-b), 0) / k;
-                    return min(a, b) - h*h*h*k * 1/6.0;
-                }
 
-                float smax(float a, float b, float k)
-                {   
-                    float h = max(k - abs(a-b), 0) / k;
-                    return max(a, b) + h*h*h*k * 1/6.0;
-                }
-
-                float sdSphere(float3 p, float3 o, float r) {
-                    return length(p - o) - r;
-                }
-
-                float sdBox(float3 p, float3 o, float3 r)
-                {
-                    return length(max(abs(p-o) - r/2.0, 0));
-                }
-
-                float3 repDomain(float3 p, float3 r)
-                {
-                    return fmod(abs(p + r/2.0), r) - r/2.0;
-                }
-
-                float sdLine(float3 p, float3 a, float3 b, float r)
-                {
-                    float h = min(1, max(0, dot(p-a, b-a) / dot(b-a, b-a)));
-                    return length(p-a-(b-a)*h)-r;
-                }
-
-
-#define Iterations 30
+#define Iterations 7
 #define Scale 2
-#define MAX_ARR_SIZE 8
+#define MAX_ARR_SIZE 5
 
 
                 // DE fractal polyhedron from given points,
@@ -139,15 +117,33 @@
 
                 float DE_main(float3 z)
                 {
-                    //return sdSphere(z, 0, 1);
-                     float3 p[MAX_ARR_SIZE];
-                       float Spread = 0.2;
-                       p[0] = float3(1,1,1) * Spread;
-                       p[1] = float3(-1,-1,1) * Spread;
-                       p[2] = float3(1,-1,-1) * Spread;
-                       p[3] = float3(-1,1,-1) * Spread;
-                       p[4] = float3(-1,-1,-1) * Spread;
-                       return DE_Polyhedron(z, p, 5);
+                    //return sdSphere(z, 0, 0.5);
+                    /*float3 p[MAX_ARR_SIZE];
+                      float Spread = 0.2;
+                      int nPoints = 5;
+                      p[0] = float3(1,1,1) * Spread;
+                      p[1] = float3(-1,-1,1) * Spread;
+                      p[2] = float3(1,-1,-1) * Spread;
+                      p[3] = float3(-1,1,-1) * Spread;
+                      p[4] = float3(-1,-1,-1) * Spread;
+                      float d = DE_Polyhedron(z, p, nPoints);
+                    //return d;
+                    float d2 = DE_Polyhedron(_WorldSpaceCameraPos, p, nPoints);
+                    return smin(d,d2,0.2);*/
+
+                    float d = sdSphere(z, 0, 1);
+                    for (int i = 0; i<4; i++)
+                    {
+                        float3 wp;
+
+                        wp.x = unity_4LightPosX0[i];
+                        wp.y = unity_4LightPosY0[i];
+                        wp.z = unity_4LightPosZ0[i];
+
+                        float d2 = sdSphere(z, wp, 1);
+                        d = min(d,d2);
+                    }
+                    return d;
 
 
                 }
@@ -162,8 +158,8 @@
                     for (int i = 0; i < _MaxSteps; i++)
                     {
                         //position = origin + distance * direction
-                        float3 p = ro + rayLen * rd;
-                        
+                        float3 p = (ro + rayLen * rd)/_Scale;
+
                         dist = DE_main(p);
 
                         rayLen += dist;// move forward
@@ -176,7 +172,7 @@
                     rayData data;
                     data.dist = rayLen;
                     data.steps = i;
-                    //data.color = mat;
+                    data.color = mat;
 
                     return data; 
                 }
@@ -199,23 +195,44 @@
 
                     rayData ret;
                     ret = castRay(ro, rd);
-                    float d = ret.dist;
-                    int numSteps = ret.steps;
-                    fixed4 col = 1;
+                    fixed3 col = 1;
 
-                    if (d < 0)
+                    float dist = ret.dist;// raymarch total dist
+                    int steps = ret.steps;// raymarch steps
+
+                    // Sky color/background
+                    if (dist < 0)
                     {
+                        //return _SkyColor -rd.y*0.5;
                         discard;
                     }
-                    float3 p = ro + rd * d;
-                    float3 n = getNormal(p);
 
-                    float br = 100.0/float(numSteps)/100;
+                    float3 p = ro + rd * dist;// collision position
+                    p /= _Scale;
+                    float3 n = getNormal(p);// normal
 
-                    col.rgb = float3(br,br,br);
+                    // Sunlight
+                    float sun_dif = clamp(dot(n, normalize(_SunPos)), 0, 1); 
+                    float sun_sha = step(castRay(_Scale*(p+n*0.01), normalize(_SunPos)).dist, 0.0);
+                    // Sky light from direcly above
+                    float sky_dif = clamp(0.5 + 0.5 * dot(n, float3(0, 1, 0)), 0, 1);
+
+                    //float bou_dif = clamp(0.5 + 0.5 * dot(n, float3(0, -1, 0)), 0, 1);
+
+                    // Colors
+                    float3 sun_col = float3(7, 4.5, 3);
+                    float3 sky_col = float3(0.5, 0.8, 0.9);
+                    float3 bou_col = float3(0.7, 0.3, 0.2);
+
+                    //float br = 100.0/float(steps)/100;
+
+                    //col = float3(br,br,br);
                     //col.rgb = dot(n, normalize(float3(1,0.5,1)));
+                    col = ret.color * sun_dif * sun_sha * sun_col;
+                    col += ret.color* sky_dif * sky_col;
+                    //col += mat * bou_dif * bou_col;
 
-                    return col; 
+                    return fixed4(col,1); 
                 }
 
                 // ***** NOISE *************************************************
