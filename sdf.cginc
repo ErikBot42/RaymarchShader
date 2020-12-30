@@ -87,7 +87,7 @@ float sdTorus(float3 p, float3 o, float r, float t)
 }
 
 // EXACT: pyramid, height h
-float sdPyramid( vec3 p, float h)
+float sdPyramid( float3 p, float h)
 {
   float m2 = h*h + 0.25;
 
@@ -95,7 +95,7 @@ float sdPyramid( vec3 p, float h)
   p.xz = (p.z>p.x) ? p.zx : p.xz;
   p.xz -= 0.5;
 
-  vec3 q = vec3( p.z, h*p.y - 0.5*p.x, h*p.x + 0.5*p.y);
+  float3 q = float3( p.z, h*p.y - 0.5*p.x, h*p.x + 0.5*p.y);
 
   float s = max(-q.x,0.0);
   float t = clamp( (q.y-0.5*p.z)/(m2+0.25), 0.0, 1.0 );
