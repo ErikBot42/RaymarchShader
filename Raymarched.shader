@@ -10,7 +10,7 @@
                 [Header(Lighting)]
                 _SunPos ("Sun position", Vector) = (8, 4, 2)
                     _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
-                    _bWorldSpace ("Use world space", bool) = 0
+                    _bWorldSpace ("Use world space", int) = 0
 
     }
     SubShader
@@ -53,6 +53,7 @@
                 float _Scale;
                 float3 _SunPos;
                 float4 _SkyColor;
+                bool _bWorldSpace;
 
                 float noise3(float a, float b, float c);
 
@@ -61,7 +62,7 @@
                     v2f o;
                     o.vertex = UnityObjectToClipPos(v.vertex);
 
-                    if (_bWorldSpace)
+                    if (_bWorldSpace!=0)
                     {
                         //world space
                         o.ro = _WorldSpaceCameraPos;
@@ -131,7 +132,8 @@
                     float d2 = DE_Polyhedron(_WorldSpaceCameraPos, p, nPoints);
                     return smin(d,d2,0.2);*/
 
-                    float d = sdSphere(z, 0, 1);
+                    float d = sdSphere(z, 0, 0.1);
+                    return d;
                     for (int i = 0; i<4; i++)
                     {
                         float3 wp;
