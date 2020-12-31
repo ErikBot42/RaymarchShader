@@ -10,7 +10,7 @@
         [Header(Lighting)]
         _SunPos ("Sun position", Vector) = (8, 4, 2)
         _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
-        _bWorldSpace ("Use world space", int) = 0
+        [Toggle]_bWorldSpace ("Use world space", int) = 0
         _fDebug1 ("fDebug1", Range(0,10)) = 2
         _iDebug1 ("iDebug1", Range(0,10)) = 2
 
@@ -27,11 +27,16 @@
                 CGPROGRAM
 // Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
 #pragma exclude_renderers d3d11 gles
+
+// Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
+//#pragma exclude_renderers d3d11 gles
 #pragma vertex vert
 #pragma fragment frag
 
 #define vec3 float3
 #define vec4 float4
+
+#define MAX_ARR_SIZE 8
 
 #include "UnityCG.cginc"
 #include "UnityLightingCommon.cginc" // for light stuff
@@ -93,7 +98,6 @@
 
                 //#define Iterations 7
                 //#define Scale 1.4
-#define MAX_ARR_SIZE 8
 
                 float de_tetrahedron(vec3 p, float r) 
                 {
@@ -187,12 +191,13 @@
                 // to find stuff that the raymarch can read.
                 float DE_lights(float3 z, int modes[4])
                 {
-                    float d = sdSphere(z, 0, 0);
-                    for (int i = 0; i<4; i++)
+                    float d = DE_select(z, modes[1]);
+                    for (int i = 0; i<1; i++)
                     {
-                        //float wp = getLight(i);
-                        float3 vPos = getLight(i);
-                        float d2 = DE_select(z-vPos, modes[i]);//
+                        //float3 vPos = float3(0.5,0,0);//getLight(i);
+                        float3 vPos = mul(unity_WorldToObject, float4(getLight(i),1));
+                        //float3 vPos = mul(unity_WorldToObject, float4(0.5,0,0,1));
+                        float d2 = DE_select(z-vPos, modes[i]);
                         d = smin(d,d2,0.2);
                     }
                     return d;
@@ -208,6 +213,7 @@
                     //return de_tetrahedron(z,0.2);
                     //return DE_tetrahedronMerge(z);
                     int modes[] = {1,1,1,1};
+                    
                     return DE_lights(z,modes);//DE_select(z,_iDebug1);
 
 
@@ -256,9 +262,12 @@
                 // the "main" of the shader
                 fixed4 frag (v2f i) : SV_Target
                 {
-                    _SunPos.y=1;
-                    _SunPos.x = _SinTime.y;
-                    _SunPos.z = _CosTime.y;
+
+                     //_SunPos = mul(unity_WorldToObject, float4(1,1,1,1));
+
+                    //_SunPos.y=1;
+                    //_SunPos.x =1;// _SinTime.y;
+                    //_SunPos.z =1;// _CosTime.y;
 
                     float3 ro = i.ro;
                     float3 rd = normalize(i.hitPos - ro);
