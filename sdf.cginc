@@ -3,6 +3,8 @@
 #define PI 3.14159265
 #define TAU 6.28318531
 
+// **** Transforms/manipulations *****
+
 //soft min of a and b with smoothing factor k
 //use for smooth blending
 float smin(float a, float b, float k)
@@ -39,6 +41,8 @@ float3 repDomain(float3 p, float3 r)
 {
     return fmod(abs(p + r/2.0), r) - r/2.0;
 }
+
+// ***** Shapes *****
 
 //sphere with origin o and radius r
 float sdSphere(float3 p, float3 o, float r) {

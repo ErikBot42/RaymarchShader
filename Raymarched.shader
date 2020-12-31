@@ -3,16 +3,16 @@
     Properties
     {
         [Header(Raymarcher Properties)]
-            _MaxSteps ("Max steps", Int) = 256
-                _MaxDist ("Max distance", Float) = 100
-                _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
-                _Scale ("Scale", Range(0.1, 16)) = 1
-                [Header(Lighting)]
-                _SunPos ("Sun position", Vector) = (8, 4, 2)
-                    _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
-                    _bWorldSpace ("Use world space", int) = 0
-                    _fDebug1 ("fDebug1", Range(0,10)) = 2
-                    _iDebug1 ("iDebug1", Range(0,10)) = 2
+        _MaxSteps ("Max steps", Int) = 256
+        _MaxDist ("Max distance", Float) = 100
+        _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
+        _Scale ("Scale", Range(0.1, 16)) = 1
+        [Header(Lighting)]
+        _SunPos ("Sun position", Vector) = (8, 4, 2)
+        _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
+        _bWorldSpace ("Use world space", int) = 0
+        _fDebug1 ("fDebug1", Range(0,10)) = 2
+        _iDebug1 ("iDebug1", Range(0,10)) = 2
 
     }
     SubShader
@@ -25,6 +25,8 @@
             Pass
             {
                 CGPROGRAM
+// Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
+#pragma exclude_renderers d3d11 gles
 #pragma vertex vert
 #pragma fragment frag
 
@@ -51,8 +53,10 @@
                 struct rayData
                 {
                     float3 color;
-                    float dist;
+                    float fDist;
                     int steps;
+                    float fMinStep;
+                    v2f v2fData;
                 };
 
                 int _MaxSteps;
@@ -105,7 +109,7 @@
                         float3 p[MAX_ARR_SIZE], 
                         int iPoints, 
                         float fScale = 2,
-                        int iIterations = 2)
+                        int iIterations = 7)
                 {
                     float3 z0 = z;
                     //return sdSphere(z, 0, 0.02);
@@ -136,8 +140,9 @@
                     return de_tetrahedron(z, pow(fScale, -n)*0.2);
                 }
 
-                // Get light position 
+                // Get point light position
                 // max 4 for some reason >:(
+                // probably defaults to 0,0,0
                 float3 getLight(int iIndex)
                 {
                    float3 vPos;
@@ -146,21 +151,7 @@
                    vPos.z = unity_4LightPosZ0[iIndex];
                    return vPos;
                 }
-
-                // to find stuff that the raymarch can read.
-                float DE_lights(float3 z)
-                {
-                    float d = sdSphere(z, 0, 1);
-                    for (int i = 0; i<1; i++)
-                    {
-                        //float wp = getLight(i);
-                        float3 vPos = getLight(i);
-                        float d2 = sdSphere(z, vPos, 1);
-                        d = smin(d,d2,0.2);
-                    }
-                    return d;
-                }
-
+                
                 float DE_tetrahedronMerge(float3 z)
                 {
                     //return sdSphere(z, 0, 0.5);
@@ -172,21 +163,52 @@
                     p[nPoints++] = float3(1,-1,-1) * Spread;
                     p[nPoints++] = float3(-1,-1,1) * Spread;
                     //nPoints--;
-                    float d = DE_Polyhedron(z, p, nPoints,_fDebug1,_iDebug1);
+                    float d = DE_Polyhedron(z, p, nPoints);
                     return d;
                     float d2 = DE_Polyhedron(z + sin(_Time*0.3)/4, p, nPoints);
                     return smin(d,d2,0.02);
 
 
                 }
+                // single "thing"
+                float DE_select(float3 z, int iDE)
+                {
+                    switch(iDE)
+                    {
+                        case 1:
+                            return DE_tetrahedronMerge(z);
+                        case 2:
+                            return sdSphere(z,0,0.1);
+                        default:
+                            return sdSphere(z,0,0.1);
+                    }
+                }
+                
+                // to find stuff that the raymarch can read.
+                float DE_lights(float3 z, int modes[4])
+                {
+                    float d = sdSphere(z, 0, 0);
+                    for (int i = 0; i<4; i++)
+                    {
+                        //float wp = getLight(i);
+                        float3 vPos = getLight(i);
+                        float d2 = DE_select(z-vPos, modes[i]);//
+                        d = smin(d,d2,0.2);
+                    }
+                    return d;
+                }
 
+                
+
+                // one or many "things"
                 float DE_main(float3 z)
                 {
                     //return sdTorus(z, 0, 5, 1);
                     //return sdPyramid(z, 0.5);
                     //return de_tetrahedron(z,0.2);
                     //return DE_tetrahedronMerge(z);
-                    return DE_lights(z);
+                    int modes[] = {1,1,1,1};
+                    return DE_lights(z,modes);//DE_select(z,_iDebug1);
 
 
                 }
@@ -212,7 +234,7 @@
                     if (rayLen > _MaxDist) rayLen = -1;
 
                     rayData data;
-                    data.dist = rayLen;
+                    data.fDist = rayLen;
                     data.steps = i;
                     data.color = mat;
 
@@ -230,9 +252,13 @@
                     return normalize(n);
                 }
 
+                // runs once per pixel
+                // the "main" of the shader
                 fixed4 frag (v2f i) : SV_Target
                 {
-                    _SunPos = float4(getLight(0),0);
+                    _SunPos.y=1;
+                    _SunPos.x = _SinTime.y;
+                    _SunPos.z = _CosTime.y;
 
                     float3 ro = i.ro;
                     float3 rd = normalize(i.hitPos - ro);
@@ -241,7 +267,7 @@
                     ret = castRay(ro, rd);
                     fixed3 col = 1;
 
-                    float dist = ret.dist;// raymarch total dist
+                    float dist = ret.fDist;// raymarch total dist
                     int steps = ret.steps;// raymarch steps
 
                     // Sky color/background
@@ -259,7 +285,7 @@
 
                     // Sunlight
                     float sun_dif = clamp(dot(n, normalize(_SunPos)), 0, 1); 
-                    float sun_sha = step(castRay(_Scale*(p+n*0.01), normalize(_SunPos)).dist, 0.0);
+                    float sun_sha = step(castRay(_Scale*(p+n*0.01), normalize(_SunPos)).fDist, 0.0);
                     // Sky light from direcly above
                     float sky_dif = clamp(0.5 + 0.5 * dot(n, float3(0, 1, 0)), 0, 1);
 
