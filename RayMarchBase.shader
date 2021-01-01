@@ -39,6 +39,7 @@
                 o = sdfPlane(p, -.5, C_GREEN * 0.15);
                 o = sdfInter(p, o, sdfSphere(p, 9, float3(0.18, 0.05, 0.02)), 0.5);
                 o = sdfAdd(p, o, sdfSphere(p, 2), 0.3);
+                o = sdfAdd(p, o, sdfTorus(p, 5,0.5), 0.2);
                 return o;
             }
 
@@ -61,21 +62,20 @@
                 }
 
                 //calculate hit point
-                float3 vHitPos = vRayStart + vRayDir * ray_data.dist;
+                float3 vPos = vRayStart + vRayDir * ray_data.dist;
                 //get normal
-                float3 vNorm = getNormal(vHitPos);
+                float3 vNorm = getNormal(vPos);
 
                 //colour init
                 fixed3 col = 0;
                 float3 cMat = ray_data.col;
 
-                col = cMat * lightSun(vHitPos, vNorm, vSunDir);
+                col = cMat * lightSun(vPos, vNorm, vSunDir);
                 col += cMat * lightSky(vNorm);  
-                col *= lightAOcc(ray_data);
+                col *= lightAO(vPos, vNorm);
 
                 //brighten up
                 col = pow(col, 0.5);
-
                 return float4(col, 1);
             }
             ENDCG

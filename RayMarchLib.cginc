@@ -91,22 +91,21 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     return data; 
 }
 
-float3 getNormal(float3 p, float fEpsilon = 0.001)
+float3 getNormal(float3 vPos, float fEpsilon = 0.001)
 {
-    //if epilon is smaller than 0.001, there are artifacts
+    //if epilon is smaller than 0.001, there are often artifacts
     float2 e = float2(fEpsilon, 0);
-    float3 n = scene(p).dist - float3(
-            scene(p-e.xyy).dist,
-            scene(p-e.yxy).dist,
-            scene(p-e.yyx).dist);
+    float3 n = scene(vPos).dist - float3(
+            scene(vPos - e.xyy).dist,
+            scene(vPos - e.yxy).dist,
+            scene(vPos - e.yyx).dist);
     return normalize(n);
 }
 
-float3 lightSun(float3 vHitPos, float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
+float3 lightSun(float3 vPos, float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
 {
     float fSunLight = clamp(dot(vNorm, vSunDir), 0, 1);
-    fSunLight *= step(castRay(vHitPos + vNorm * 0.001, vSunDir).dist, 0.0);
-    
+    fSunLight *= step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
     return fSunLight * cSunCol;
 }
 
@@ -115,10 +114,23 @@ float3 lightSky(float3 vNorm, float3 cSkyCol = float3(0.5, 0.8, 0.9))
     return cSkyCol * clamp(0.5 + 0.5 * dot(vNorm, float3(0, 1, 0)), 0, 1);
 }
 
-//bad ambient abblusion
-float3 lightAOcc(rayData ray_data, float fDarkenFactor = 2)
+//bad ambient occlusion (screen space)
+float3 lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 {
     return pow(1 - float(ray_data.iSteps) / _MaxSteps, fDarkenFactor);
+}
+
+float3 lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
+{
+    float ao = 0;
+    for (int i = 0; i < 5; i++)
+    {
+        float fOffset = i * fEpsilon;
+        float fDist = scene(vPos + vNorm * fOffset).dist;
+        ao += 1/pow(2, i) * (fOffset - fDist);
+    }
+    ao = 1 - 5 * ao;
+    return ao;
 }
 
 //soft min of a and b with smoothing factor k
@@ -209,11 +221,11 @@ sdfData sdfPlane(float3 p, float fHeight, float3 col = DEFCOL)
     return sdf;
 }
 
-sdfData sdfPlane(float3 p, float3 vNormal, float fHeight, float3 col = DEFCOL)
+sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
 {
     sdfData sdf;
     sdf.col = col;
-    sdf.dist = dot(p, normalize(vNormal)) - fHeight;
+    sdf.dist = dot(p, normalize(vNorm)) - fHeight;
     return sdf;
 }
 
