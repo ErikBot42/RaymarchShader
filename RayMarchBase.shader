@@ -26,7 +26,7 @@
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "UnityCG.cginc"
+            #define USE_WORLD_SPACE
             #include "RayMarchLib.cginc"
             
             bool _UseSky;

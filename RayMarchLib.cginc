@@ -16,7 +16,6 @@
 
 #define DEFCOL float3(0.2, 0.2, 0.2)
 
-bool _UseObjectSpace;
 int _MaxSteps = 100;
 float _MaxDist = 100;
 float _SurfDist = 0.00001;
@@ -54,18 +53,16 @@ v2f vert (appdata v)
 {
     v2f o;
     o.vertex = UnityObjectToClipPos(v.vertex);
-    if (_UseObjectSpace)
-    {//object space
-        o.vCamPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
-        o.vHitPos = v.vertex;
-    }
-    else
-    {//world space
-        o.vCamPos = _WorldSpaceCameraPos;
-        o.vHitPos = mul(unity_ObjectToWorld, v.vertex);
-    }
+    #ifdef USE_WORLD_SPACE
+    o.vCamPos = _WorldSpaceCameraPos;
+    o.vHitPos = mul(unity_ObjectToWorld, v.vertex);
+    #else
+    o.vCamPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
+    o.vHitPos = v.vertex;
+    #endif
     return o;
 }
+
 
 //marches a ray through the scene
 rayData castRay(float3 vRayStart, float3 vRayDir)
