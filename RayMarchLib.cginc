@@ -241,7 +241,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
-//round edges of an SDFs
+//round edges of an SDF
 sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
 {
     sdfData sdfOut = sdfIn;
@@ -277,10 +277,10 @@ sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL) {
+sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL, float fRound = 0) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
-    sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+    sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
     sdf.col = col;
     return sdf;
 }
@@ -295,10 +295,10 @@ sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, float3 col 
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL, float fRound = 0) {
     sdfData sdf;
     sdf.col = col;
-    sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius);
+    sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
     return sdf;
 }
 
@@ -309,6 +309,16 @@ sdfData sdfTorus(float3 p, float fRadius, float fThickness, float3 col = DEFCOL)
     float2 q = float2(length(p.xz) - fRadius, p.y);
     sdf.dist = length(q) - fThickness;
     return sdf;
+}
+
+//triangular prism (BOUND)
+sdfData sdfTriPrism(float3 p, float fSide, float fDepth, float3 col = DEFCOL)
+{
+  float3 q = abs(p);
+  sdfData sdf;
+  sdf.col = col;
+  sdf.dist = max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
+  return sdf;
 }
 
 //rotate point p around origin, a radians
@@ -327,6 +337,13 @@ float3 rotZ(float3 p, float a) {
 }
 
 //repeats space every r units, centered on the origin
-inline float3 repDomain(float3 p, float3 r) {
+inline float3 repXYZ(float3 p, float3 r) {
     return fmod(abs(p + r/2.0), r) - r/2.0;
+}
+
+//repeats space every r units, centered on the origin
+inline float3 repXZ(float3 p, float3 r) {
+    float3 o = fmod(abs(p + r/2.0), r) - r/2.0;
+    o.y = p.y;
+    return o;
 }
