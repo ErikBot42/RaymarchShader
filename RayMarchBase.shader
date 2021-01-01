@@ -53,12 +53,8 @@
                 
                 if (ray_data.dist < 0)
                 {
-                    if (_UseSky)
-                    {
-                        float4 cRenderedSun = max(0, pow(dot(vRayDir, vSunDir) + 0.4, 10)-28)*float4(.8,.4,0,1);
-                        return _SkyColor - abs(vRayDir.y) * 0.5 + cRenderedSun;
-                    }
-                    discard;
+                    return skyBox(vRayDir, vSunDir);
+                    //discard;
                 }
 
                 //calculate hit point
@@ -77,6 +73,7 @@
                 //brighten up
                 col = pow(col, 0.5);
 
+                //col = lightAO(vPos, vNorm);
                 //col = lightOnly(vPos, vNorm, vSunDir);
                 return float4(col, 1);
             }

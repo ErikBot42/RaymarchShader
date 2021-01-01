@@ -91,6 +91,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     return data; 
 }
 
+//gets normal of a point
 float3 getNormal(float3 vPos, float fEpsilon = 0.001)
 {
     //if epilon is smaller than 0.001, there are often artifacts
@@ -102,17 +103,21 @@ float3 getNormal(float3 vPos, float fEpsilon = 0.001)
     return normalize(n);
 }
 
+//generates a skybox, use when ray didn't hit anything (ray_data.dist < 0)
+inline float4 skyBox(float3 vRayDir, float3 vSunDir, float3 cSkyColor = float3(0.7, 0.75, 0.8))
+{
+    float4 cRenderedSun = max(0, pow(dot(vRayDir, vSunDir) + 0.4, 10)-28) * float4(.8,.4,0,1);
+    return float4(cSkyColor, 1) - abs(vRayDir.y) * 0.5 + cRenderedSun;
+}
+
+//calculate sun light based on normal
 float3 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
 {
     float fSunLight = clamp(dot(vNorm, vSunDir), 0, 1);
     return fSunLight * cSunCol;
 }
 
-float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
-{
-    return step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
-}
-
+//calculate shadow from sun
 float lightShadow(float3 vPos, float3 vSunDir, float fSharpness=8)
 {
     float fShadow = 1;
@@ -126,6 +131,13 @@ float lightShadow(float3 vPos, float3 vSunDir, float fSharpness=8)
     return fShadow;
 }
 
+//cheaper shadow with hard edges
+float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
+{
+    return step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
+}
+
+//calculate sky light
 float3 lightSky(float3 vNorm, float3 cSkyCol = float3(0.5, 0.8, 0.9))
 {
     return cSkyCol * clamp(0.5 + 0.5 * dot(vNorm, float3(0, 1, 0)), 0, 1);
@@ -137,6 +149,7 @@ float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
     return pow(1 - float(ray_data.iSteps) / _MaxSteps, fDarkenFactor);
 }
 
+//ambient occlusion
 float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
 {
     float ao = 0;
@@ -150,6 +163,7 @@ float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
     return ao;
 }
 
+//a light pass for debugging
 float3 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 {
     float fLight = lightSun(vNorm, vSunDir, 1);
@@ -159,22 +173,24 @@ float3 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 }
 
 //soft min of a and b with smoothing factor k
-float smin(float a, float b, float k) {
+inline float smin(float a, float b, float k) {
     float h = max(k - abs(a-b), 0) / k;
     return min(a, b) - h*h*h*k * 1/6.0;
 }
 
 //soft max of a and b with smoothing factor k 
-float smax(float a, float b, float k) {
+inline float smax(float a, float b, float k) {
     float h = max(k - abs(a - b), 0) / k;
     return max(a, b) + h*h*h*k * 1/6.0;
 }
 
-float3 mixCol(sdfData sdfA, sdfData sdfB)
+//interpolate between the colours of 2 SDFs
+inline float3 mixCol(sdfData sdfA, sdfData sdfB)
 {
     return lerp(sdfA.col, sdfB.col, clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1));
 }
 
+//union of SDF A and B
 sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
@@ -183,6 +199,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
     return sC;
 }
 
+//union of SDF A and B, with smoothing
 sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
@@ -191,6 +208,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
+//remove the SDF B from A (colour is from A)
 sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
@@ -199,6 +217,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
     return sC;
 }
 
+//remove the SDF B from A (colour is from A), with smoothing
 sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
@@ -207,6 +226,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
+//get intersection of 2 SDFs
 sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
@@ -215,6 +235,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
     return sC;
 }
 
+//get intersection of 2 SDFs, with smoothing
 sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
@@ -223,6 +244,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
+//round edges of an SDFs
 sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
 {
     sdfData sdfOut = sdfIn;
@@ -230,6 +252,7 @@ sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
     return sdfOut;
 }
 
+//create sphere
 sdfData sdfSphere(float3 p, float fRadius, float3 col = DEFCOL)
 {
     sdfData sdf;
@@ -238,6 +261,7 @@ sdfData sdfSphere(float3 p, float fRadius, float3 col = DEFCOL)
     return sdf;
 }
 
+//create plane pointing to positive Y
 sdfData sdfPlane(float3 p, float fHeight, float3 col = DEFCOL)
 {
     sdfData sdf;
@@ -246,6 +270,7 @@ sdfData sdfPlane(float3 p, float fHeight, float3 col = DEFCOL)
     return sdf;
 }
 
+//create plane with normal
 sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
 {
     sdfData sdf;
@@ -254,6 +279,7 @@ sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
     return sdf;
 }
 
+//create cuboid
 sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
@@ -262,6 +288,7 @@ sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL) {
     return sdf;
 }
 
+//create line segment
 sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, float3 col = DEFCOL) {
     sdfData sdf;
     sdf.col = col;
@@ -270,6 +297,7 @@ sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, float3 col 
     return sdf;
 }
 
+//create cylinder
 sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL) {
     sdfData sdf;
     sdf.col = col;
@@ -277,6 +305,7 @@ sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL)
     return sdf;
 }
 
+//create torus
 sdfData sdfTorus(float3 p, float fRadius, float fThickness, float3 col = DEFCOL) {
     sdfData sdf;
     sdf.col = col;
@@ -285,19 +314,22 @@ sdfData sdfTorus(float3 p, float fRadius, float fThickness, float3 col = DEFCOL)
     return sdf;
 }
 
+//rotate point p around origin, a radians
 float3 rotX(float3 p, float a) {
     return mul(float3x3(1, 0, 0, 0, cos(a), -sin(a), 0, sin(a), cos(a)), p);
 }
 
+//rotate point p around origin, a radians
 float3 rotY(float3 p, float a) {
     return mul(float3x3(cos(a), 0, sin(a), 0, 1, 0, -sin(a), 0, cos(a)), p);
 }
 
+//rotate point p around origin, a radians
 float3 rotZ(float3 p, float a) {
     return mul(float3x3(cos(a), -sin(a), 0, sin(a), cos(a), 0, 0, 0, 1), p);
 }
 
 //repeats space every r units, centered on the origin
-float3 repDomain(float3 p, float3 r) {
+inline float3 repDomain(float3 p, float3 r) {
     return fmod(abs(p + r/2.0), r) - r/2.0;
 }
