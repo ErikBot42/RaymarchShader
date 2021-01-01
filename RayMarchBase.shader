@@ -2,16 +2,13 @@
 {
     Properties
     {
+        [Header(Lighting)]
+        _SunPos ("Sun position", Vector) = (8, 4, 2)
+
         [Header(Raymarcher Properties)]
         _MaxSteps ("Max steps", Int) = 256
         _MaxDist ("Max distance", Float) = 256
         _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
-        [Toggle] _UseObjectSpace ("Use Object Space", Float) = 0
-        
-        [Header(Lighting)]
-        [Toggle] _UseSky ("Use sky as background", Float) = 0
-        _SunPos ("Sun position", Vector) = (8, 4, 2)
-        _SkyColor ("Sky color", color) = (0.7, 0.75, 0.8, 1)
         
     }
     SubShader
@@ -29,8 +26,6 @@
             #define USE_WORLD_SPACE
             #include "RayMarchLib.cginc"
             
-            bool _UseSky;
-            float4 _SkyColor;
             float3 _SunPos;
 
             sdfData scene(float3 p)
@@ -73,9 +68,7 @@
                 //brighten up
                 col = pow(col, 0.5);
 
-                //col = lightAO(vPos, vNorm);
-                //col = lightOnly(vPos, vNorm, vSunDir);
-                return float4(col, 1);
+                return fixed4(col, 1);
             }
             ENDCG
         }
