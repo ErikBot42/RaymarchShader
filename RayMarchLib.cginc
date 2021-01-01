@@ -102,11 +102,28 @@ float3 getNormal(float3 vPos, float fEpsilon = 0.001)
     return normalize(n);
 }
 
-float3 lightSun(float3 vPos, float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
+float3 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
 {
     float fSunLight = clamp(dot(vNorm, vSunDir), 0, 1);
-    fSunLight *= step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
     return fSunLight * cSunCol;
+}
+
+float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
+{
+    return step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
+}
+
+float lightShadow(float3 vPos, float3 vSunDir, float fSharpness=8)
+{
+    float fShadow = 1;
+    for (float fRayLen = 0.001; fRayLen < _MaxDist;)
+    {
+        float dist = scene(vPos + vSunDir * fRayLen).dist;
+        if (dist < _SurfDist) return 0;
+        fShadow = min(fShadow, fSharpness * dist/fRayLen);
+        fRayLen += dist;
+    }
+    return fShadow;
 }
 
 float3 lightSky(float3 vNorm, float3 cSkyCol = float3(0.5, 0.8, 0.9))
@@ -115,12 +132,12 @@ float3 lightSky(float3 vNorm, float3 cSkyCol = float3(0.5, 0.8, 0.9))
 }
 
 //bad ambient occlusion (screen space)
-float3 lightSSAO(rayData ray_data, float fDarkenFactor = 2)
+float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 {
     return pow(1 - float(ray_data.iSteps) / _MaxSteps, fDarkenFactor);
 }
 
-float3 lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
+float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
 {
     float ao = 0;
     for (int i = 0; i < 5; i++)
@@ -133,6 +150,14 @@ float3 lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
     return ao;
 }
 
+float3 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
+{
+    float fLight = lightSun(vNorm, vSunDir, 1);
+    float fAO = lightAO(vPos, vNorm);
+    float fShadow = lightShadow(vPos, vSunDir);
+    return fLight * fShadow * fAO;
+}
+
 //soft min of a and b with smoothing factor k
 float smin(float a, float b, float k) {
     float h = max(k - abs(a-b), 0) / k;
@@ -141,7 +166,7 @@ float smin(float a, float b, float k) {
 
 //soft max of a and b with smoothing factor k 
 float smax(float a, float b, float k) {
-    float h = max(k - abs(a-b), 0) / k;
+    float h = max(k - abs(a - b), 0) / k;
     return max(a, b) + h*h*h*k * 1/6.0;
 }
 

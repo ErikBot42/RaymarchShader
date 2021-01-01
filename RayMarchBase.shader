@@ -70,12 +70,14 @@
                 fixed3 col = 0;
                 float3 cMat = ray_data.col;
 
-                col = cMat * lightSun(vPos, vNorm, vSunDir);
+                col = cMat * lightSun(vNorm, vSunDir) * lightShadow(vPos, vSunDir);
                 col += cMat * lightSky(vNorm);  
                 col *= lightAO(vPos, vNorm);
 
                 //brighten up
                 col = pow(col, 0.5);
+
+                //col = lightOnly(vPos, vNorm, vSunDir);
                 return float4(col, 1);
             }
             ENDCG
