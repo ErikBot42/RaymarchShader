@@ -32,7 +32,7 @@
             {
                 sdfData o;
                 o = sdfPlane(p, -.5, C_GREEN * 0.15);
-                o = sdfInter(p, o, sdfSphere(p, 9, float3(0.18, 0.05, 0.02)), 0.5);
+                o = sdfInter(p, o, sdfSphere(p, 9, col(0.18, 0.05, 0.02)), 0.5);
                 o = sdfAdd(p, o, sdfSphere(p, 2), 0.3);
                 o = sdfAdd(p, o, sdfTorus(p, 5,0.5), 0.2);
                 return o;
@@ -58,8 +58,8 @@
                 float3 vNorm = getNormal(vPos);
 
                 //colour init
-                fixed3 col = 0;
-                float3 cMat = ray_data.col;
+                fixed4 col = 0;
+                fixed4 cMat = ray_data.col;
 
                 col = cMat * lightSun(vNorm, vSunDir) * lightShadow(vPos, vSunDir);
                 col += cMat * lightSky(vNorm);  
@@ -68,7 +68,7 @@
                 //brighten up
                 col = pow(col, 0.5);
 
-                return fixed4(col, 1);
+                return col;
             }
             ENDCG
         }

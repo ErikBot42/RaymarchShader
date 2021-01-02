@@ -8,13 +8,13 @@
 #define V_Z float3(0, 0, 1)
 #define V_XZ float3(1, 0, 1)
 
-#define C_RED float3(1,0.001,0.001)
-#define C_GREEN float3(0.001, 1, 0.001)
-#define C_BLUE float3(0.001, 0.001, 1)
-#define C_WHITE float3(1, 1, 1)
-#define C_GRAY float3(0.2, 0.2, 0.2)
+#define C_RED   fixed4(1,0.001,0.001, 1)
+#define C_GREEN fixed4(0.001, 1, 0.001, 1)
+#define C_BLUE  fixed4(0.001, 0.001, 1, 1)
+#define C_WHITE fixed4(1, 1, 1, 1)
+#define C_GRAY  fixed4(0.2, 0.2, 0.2, 1)
 
-#define DEFCOL float3(0.2, 0.2, 0.2)
+#define DEFCOL fixed4(0.2, 0.2, 0.2, 1)
 
 int _MaxSteps = 100;
 float _MaxDist = 100;
@@ -37,14 +37,14 @@ struct rayData
 {
     float dist;
     int iSteps;
-    float3 col;
+    fixed4 col;
 };
 
 //returned from distance functions, including main scene
 struct sdfData
 {
     float dist;
-    float3 col;
+    fixed4 col;
 };
 
 sdfData scene(float3 p);
@@ -75,7 +75,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
         float3 vPos = vRayStart + fRayLen * vRayDir;
         sdf_data = scene(vPos);
 
-        if (sdf_data.dist < _SurfDist) break;
+        if (abs(sdf_data.dist) < _SurfDist) break;
         fRayLen += sdf_data.dist;// move forward
         if (fRayLen > _MaxDist) break;
     }
@@ -88,10 +88,20 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     return data; 
 }
 
-//gets normal of a point
-float3 getNormal(float3 vPos, float fEpsilon = 0.001)
+inline fixed4 col(float r = 0, float g = 0, float b = 0, float a = 1)
 {
-    //if epilon is smaller than 0.001, there are often artifacts
+    return fixed4(r, g, b, a);
+}
+
+inline fixed4 col(float3 rgb, float a = 1)
+{
+    return fixed4(rgb, a);
+}
+
+//gets normal of a point
+float3 getNormal(float3 vPos, float fEpsilon = 0.0001)
+{
+    ////if epilon is smaller than 0.001, there are often artifacts
     float2 e = float2(fEpsilon, 0);
     float3 n = scene(vPos).dist - float3(
             scene(vPos - e.xyy).dist,
@@ -100,15 +110,24 @@ float3 getNormal(float3 vPos, float fEpsilon = 0.001)
     return normalize(n);
 }
 
+//more expensive and accurate
+float3 getNormalAcc(float3 vPos, float fEpsilon = 0.001)
+{
+    float2 e = float2(fEpsilon, 0);
+    return normalize(float3(scene(vPos + e.xyy).dist - scene(vPos - e.xyy).dist, 
+            scene(vPos + e.yxy).dist - scene(vPos - e.yxy).dist,
+            scene(vPos + e.yyx).dist - scene(vPos - e.yyx).dist));
+}
+
 //generates a skybox, use when ray didn't hit anything (ray_data.dist < 0)
-inline float4 skyBox(float3 vRayDir, float3 vSunDir, float3 cSkyColor = float3(0.7, 0.75, 0.8))
+inline float4 skyBox(float3 vRayDir, float3 vSunDir, fixed4 cSkyColor = fixed4(0.7, 0.75, 0.8, 1))
 {
     float4 cRenderedSun = max(0, pow(dot(vRayDir, vSunDir) + 0.4, 10)-28) * float4(.8,.4,0,1);
-    return float4(cSkyColor, 1) - abs(vRayDir.y) * 0.5 + cRenderedSun;
+    return cSkyColor - abs(vRayDir.y) * 0.5 + cRenderedSun;
 }
 
 //calculate sun light based on normal
-float3 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), float3 cSunCol = float3(7.0, 5.5, 3.0))
+fixed4 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), fixed4 cSunCol = fixed4(7.0, 5.5, 3.0, 1))
 {
     float fSunLight = clamp(dot(vNorm, vSunDir), 0, 1);
     return fSunLight * cSunCol;
@@ -135,7 +154,7 @@ float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
 }
 
 //calculate sky light
-float3 lightSky(float3 vNorm, float3 cSkyCol = float3(0.5, 0.8, 0.9))
+fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 {
     return cSkyCol * clamp(0.5 + 0.5 * dot(vNorm, float3(0, 1, 0)), 0, 1);
 }
@@ -182,7 +201,7 @@ inline float smax(float a, float b, float k) {
 }
 
 //interpolate between the colours of 2 SDFs
-inline float3 mixCol(sdfData sdfA, sdfData sdfB)
+inline fixed4 mixCol(sdfData sdfA, sdfData sdfB)
 {
     return lerp(sdfA.col, sdfB.col, clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1));
 }
@@ -250,7 +269,7 @@ sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
 }
 
 //create sphere
-sdfData sdfSphere(float3 p, float fRadius, float3 col = DEFCOL)
+sdfData sdfSphere(float3 p, float fRadius, fixed4 col = DEFCOL)
 {
     sdfData sdf;
     sdf.dist = length(p) - fRadius;
@@ -259,7 +278,7 @@ sdfData sdfSphere(float3 p, float fRadius, float3 col = DEFCOL)
 }
 
 //create plane pointing to positive Y
-sdfData sdfPlane(float3 p, float fHeight, float3 col = DEFCOL)
+sdfData sdfPlane(float3 p, float fHeight, fixed4 col = DEFCOL)
 {
     sdfData sdf;
     sdf.col = col;
@@ -268,7 +287,7 @@ sdfData sdfPlane(float3 p, float fHeight, float3 col = DEFCOL)
 }
 
 //create plane with normal
-sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
+sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, fixed4 col = DEFCOL)
 {
     sdfData sdf;
     sdf.col = col;
@@ -277,7 +296,7 @@ sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, float3 col = DEFCOL)
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL, float fRound = 0) {
+sdfData sdfBox(float3 p, float3 vDim, fixed4 col = DEFCOL, float fRound = 0) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
@@ -286,7 +305,7 @@ sdfData sdfBox(float3 p, float3 vDim, float3 col = DEFCOL, float fRound = 0) {
 }
 
 //create line segment
-sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, float3 col = DEFCOL) {
+sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, fixed4 col = DEFCOL) {
     sdfData sdf;
     sdf.col = col;
     float h = min(1, max(0, dot(p-vStart, vEnd-vStart) / dot(vEnd-vStart, vEnd-vStart)));
@@ -295,7 +314,7 @@ sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, float3 col 
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL, float fRound = 0) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, fixed4 col = DEFCOL, float fRound = 0) {
     sdfData sdf;
     sdf.col = col;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
@@ -303,7 +322,7 @@ sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float3 col = DEFCOL,
 }
 
 //create torus
-sdfData sdfTorus(float3 p, float fRadius, float fThickness, float3 col = DEFCOL) {
+sdfData sdfTorus(float3 p, float fRadius, float fThickness, fixed4 col = DEFCOL) {
     sdfData sdf;
     sdf.col = col;
     float2 q = float2(length(p.xz) - fRadius, p.y);
@@ -312,7 +331,7 @@ sdfData sdfTorus(float3 p, float fRadius, float fThickness, float3 col = DEFCOL)
 }
 
 //triangular prism (BOUND)
-sdfData sdfTriPrism(float3 p, float fSide, float fDepth, float3 col = DEFCOL)
+sdfData sdfTriPrism(float3 p, float fSide, float fDepth, fixed4 col = DEFCOL)
 {
   float3 q = abs(p);
   sdfData sdf;
