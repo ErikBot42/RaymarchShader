@@ -1,4 +1,3 @@
-
 //double include guard
 #ifndef RAY_MARCH_LIB_INCLUDED
 #define RAY_MARCH_LIB_INCLUDED
@@ -26,16 +25,9 @@
 #define AO_STEPS 5
 #endif
 
-
-#ifdef MAX_STEPS
-#define MAX_STEPS 100
-#endif
-#ifndef MAX_DIST
-#define MAX_DIST 100
-#endif
-#ifndef SURF_DIST
-#define SURF_DIST 0.0001
-#endif
+// to render nothing on the inside of objects (sky/transparent)
+// use    #define ABS_DISTANCE
+// this removes some artifacts when rendering distorted SDFs
 
 #ifdef DYNAMIC_QUALITY//quality settings as material properties
 int _MaxSteps = 100;
@@ -113,9 +105,17 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
         sdf_data = scene(vPos);
 
         #ifdef DYNAMIC_QUALITY
+            #ifdef ABS_DISTANCE
         if (abs(sdf_data.dist) < _SurfDist) break;
+            #else
+        if (sdf_data.dist < _SurfDist) break;
+            #endif
         #else
+            #ifdef ABS_DISTANCE
         if (abs(sdf_data.dist) < SURF_DIST) break;
+            #else
+        if (sdf_data.dist < SURF_DIST) break;
+            #endif
         #endif
 
         fRayLen += sdf_data.dist;// move forward
