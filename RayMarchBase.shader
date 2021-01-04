@@ -24,6 +24,7 @@
             #pragma fragment frag
 
             #define USE_WORLD_SPACE
+            #define DYNAMIC_QUALITY
             #include "RayMarchLib.cginc"
             
             float3 _SunPos;

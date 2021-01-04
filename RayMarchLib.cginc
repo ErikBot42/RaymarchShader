@@ -1,6 +1,11 @@
+
+//double include guard
+#ifndef RAY_MARCH_LIB_INCLUDED
+#define RAY_MARCH_LIB_INCLUDED
+
 #include "UnityCG.cginc"
 
-#define PI 3.14159265
+#define PI UNITY_PI
 
 #define V_UP float3(0, 1, 0)
 #define V_X float3(1, 0, 0)
@@ -16,9 +21,37 @@
 
 #define DEFCOL fixed4(0.2, 0.2, 0.2, 1)
 
+//ambient occlusion quality
+#ifndef AO_STEPS
+#define AO_STEPS 5
+#endif
+
+
+#ifdef MAX_STEPS
+#define MAX_STEPS 100
+#endif
+#ifndef MAX_DIST
+#define MAX_DIST 100
+#endif
+#ifndef SURF_DIST
+#define SURF_DIST 0.0001
+#endif
+
+#ifdef DYNAMIC_QUALITY//quality settings as material properties
 int _MaxSteps = 100;
 float _MaxDist = 100;
 float _SurfDist = 0.00001;
+#else//precompile quality settings
+#   ifndef MAX_STEPS
+#   define MAX_STEPS 256
+#   endif
+#   ifndef MAX_DIST
+#   define MAX_DIST 128
+#   endif
+#   ifndef SURF_DIST
+#   define SURF_DIST 0.00001
+#   endif
+#endif
 
 struct appdata
 {
@@ -70,16 +103,29 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     float fRayLen = 0;// total distance marched / distance from camera
     sdfData sdf_data; // distance+color from the raymarched scene
 
+    #ifdef DYNAMIC_QUALITY
     for (int i = 0; i < _MaxSteps; i++)
+    #else
+    for (int i = 0; i < MAX_STEPS; i++)
+    #endif
     {
         float3 vPos = vRayStart + fRayLen * vRayDir;
         sdf_data = scene(vPos);
 
+        #ifdef DYNAMIC_QUALITY
         if (abs(sdf_data.dist) < _SurfDist) break;
+        #else
+        if (abs(sdf_data.dist) < SURF_DIST) break;
+        #endif
+
         fRayLen += sdf_data.dist;// move forward
-        if (fRayLen > _MaxDist) break;
+        
+        #ifdef DYNAMIC_QUALITY
+        if (fRayLen > _MaxDist) {fRayLen = -1; break;}//flag this as transparent/sky
+        #else
+        if (fRayLen > MAX_DIST) {fRayLen = -1; break;}//flag this as transparent/sky
+        #endif
     }
-    if (fRayLen > _MaxDist) fRayLen = -1;//flag this as transparent/sky
 
     rayData data;
     data.dist = fRayLen;
@@ -99,7 +145,7 @@ inline fixed4 col(float3 rgb, float a = 1)
 }
 
 //gets normal of a point
-float3 getNormal(float3 vPos, float fEpsilon = 0.0001)
+float3 getNormal(float3 vPos, float fEpsilon = 0.001)
 {
     ////if epilon is smaller than 0.001, there are often artifacts
     float2 e = float2(fEpsilon, 0);
@@ -129,18 +175,28 @@ inline float4 skyBox(float3 vRayDir, float3 vSunDir, fixed4 cSkyColor = fixed4(0
 //calculate sun light based on normal
 fixed4 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), fixed4 cSunCol = fixed4(7.0, 5.5, 3.0, 1))
 {
-    float fSunLight = clamp(dot(vNorm, vSunDir), 0, 1);
+    float fSunLight = max(dot(vNorm, vSunDir), 0);
     return fSunLight * cSunCol;
 }
 
 //calculate shadow from sun
-float lightShadow(float3 vPos, float3 vSunDir, float fSharpness=8)
+float lightShadow(float3 vPos, float3 vSunDir, float fSharpness = 8)
 {
     float fShadow = 1;
-    for (float fRayLen = 0.001; fRayLen < _MaxDist;)
+    #ifdef DYNAMIC_QUALITY
+    for (float fRayLen = 0.001; fRayLen < _MaxDist/2.0;)
+    #else
+    for (float fRayLen = 0.001; fRayLen < MAX_DIST/2.0;)
+    #endif
     {
         float dist = scene(vPos + vSunDir * fRayLen).dist;
+
+        #ifdef DYNAMIC_QUALITY
         if (dist < _SurfDist) return 0;
+        #else
+        if (dist < SURF_DIST) return 0;
+        #endif
+
         fShadow = min(fShadow, fSharpness * dist/fRayLen);
         fRayLen += dist;
     }
@@ -154,28 +210,32 @@ float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
 }
 
 //calculate sky light
-fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
+inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 {
-    return cSkyCol * clamp(0.5 + 0.5 * dot(vNorm, float3(0, 1, 0)), 0, 1);
+    return cSkyCol * (0.5 + 0.5 * vNorm.y);
 }
 
-//bad ambient occlusion (screen space)
+//bad ambient occlusion (screen space) based on steps
 float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 {
+    #ifdef DYNAMIC_QUALITY
     return pow(1 - float(ray_data.iSteps) / _MaxSteps, fDarkenFactor);
+    #else
+    return pow(1 - float(ray_data.iSteps) / MAX_STEPS, fDarkenFactor);
+    #endif
 }
 
 //ambient occlusion
 float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
 {
     float ao = 0;
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < AO_STEPS; i++)
     {
         float fOffset = i * fEpsilon;
         float fDist = scene(vPos + vNorm * fOffset).dist;
         ao += 1/pow(2, i) * (fOffset - fDist);
     }
-    ao = 1 - 5 * ao;
+    ao = 1 - AO_STEPS * ao;
     return ao;
 }
 
@@ -361,8 +421,13 @@ inline float3 repXYZ(float3 p, float3 r) {
 }
 
 //repeats space every r units, centered on the origin
-inline float3 repXZ(float3 p, float3 r) {
-    float3 o = fmod(abs(p + r/2.0), r) - r/2.0;
-    o.y = p.y;
+inline float3 repXZ(float3 p, float x, float z) {
+    float3 o = p;
+    o.x = fmod(abs(p.x) + x/2.0, x) - x/2.0;
+    o.x *= sign(p.x);
+    o.z = fmod(abs(p.z) + z/2.0, z) - z/2.0;
+    o.z *= sign(p.z);
     return o;
 }
+
+#endif //RAY_MARCH_LIB_INCLUDED
