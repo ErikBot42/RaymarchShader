@@ -45,6 +45,9 @@ float _SurfDist = 0.00001;
 #   endif
 #endif
 
+
+#define col(r, g, b) fixed4(r, g, b, 1)
+
 struct appdata
 {
     float4 vertex : POSITION;
@@ -134,15 +137,6 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     return data; 
 }
 
-inline fixed4 col(float r = 0, float g = 0, float b = 0, float a = 1)
-{
-    return fixed4(r, g, b, a);
-}
-
-inline fixed4 col(float3 rgb, float a = 1)
-{
-    return fixed4(rgb, a);
-}
 
 //gets normal of a point
 float3 getNormal(float3 vPos, float fEpsilon = 0.001)

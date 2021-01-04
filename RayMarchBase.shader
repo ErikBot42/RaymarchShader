@@ -1,4 +1,4 @@
-﻿Shader "Custom/RaymarchBase2"
+﻿Shader "Custom/RaymarchBase"
 {
     Properties
     {
@@ -34,7 +34,9 @@
                 sdfData o;
                 o = sdfPlane(p, -.5, C_GREEN * 0.15);
                 o = sdfInter(p, o, sdfSphere(p, 9, col(0.18, 0.05, 0.02)), 0.5);
-                o = sdfAdd(p, o, sdfSphere(p, 2), 0.3);
+
+                const fixed4 cBlue = col(0.05, 0.1, 0.2);
+                o = sdfAdd(p, o, sdfSphere(p, 2, cBlue), 0.3);
                 o = sdfAdd(p, o, sdfTorus(p, 5,0.5), 0.2);
                 return o;
             }
