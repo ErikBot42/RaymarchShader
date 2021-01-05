@@ -67,7 +67,7 @@ struct rayData
     int iSteps;
     fixed4 col;
     float3 vPos;
-    float3 vNorm;
+    fixed3 vNorm;
 };
 
 //returned from distance functions, including main scene
@@ -228,13 +228,19 @@ float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
     return ao;
 }
 
+inline fixed4 lightFog(fixed4 col, fixed4 cFog, float fDist, float fStart=16, float fFull=32)
+{
+    if (fDist < 0) return cFog;
+    return lerp(col, cFog, smoothstep(fStart, fFull, fDist));
+}
+
 //a light pass for debugging
-float3 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
+fixed4 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 {
     float fLight = lightSun(vNorm, vSunDir, 1);
     float fAO = lightAO(vPos, vNorm);
     float fShadow = lightShadow(vPos, vSunDir);
-    return fLight * fShadow * fAO;
+    return fLight * fAO * fShadow;
 }
 
 //soft min of a and b with smoothing factor k
