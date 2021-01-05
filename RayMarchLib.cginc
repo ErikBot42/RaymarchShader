@@ -66,6 +66,8 @@ struct rayData
     float dist;
     int iSteps;
     fixed4 col;
+    float3 vPos;
+    float3 vNorm;
 };
 
 //returned from distance functions, including main scene
@@ -92,11 +94,24 @@ v2f vert (appdata v)
 }
 
 
+//gets normal of a point
+float3 getNormal(float3 vPos, float fEpsilon = 0.001)
+{
+    ////if epilon is smaller than 0.001, there are often artifacts
+    const float2 e = float2(fEpsilon, 0);
+    float3 n = scene(vPos).dist - float3(
+            scene(vPos - e.xyy).dist,
+            scene(vPos - e.yxy).dist,
+            scene(vPos - e.yyx).dist);
+    return normalize(n);
+}
+
 //marches a ray through the scene
-rayData castRay(float3 vRayStart, float3 vRayDir)
+rayData castRay(float3 vRayStart, float3 vRayDir, float fNormSmooth = 0.001)
 {
     float fRayLen = 0;// total distance marched / distance from camera
     sdfData sdf_data; // distance+color from the raymarched scene
+    float3 vPos;
 
     #ifdef DYNAMIC_QUALITY
     for (int i = 0; i < _MaxSteps; i++)
@@ -104,7 +119,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     for (int i = 0; i < MAX_STEPS; i++)
     #endif
     {
-        float3 vPos = vRayStart + fRayLen * vRayDir;
+        vPos = vRayStart + fRayLen * vRayDir;
         sdf_data = scene(vPos);
 
         #ifdef DYNAMIC_QUALITY
@@ -134,29 +149,9 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     data.dist = fRayLen;
     data.iSteps = i;
     data.col = sdf_data.col;
+    data.vPos = vPos;
+    data.vNorm = getNormal(vPos, fNormSmooth);
     return data; 
-}
-
-
-//gets normal of a point
-float3 getNormal(float3 vPos, float fEpsilon = 0.001)
-{
-    ////if epilon is smaller than 0.001, there are often artifacts
-    float2 e = float2(fEpsilon, 0);
-    float3 n = scene(vPos).dist - float3(
-            scene(vPos - e.xyy).dist,
-            scene(vPos - e.yxy).dist,
-            scene(vPos - e.yyx).dist);
-    return normalize(n);
-}
-
-//more expensive and accurate
-float3 getNormalAcc(float3 vPos, float fEpsilon = 0.001)
-{
-    float2 e = float2(fEpsilon, 0);
-    return normalize(float3(scene(vPos + e.xyy).dist - scene(vPos - e.xyy).dist, 
-            scene(vPos + e.yxy).dist - scene(vPos - e.yxy).dist,
-            scene(vPos + e.yyx).dist - scene(vPos - e.yyx).dist));
 }
 
 //generates a skybox, use when ray didn't hit anything (ray_data.dist < 0)
@@ -246,6 +241,13 @@ float3 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 inline float smin(float a, float b, float k) {
     float h = max(k - abs(a-b), 0) / k;
     return min(a, b) - h*h*h*k * 1/6.0;
+}
+
+//reflection ray
+inline rayData reflection(float3 vPos, float3 vNorm, float3 vRayDir, float fSmooth = 0.01)
+{
+    float3 vRefDir = reflect(vRayDir, vNorm);
+    return castRay(vPos + vNorm*0.001, vRefDir, fSmooth);
 }
 
 //soft max of a and b with smoothing factor k 
@@ -411,7 +413,10 @@ float3 rotZ(float3 p, float a) {
 
 //repeats space every r units, centered on the origin
 inline float3 repXYZ(float3 p, float3 r) {
-    return fmod(abs(p + r/2.0), r) - r/2.0;
+    float3 o = p;
+    o = fmod(abs(p + r/2.0), r) - r/2.0;
+    o *= sign(o);
+    return o;
 }
 
 //repeats space every r units, centered on the origin

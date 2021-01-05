@@ -45,30 +45,26 @@
             {
                 float3 vRayStart = i.vCamPos;
                 float3 vRayDir = normalize(i.vHitPos - vRayStart);
-                rayData ray_data = castRay(vRayStart, vRayDir);
+                rayData ray = castRay(vRayStart, vRayDir);
 
                 float3 vSunDir = normalize(_SunPos);
                 
-                if (ray_data.dist < 0)
+                if (ray.dist < 0)
                 {
                     return skyBox(vRayDir, vSunDir);
-                    //discard;
+                    //discard;//use for transparency
                 }
-
-                //calculate hit point
-                float3 vPos = vRayStart + vRayDir * ray_data.dist;
-                //get normal
-                float3 vNorm = getNormal(vPos);
 
                 //colour init
                 fixed4 col = 0;
-                fixed4 cMat = ray_data.col;
+                fixed4 cMat = ray.col;
 
-                col = cMat * lightSun(vNorm, vSunDir) * lightShadow(vPos, vSunDir);
-                col += cMat * lightSky(vNorm);  
-                col *= lightAO(vPos, vNorm);
+                col = cMat * lightSun(ray.vNorm, vSunDir);
+                col *= lightShadow(ray.vPos, vSunDir);
+                col += cMat * lightSky(ray.vNorm);
+                col *= lightAO(ray.vPos, ray.vNorm);
 
-                //brighten up
+                // make brighter
                 col = pow(col, 0.5);
 
                 return col;
