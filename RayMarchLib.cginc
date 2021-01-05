@@ -66,6 +66,7 @@ struct rayData
     float dist;
     int iSteps;
     fixed4 col;
+    float fRough;
     float3 vPos;
     fixed3 vNorm;
 };
@@ -75,6 +76,7 @@ struct sdfData
 {
     float dist;
     fixed4 col;
+    float fRough;
 };
 
 sdfData scene(float3 p);
@@ -149,6 +151,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float fNormSmooth = 0.001)
     data.dist = fRayLen;
     data.iSteps = i;
     data.col = sdf_data.col;
+    data.fRough = sdf_data.fRough;
     data.vPos = vPos;
     data.vNorm = getNormal(vPos, fNormSmooth);
     return data; 
@@ -268,12 +271,18 @@ inline fixed4 mixCol(sdfData sdfA, sdfData sdfB)
     return lerp(sdfA.col, sdfB.col, clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1));
 }
 
+inline float mix(float a, float b, float facA, float facB)
+{
+    return lerp(a, b, clamp(facA / (facA + facB), 0, 1));
+}
+
 //union of SDF A and B
 sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = min(sA.dist, sB.dist);
     sC.col = mixCol(sA, sB);
+    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
     return sC;
 }
 
@@ -283,6 +292,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
     sdfData sC;
     sC.dist = smin(sA.dist, sB.dist, fSmooth);
     sC.col = mixCol(sA, sB);
+    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
     return sC;
 }
 
@@ -292,6 +302,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
     sdfData sC;
     sC.dist = max(sA.dist, -sB.dist);
     sC.col = sA.col;
+    sC.fRough = sA.fRough;
     return sC;
 }
 
@@ -301,6 +312,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
     sdfData sC;
     sC.dist = smax(sA.dist, -sB.dist, fSmooth);
     sC.col = sA.col;
+    sC.fRough = sA.fRough;
     return sC;
 }
 
@@ -310,6 +322,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
     sdfData sC;
     sC.dist = max(sA.dist, sB.dist);
     sC.col = mixCol(sA, sB);
+    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
     return sC;
 }
 
@@ -319,6 +332,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
     sdfData sC;
     sC.dist = smax(sA.dist, sB.dist, fSmooth);
     sC.col = mixCol(sA, sB);
+    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
     return sC;
 }
 
@@ -331,74 +345,82 @@ sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
 }
 
 //create sphere
-sdfData sdfSphere(float3 p, float fRadius, fixed4 col = DEFCOL)
+sdfData sdfSphere(float3 p, float fRadius, fixed4 col = DEFCOL, float fRough = 1)
 {
     sdfData sdf;
     sdf.dist = length(p) - fRadius;
     sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create plane pointing to positive Y
-sdfData sdfPlane(float3 p, float fHeight, fixed4 col = DEFCOL)
+sdfData sdfPlane(float3 p, float fHeight, fixed4 col = DEFCOL, float fRough = 1)
 {
     sdfData sdf;
     sdf.col = col;
     sdf.dist = p.y - fHeight;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create plane with normal
-sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, fixed4 col = DEFCOL)
+sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, fixed4 col = DEFCOL, float fRough = 1)
 {
     sdfData sdf;
-    sdf.col = col;
     sdf.dist = dot(p, normalize(vNorm)) - fHeight;
+    sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, fixed4 col = DEFCOL, float fRound = 0) {
+sdfData sdfBox(float3 p, float3 vDim, fixed4 col = DEFCOL, float fRound = 0, float fRough = 1) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
     sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create line segment
-sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, fixed4 col = DEFCOL) {
+sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, fixed4 col = DEFCOL, float fRough = 1) {
     sdfData sdf;
-    sdf.col = col;
     float h = min(1, max(0, dot(p-vStart, vEnd-vStart) / dot(vEnd-vStart, vEnd-vStart)));
     sdf.dist = length(p-vStart-(vEnd-vStart)*h)-fRadius;
+    sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, fixed4 col = DEFCOL, float fRound = 0) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, fixed4 col = DEFCOL, float fRound = 0, float fRough = 1) {
     sdfData sdf;
-    sdf.col = col;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
+    sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //create torus
-sdfData sdfTorus(float3 p, float fRadius, float fThickness, fixed4 col = DEFCOL) {
+sdfData sdfTorus(float3 p, float fRadius, float fThickness, fixed4 col = DEFCOL, float fRough = 1) {
     sdfData sdf;
-    sdf.col = col;
     float2 q = float2(length(p.xz) - fRadius, p.y);
     sdf.dist = length(q) - fThickness;
+    sdf.col = col;
+    sdf.fRough = fRough;
     return sdf;
 }
 
 //triangular prism (BOUND)
-sdfData sdfTriPrism(float3 p, float fSide, float fDepth, fixed4 col = DEFCOL)
+sdfData sdfTriPrism(float3 p, float fSide, float fDepth, fixed4 col = DEFCOL, float fRough = 1)
 {
   float3 q = abs(p);
   sdfData sdf;
-  sdf.col = col;
   sdf.dist = max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
+  sdf.col = col;
+  sdf.fRough = fRough;
   return sdf;
 }
 
