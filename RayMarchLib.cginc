@@ -1,35 +1,37 @@
 //double include guard
+// Upgrade NOTE: excluded shader from DX11; has structs without semantics (struct v2f members nearestVert)
+#pragma exclude_renderers d3d11
 #ifndef RAY_MARCH_LIB_INCLUDED
 #define RAY_MARCH_LIB_INCLUDED
 
 #include "UnityCG.cginc"
 
-#define PI UNITY_PI
-
-#define V_UP float3(0, 1, 0)
-#define V_X float3(1, 0, 0)
-#define V_Y float3(0, 1, 0)
-#define V_Z float3(0, 0, 1)
+#define V_X  float3(1, 0, 0)
+#define V_Y  float3(0, 1, 0)
+#define V_Z  float3(0, 0, 1)
 #define V_XZ float3(1, 0, 1)
-
-#define C_RED   fixed4(1,0.001,0.001, 1)
-#define C_GREEN fixed4(0.001, 1, 0.001, 1)
-#define C_BLUE  fixed4(0.001, 0.001, 1, 1)
-#define C_WHITE fixed4(1, 1, 1, 1)
-#define C_GRAY  fixed4(0.2, 0.2, 0.2, 1)
-
-#define DEFCOL fixed4(0.2, 0.2, 0.2, 1)
+#define V_XY float3(1, 1, 0)
+#define V_YZ float3(0, 1, 1)
 
 //ambient occlusion quality
 #ifndef AO_STEPS
 #define AO_STEPS 5
 #endif
 
-// to render nothing on the inside of objects (sky/transparent)
-// use    #define ABS_DISTANCE
-// this removes some artifacts when rendering distorted SDFs
+//normals for lighting
+#ifndef NORMAL_DELTA
+#define NORMAL_DELTA 0.001
+#endif
+//normals for reflection angles
+#ifndef REFL_NORMAL_DELTA
+#define REFL_NORMAL_DELTA 0.001
+#endif
 
-#ifdef DYNAMIC_QUALITY//quality settings as material properties
+#ifndef MAX_REFLECTIONS
+#define MAX_REFLECTIONS 2
+#endif
+
+#ifdef USE_DYNAMIC_QUALITY//quality settings as unity material properties
 int _MaxSteps = 100;
 float _MaxDist = 100;
 float _SurfDist = 0.00001;
@@ -56,30 +58,68 @@ struct appdata
 struct v2f
 {
     float4 vertex : SV_POSITION;
+    //float4 nearestVert;
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
 };
 
-//returned from casting a ray through the scene
+typedef struct material
+{
+    fixed4 col;
+    fixed fRough;
+} material_t;
+
+#define DEFMAT {fixed4(.2,.2,.2,1), 1}
+
+#define M_RED       {fixed4(0.2, 0.001, 0.001, 1), 1}
+#define M_ORANGE    {fixed4(0.2, 0.1, 0.001, 1), 1}
+#define M_YELLOW    {fixed4(0.2, 0.2, 0.001, 1), 1}
+#define M_GREEN     {fixed4(0.001, 0.2, 0.001, 1), 1}
+#define M_BLUE      {fixed4(0.001, 0.001, 0.2, 1), 1}
+#define M_LIGHT_BLUE{fixed4(0.001, 0.05, 0.2, 1), 1}
+#define M_MAGENTA   {fixed4(0.2, 0.001, 0.2, 1), 1}
+#define M_PURPLE    {fixed4(0.05, 0.001, 0.2, 1), 1}
+#define M_WHITE     {fixed4(0.5, 0.5, 0.5, 1), 1}
+#define M_MIRROR    {fixed4(0.1, 0.1, 0.1, 1), 0}
+
+inline material mat(float r, float g, float b, float fRough = 1)
+{
+    material m = {fixed4(r, g, b, 1), fRough};
+    return m;
+}
+
+inline material mat(float3 rgb, float fRough = 1)
+{
+    material m = {fixed4(rgb, 1), fRough};
+    return m;
+}
+
+//used for lighting a point
 struct rayData
 {
     float dist;
     int iSteps;
-    fixed4 col;
-    float fRough;
-    float3 vPos;
+    material mat;
+    float3 vRayStart;
+    float3 vRayDir;
+    float3 vHit;
     fixed3 vNorm;
+    bool bMissed;
 };
 
 //returned from distance functions, including main scene
 struct sdfData
 {
     float dist;
-    fixed4 col;
-    float fRough;
+    material mat;
 };
 
+
 sdfData scene(float3 p);
+fixed4 lightPoint(rayData r);
+fixed4 rayMarch(float3 p, float3 d);
+rayData castRay(float3 p, float3 d);
+
 
 v2f vert (appdata v)
 {
@@ -96,8 +136,61 @@ v2f vert (appdata v)
 }
 
 
+#ifdef USE_REFLECTIONS
+//fixed4 rayMarch(float3 vRayStart, float3 vRayDirInit)
+fixed4 frag (v2f i) : SV_Target
+{
+    float3 vLastBounce = i.vCamPos;
+    float3 vRayDir = normalize(i.vHitPos - i.vCamPos);//current direction
+    float fRayLen = 0;//since last bounce
+    sdfData point_data;
+
+    fixed4 col;
+    float colUsed = 0;// what amount of the final colour has been calculated
+    float prevRough = 0;
+
+    for (int i = 0; i < MAX_REFLECTIONS+1; i++)
+    {
+        rayData ray = castRay(vLastBounce, vRayDir);
+        if (i == 0)
+        {//before any bounces
+            col = lightPoint(ray);
+        }
+        else
+        {
+            float colAmt = colUsed + (prevRough * (1-colUsed));
+            col = lerp(lightPoint(ray), col, colAmt);
+            colUsed = colAmt;
+        }
+        if (ray.bMissed || ray.mat.fRough > 0.99)
+        {
+            break;
+        }
+        prevRough = ray.mat.fRough;
+        vRayDir = reflect(vRayDir, ray.vNorm);
+        vLastBounce = ray.vHit + vRayDir * 0.01;
+    }
+    #ifdef DISCARD_ON_MISS
+    if (ray.bMissed && i == 0) discard;
+    #endif
+    return col;
+}
+#else
+//fixed4 rayMarch(float3 vRayStart, float3 vRayDir)
+fixed4 frag (v2f i) : SV_Target
+{
+    float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
+    rayData ray = castRay(i.vCamPos, vRayDir);
+    #ifdef DISCARD_ON_MISS
+    if (ray.bMissed)
+    {discard;}
+    #endif
+    return lightPoint(ray);
+}
+#endif
+
 //gets normal of a point
-float3 getNormal(float3 vPos, float fEpsilon = 0.001)
+inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
 {
     ////if epilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
@@ -107,15 +200,30 @@ float3 getNormal(float3 vPos, float fEpsilon = 0.001)
             scene(vPos - e.yyx).dist);
     return normalize(n);
 }
+//gets normal, provided you have the distance for pos (1 less call to scene())
+inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
+{
+    ////if epilon is smaller than 0.001, there are often artifacts
+    const float2 e = float2(fEpsilon, 0);
+    float3 n = fPointDist - float3(
+            scene(vPos - e.xyy).dist,
+            scene(vPos - e.yxy).dist,
+            scene(vPos - e.yyx).dist);
+    return normalize(n);
+}
 
-//marches a ray through the scene
-rayData castRay(float3 vRayStart, float3 vRayDir, float fNormSmooth = 0.001)
+//marches a ray through the scene once
+rayData castRay(float3 vRayStart, float3 vRayDir)
 {
     float fRayLen = 0;// total distance marched / distance from camera
-    sdfData sdf_data; // distance+color from the raymarched scene
     float3 vPos;
+    sdfData sdf_data;
 
-    #ifdef DYNAMIC_QUALITY
+    rayData ray;
+    ray.vRayDir = vRayDir;
+    ray.vRayStart = vRayStart;
+
+    #ifdef USE_DYNAMIC_QUALITY
     for (int i = 0; i < _MaxSteps; i++)
     #else
     for (int i = 0; i < MAX_STEPS; i++)
@@ -124,44 +232,34 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float fNormSmooth = 0.001)
         vPos = vRayStart + fRayLen * vRayDir;
         sdf_data = scene(vPos);
 
-        #ifdef DYNAMIC_QUALITY
-            #ifdef ABS_DISTANCE
+        #ifdef USE_DYNAMIC_QUALITY
         if (abs(sdf_data.dist) < _SurfDist) break;
-            #else
-        if (sdf_data.dist < _SurfDist) break;
-            #endif
         #else
-            #ifdef ABS_DISTANCE
         if (abs(sdf_data.dist) < SURF_DIST) break;
-            #else
-        if (sdf_data.dist < SURF_DIST) break;
-            #endif
         #endif
 
         fRayLen += sdf_data.dist;// move forward
         
-        #ifdef DYNAMIC_QUALITY
-        if (fRayLen > _MaxDist) {fRayLen = -1; break;}//flag this as transparent/sky
+        #ifdef USE_DYNAMIC_QUALITY
+        if (fRayLen > _MaxDist) {ray.bMissed = true; break;}//flag this as transparent/sky
         #else
-        if (fRayLen > MAX_DIST) {fRayLen = -1; break;}//flag this as transparent/sky
+        if (fRayLen > MAX_DIST) {ray.bMissed = true; break;}//flag this as transparent/sky
         #endif
     }
 
-    rayData data;
-    data.dist = fRayLen;
-    data.iSteps = i;
-    data.col = sdf_data.col;
-    data.fRough = sdf_data.fRough;
-    data.vPos = vPos;
-    data.vNorm = getNormal(vPos, fNormSmooth);
-    return data; 
+    ray.dist   = fRayLen;
+    ray.iSteps = i;
+    ray.mat    = sdf_data.mat;
+    ray.vHit   = vPos;
+    ray.vNorm  = getNorm(vPos, sdf_data.dist);
+    return ray;
 }
 
-//generates a skybox, use when ray didn't hit anything (ray_data.dist < 0)
-inline float4 skyBox(float3 vRayDir, float3 vSunDir, fixed4 cSkyColor = fixed4(0.7, 0.75, 0.8, 1))
+//generates a skybox, use when ray didn't hit anything (ray_data.bMissed)
+inline fixed4 sky(float3 vRayDir)
 {
-    float4 cRenderedSun = max(0, pow(dot(vRayDir, vSunDir) + 0.4, 10)-28) * float4(.8,.4,0,1);
-    return cSkyColor - abs(vRayDir.y) * 0.5 + cRenderedSun;
+    float4 cRenderedSun = max(0, pow(dot(vRayDir, normalize(float3(8,4,2))) + 0.4, 10)-28) * float4(.8,.4,0,1);
+    return fixed4(0.7, 0.75, 0.8, 1) - abs(vRayDir.y) * 0.5 + cRenderedSun;
 }
 
 //calculate sun light based on normal
@@ -175,7 +273,7 @@ fixed4 lightSun(float3 vNorm, float3 vSunDir = float3(8, 4, 2), fixed4 cSunCol =
 float lightShadow(float3 vPos, float3 vSunDir, float fSharpness = 8)
 {
     float fShadow = 1;
-    #ifdef DYNAMIC_QUALITY
+    #ifdef USE_DYNAMIC_QUALITY
     for (float fRayLen = 0.001; fRayLen < _MaxDist/2.0;)
     #else
     for (float fRayLen = 0.001; fRayLen < MAX_DIST/2.0;)
@@ -183,7 +281,7 @@ float lightShadow(float3 vPos, float3 vSunDir, float fSharpness = 8)
     {
         float dist = scene(vPos + vSunDir * fRayLen).dist;
 
-        #ifdef DYNAMIC_QUALITY
+        #ifdef USE_DYNAMIC_QUALITY
         if (dist < _SurfDist) return 0;
         #else
         if (dist < SURF_DIST) return 0;
@@ -195,12 +293,6 @@ float lightShadow(float3 vPos, float3 vSunDir, float fSharpness = 8)
     return fShadow;
 }
 
-//cheaper shadow with hard edges
-float lightShadowHard(float3 vPos, float3 vNorm, float3 vSunDir)
-{
-    return step(castRay(vPos + vNorm * 0.001, vSunDir).dist, 0.0);
-}
-
 //calculate sky light
 inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 {
@@ -210,7 +302,7 @@ inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 //bad ambient occlusion (screen space) based on steps
 float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 {
-    #ifdef DYNAMIC_QUALITY
+    #ifdef USE_DYNAMIC_QUALITY
     return pow(1 - float(ray_data.iSteps) / _MaxSteps, fDarkenFactor);
     #else
     return pow(1 - float(ray_data.iSteps) / MAX_STEPS, fDarkenFactor);
@@ -252,13 +344,6 @@ inline float smin(float a, float b, float k) {
     return min(a, b) - h*h*h*k * 1/6.0;
 }
 
-//reflection ray
-inline rayData reflection(float3 vPos, float3 vNorm, float3 vRayDir, float fSmooth = 0.01)
-{
-    float3 vRefDir = reflect(vRayDir, vNorm);
-    return castRay(vPos + vNorm*0.001, vRefDir, fSmooth);
-}
-
 //soft max of a and b with smoothing factor k 
 inline float smax(float a, float b, float k) {
     float h = max(k - abs(a - b), 0) / k;
@@ -266,14 +351,13 @@ inline float smax(float a, float b, float k) {
 }
 
 //interpolate between the colours of 2 SDFs
-inline fixed4 mixCol(sdfData sdfA, sdfData sdfB)
+inline material mixMat(sdfData sdfA, sdfData sdfB)
 {
-    return lerp(sdfA.col, sdfB.col, clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1));
-}
-
-inline float mix(float a, float b, float facA, float facB)
-{
-    return lerp(a, b, clamp(facA / (facA + facB), 0, 1));
+    material m;
+    float fac = clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1);
+    m.col = lerp(sdfA.mat.col, sdfB.mat.col, fac);
+    m.fRough = lerp(sdfA.mat.fRough, sdfB.mat.fRough, fac);
+    return m;
 }
 
 //union of SDF A and B
@@ -281,8 +365,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = min(sA.dist, sB.dist);
-    sC.col = mixCol(sA, sB);
-    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
+    sC.mat = mixMat(sA, sB);
     return sC;
 }
 
@@ -291,8 +374,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smin(sA.dist, sB.dist, fSmooth);
-    sC.col = mixCol(sA, sB);
-    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
+    sC.mat = mixMat(sA, sB);
     return sC;
 }
 
@@ -301,8 +383,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = max(sA.dist, -sB.dist);
-    sC.col = sA.col;
-    sC.fRough = sA.fRough;
+    sC.mat = sA.mat;
     return sC;
 }
 
@@ -311,8 +392,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smax(sA.dist, -sB.dist, fSmooth);
-    sC.col = sA.col;
-    sC.fRough = sA.fRough;
+    sC.mat = sA.mat;
     return sC;
 }
 
@@ -321,8 +401,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = max(sA.dist, sB.dist);
-    sC.col = mixCol(sA, sB);
-    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
+    sC.mat = mixMat(sA, sB);
     return sC;
 }
 
@@ -331,8 +410,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smax(sA.dist, sB.dist, fSmooth);
-    sC.col = mixCol(sA, sB);
-    sC.fRough = mix(sA.fRough, sB.fRough, sA.dist, sB.dist);
+    sC.mat = mixMat(sA, sB);
     return sC;
 }
 
@@ -345,83 +423,75 @@ sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
 }
 
 //create sphere
-sdfData sdfSphere(float3 p, float fRadius, fixed4 col = DEFCOL, float fRough = 1)
+sdfData sdfSphere(float3 p, float fRadius, material mat = DEFMAT)
 {
     sdfData sdf;
     sdf.dist = length(p) - fRadius;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create plane pointing to positive Y
-sdfData sdfPlane(float3 p, float fHeight, fixed4 col = DEFCOL, float fRough = 1)
+sdfData sdfPlane(float3 p, float fHeight, material mat = DEFMAT)
 {
     sdfData sdf;
-    sdf.col = col;
     sdf.dist = p.y - fHeight;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create plane with normal
-sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, fixed4 col = DEFCOL, float fRough = 1)
+sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, material mat = DEFMAT)
 {
     sdfData sdf;
     sdf.dist = dot(p, normalize(vNorm)) - fHeight;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, fixed4 col = DEFCOL, float fRound = 0, float fRough = 1) {
+sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT, float fRound = 0) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create line segment
-sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, fixed4 col = DEFCOL, float fRough = 1) {
+sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material mat = DEFMAT) {
     sdfData sdf;
     float h = min(1, max(0, dot(p-vStart, vEnd-vStart) / dot(vEnd-vStart, vEnd-vStart)));
     sdf.dist = length(p-vStart-(vEnd-vStart)*h)-fRadius;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, fixed4 col = DEFCOL, float fRound = 0, float fRough = 1) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT, float fRound = 0) {
     sdfData sdf;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //create torus
-sdfData sdfTorus(float3 p, float fRadius, float fThickness, fixed4 col = DEFCOL, float fRough = 1) {
+sdfData sdfTorus(float3 p, float fRadius, float fThickness, material mat = DEFMAT) {
     sdfData sdf;
     float2 q = float2(length(p.xz) - fRadius, p.y);
     sdf.dist = length(q) - fThickness;
-    sdf.col = col;
-    sdf.fRough = fRough;
+    sdf.mat = mat;
     return sdf;
 }
 
 //triangular prism (BOUND)
-sdfData sdfTriPrism(float3 p, float fSide, float fDepth, fixed4 col = DEFCOL, float fRough = 1)
+sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 {
-  float3 q = abs(p);
-  sdfData sdf;
-  sdf.dist = max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
-  sdf.col = col;
-  sdf.fRough = fRough;
-  return sdf;
+    float3 q = abs(p);
+    sdfData sdf;
+    sdf.dist = max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
+    sdf.mat = mat;
+    return sdf;
 }
 
 //rotate point p around origin, a radians
