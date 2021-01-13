@@ -1,6 +1,4 @@
 //double include guard
-// Upgrade NOTE: excluded shader from DX11; has structs without semantics (struct v2f members nearestVert)
-#pragma exclude_renderers d3d11
 #ifndef RAY_MARCH_LIB_INCLUDED
 #define RAY_MARCH_LIB_INCLUDED
 
@@ -58,9 +56,14 @@ struct appdata
 struct v2f
 {
     float4 vertex : SV_POSITION;
-    //float4 nearestVert;
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
+};
+
+struct fragOut
+{
+    fixed4 col : SV_Target;
+    float depth : SV_Depth;
 };
 
 typedef struct material
@@ -138,23 +141,27 @@ v2f vert (appdata v)
 
 #ifdef USE_REFLECTIONS
 //fixed4 rayMarch(float3 vRayStart, float3 vRayDirInit)
-fixed4 frag (v2f i) : SV_Target
+fragOut frag (v2f i)
 {
     float3 vLastBounce = i.vCamPos;
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);//current direction
     float fRayLen = 0;//since last bounce
     sdfData point_data;
+    rayData ray;
 
     fixed4 col;
     float colUsed = 0;// what amount of the final colour has been calculated
     float prevRough = 0;
 
+    float3 vFirstHit;
+
     for (int i = 0; i < MAX_REFLECTIONS+1; i++)
     {
-        rayData ray = castRay(vLastBounce, vRayDir);
+        ray = castRay(vLastBounce, vRayDir);
         if (i == 0)
         {//before any bounces
             col = lightPoint(ray);
+            vFirstHit = ray.vHit;
         }
         else
         {
@@ -173,11 +180,15 @@ fixed4 frag (v2f i) : SV_Target
     #ifdef DISCARD_ON_MISS
     if (ray.bMissed && i == 0) discard;
     #endif
-    return col;
+    fragOut o;
+    o.col = col;
+    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(vFirstHit, 1));
+    o.depth = vClipPos.z / vClipPos.w;
+    return o;
 }
 #else
 //fixed4 rayMarch(float3 vRayStart, float3 vRayDir)
-fixed4 frag (v2f i) : SV_Target
+fragOut frag (v2f i)
 {
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
     rayData ray = castRay(i.vCamPos, vRayDir);
@@ -185,7 +196,11 @@ fixed4 frag (v2f i) : SV_Target
     if (ray.bMissed)
     {discard;}
     #endif
-    return lightPoint(ray);
+    fragOut o;
+    o.col = lightPoint(ray);
+    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+    o.depth = vClipPos.z / vClipPos.w;
+    return o;
 }
 #endif
 
@@ -360,6 +375,15 @@ inline material mixMat(sdfData sdfA, sdfData sdfB)
     return m;
 }
 
+//interpolate between the colours of 2 SDFs
+inline material mixMat(material a, material b, float fac)
+{
+    material m;
+    m.col = lerp(a.col, b.col, fac);
+    m.fRough = lerp(a.fRough, b.fRough, fac);
+    return m;
+}
+
 //union of SDF A and B
 sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 {
@@ -450,7 +474,16 @@ sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, material mat = DEFMAT)
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT, float fRound = 0) {
+sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT) {
+    sdfData sdf;
+    float3 q = abs(p) - vDim/2.0;
+    sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+    sdf.mat = mat;
+    return sdf;
+}
+
+//create cuboid
+sdfData sdfBox(float3 p, float3 vDim, float fRound, material mat = DEFMAT) {
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
@@ -468,7 +501,15 @@ sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material ma
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT, float fRound = 0) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT) {
+    sdfData sdf;
+    sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius);
+    sdf.mat = mat;
+    return sdf;
+}
+
+//create cylinder
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float fRound, material mat = DEFMAT) {
     sdfData sdf;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
     sdf.mat = mat;
