@@ -140,7 +140,6 @@ v2f vert (appdata v)
 
 
 #ifdef USE_REFLECTIONS
-//fixed4 rayMarch(float3 vRayStart, float3 vRayDirInit)
 fragOut frag (v2f i)
 {
     float3 vLastBounce = i.vCamPos;
@@ -183,11 +182,10 @@ fragOut frag (v2f i)
     fragOut o;
     o.col = col;
     float4 vClipPos = mul(UNITY_MATRIX_VP, float4(vFirstHit, 1));
-    o.depth = vClipPos.z / vClipPos.w;
+    o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
     return o;
 }
 #else
-//fixed4 rayMarch(float3 vRayStart, float3 vRayDir)
 fragOut frag (v2f i)
 {
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
@@ -199,7 +197,7 @@ fragOut frag (v2f i)
     fragOut o;
     o.col = lightPoint(ray);
     float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
-    o.depth = vClipPos.z / vClipPos.w;
+    o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
     return o;
 }
 #endif
@@ -207,7 +205,7 @@ fragOut frag (v2f i)
 //gets normal of a point
 inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
 {
-    ////if epilon is smaller than 0.001, there are often artifacts
+    ////if epsilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = scene(vPos).dist - float3(
             scene(vPos - e.xyy).dist,
