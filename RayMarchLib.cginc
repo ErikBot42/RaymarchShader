@@ -183,9 +183,9 @@ fragOut frag (v2f i)
     o.col = col;
     
     #ifdef USE_WORLD_SPACE
-        float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+        float4 vClipPos = mul(UNITY_MATRIX_VP, float4(vFirstHit, 1));
     #else
-        float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(ray.vHit, 1)));
+        float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(vFirstHit, 1)));
     #endif
 
     o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
