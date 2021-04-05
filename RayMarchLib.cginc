@@ -181,7 +181,13 @@ fragOut frag (v2f i)
     #endif
     fragOut o;
     o.col = col;
-    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(vFirstHit, 1));
+    
+    #ifdef USE_WORLD_SPACE
+        float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+    #else
+        float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(ray.vHit, 1)));
+    #endif
+
     o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
     return o;
 }
@@ -196,7 +202,13 @@ fragOut frag (v2f i)
     #endif
     fragOut o;
     o.col = lightPoint(ray);
-    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+    
+    #ifdef USE_WORLD_SPACE
+        float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+    #else
+        float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(ray.vHit, 1)));
+    #endif
+    
     o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
     return o;
 }
