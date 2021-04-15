@@ -3,7 +3,13 @@
 #define PI 3.14159265
 #define TAU 6.28318531
 
-// **** Transforms/manipulations *****
+
+//////////////////////////////////////////////////////////////////////
+//
+// Transforms and Manipulations
+//
+//////////////////////////////////////////////////////////////////////
+
 
 //soft min of a and b with smoothing factor k
 //use for smooth blending
@@ -42,7 +48,13 @@ float3 repDomain(float3 p, float3 r)
     return fmod(abs(p + r/2.0), r) - r/2.0;
 }
 
-// ***** Shapes *****
+
+//////////////////////////////////////////////////////////////////////
+//
+// Shapes
+//
+//////////////////////////////////////////////////////////////////////
+
 
 //sphere with origin o and radius r
 float sdSphere(float3 p, float3 o, float r) {
@@ -111,3 +123,6 @@ float sdPyramid( float3 p, float h)
 
   return sqrt( (d2+q.z*q.z)/m2 ) * sign(max(q.z,-p.y));
 }
+
+
+
