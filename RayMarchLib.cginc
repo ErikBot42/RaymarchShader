@@ -53,13 +53,13 @@ v2f vert (appdata v)
 {
     v2f o;
     o.vertex = UnityObjectToClipPos(v.vertex);
-    #ifdef USE_WORLD_SPACE
+#ifdef USE_WORLD_SPACE
     o.vCamPos = _WorldSpaceCameraPos;
     o.vHitPos = mul(unity_ObjectToWorld, v.vertex);
-    #else
+#else
     o.vCamPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
     o.vHitPos = v.vertex;
-    #endif
+#endif
     return o;
 }
 
@@ -366,3 +366,14 @@ inline float3 repXZ(float3 p, float3 r) {
     o.y = p.y;
     return o;
 }
+
+// get light at index out of the 4 "most important" lights
+inline get4Light(int iIndex)
+{
+    float3 vPos;
+    vPos.x = unity_4LightPosX0[iIndex];
+    vPos.y = unity_4LightPosY0[iIndex];
+    vPos.z = unity_4LightPosZ0[iIndex];
+    return vPos;
+}
+
