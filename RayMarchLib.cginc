@@ -571,6 +571,65 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 
 //////////////////////////////////////////////////////////////////////
 //
+// Fractals and complex shapes (frac prefix)
+//
+//////////////////////////////////////////////////////////////////////
+
+// Mandelbulb
+sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+    float3 pos;
+    pos.x = p.x;
+    pos.y = p.y;
+    pos.z = p.z;
+
+    float maxRThreshold = 100;
+
+    float dr = 1.0;
+    float r = 0;
+    int iterations = 5;
+    
+    float Power = 8; // Z_(n+1) = Z(n)^?
+    int i = 0;
+    for (; i < iterations; i++)
+    {
+        r = length(p);
+        if (r>maxRThreshold) break;
+
+        // xyz -> polar
+        float theta = acos( p.z / r );
+        float phi = atan2( p.y, p.x );
+        dr = pow( r, Power-1.0)*Power*dr + 1.0;
+
+        // transform point
+        float zr = pow( r, Power );
+        theta = theta * Power;
+        phi = phi * Power;
+
+        // polar -> xyz
+        p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        p += pos;
+        
+
+    }
+
+
+    sdfData sdf;
+    sdf.mat = mat;
+    //sdf.mat.col.y = sin(p.x);
+    //sdf.dist = sdfSphere(pos, 10).dist;
+    //sdf.mat = mat;
+    sdf.dist = 0.5*log(r)*r/dr;
+    //sdf.mat = mat;
+
+
+    return sdf;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//
 // Transforms
 //
 //////////////////////////////////////////////////////////////////////
