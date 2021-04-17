@@ -34,15 +34,15 @@ int _MaxSteps = 100;
 float _MaxDist = 100;
 float _SurfDist = 0.00001;
 #else//precompile quality settings
-#   ifndef MAX_STEPS
-#   define MAX_STEPS 256
-#   endif
-#   ifndef MAX_DIST
-#   define MAX_DIST 128
-#   endif
-#   ifndef SURF_DIST
-#   define SURF_DIST 0.00001
-#   endif
+#ifndef MAX_STEPS
+#define MAX_STEPS 256
+#endif
+#ifndef MAX_DIST
+#define MAX_DIST 128
+#endif
+#ifndef SURF_DIST
+#define SURF_DIST 0.00001
+#endif
 #endif
 
 
@@ -128,13 +128,13 @@ v2f vert (appdata v)
 {
     v2f o;
     o.vertex = UnityObjectToClipPos(v.vertex);
-    #ifdef USE_WORLD_SPACE
+#ifdef USE_WORLD_SPACE
     o.vCamPos = _WorldSpaceCameraPos;
     o.vHitPos = mul(unity_ObjectToWorld, v.vertex);
-    #else
+#else
     o.vCamPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
     o.vHitPos = v.vertex;
-    #endif
+#endif
     return o;
 }
 
@@ -402,6 +402,14 @@ inline material mixMat(material a, material b, float fac)
     return m;
 }
 
+
+//////////////////////////////////////////////////////////////////////
+//
+// SDF operations
+//
+//////////////////////////////////////////////////////////////////////
+
+
 //union of SDF A and B
 sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 {
@@ -464,6 +472,15 @@ sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
     return sdfOut;
 }
 
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// SDF shapes
+//
+//////////////////////////////////////////////////////////////////////
+
+
 //create sphere
 sdfData sdfSphere(float3 p, float fRadius, material mat = DEFMAT)
 {
@@ -492,7 +509,8 @@ sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, material mat = DEFMAT)
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT) {
+sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT)
+{
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
@@ -501,7 +519,8 @@ sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT) {
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, float fRound, material mat = DEFMAT) {
+sdfData sdfBox(float3 p, float3 vDim, float fRound, material mat = DEFMAT)
+{
     sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
     sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
@@ -510,7 +529,8 @@ sdfData sdfBox(float3 p, float3 vDim, float fRound, material mat = DEFMAT) {
 }
 
 //create line segment
-sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material mat = DEFMAT) {
+sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material mat = DEFMAT)
+{
     sdfData sdf;
     float h = min(1, max(0, dot(p-vStart, vEnd-vStart) / dot(vEnd-vStart, vEnd-vStart)));
     sdf.dist = length(p-vStart-(vEnd-vStart)*h)-fRadius;
@@ -519,7 +539,8 @@ sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material ma
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT)
+{
     sdfData sdf;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius);
     sdf.mat = mat;
@@ -527,7 +548,8 @@ sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMA
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float fRound, material mat = DEFMAT) {
+sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float fRound, material mat = DEFMAT)
+{
     sdfData sdf;
     sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
     sdf.mat = mat;
@@ -535,7 +557,8 @@ sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float fRound, materi
 }
 
 //create torus
-sdfData sdfTorus(float3 p, float fRadius, float fThickness, material mat = DEFMAT) {
+sdfData sdfTorus(float3 p, float fRadius, float fThickness, material mat = DEFMAT)
+{
     sdfData sdf;
     float2 q = float2(length(p.xz) - fRadius, p.y);
     sdf.dist = length(q) - fThickness;
@@ -553,23 +576,94 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
     return sdf;
 }
 
+
+//////////////////////////////////////////////////////////////////////
+//
+// Fractals and complex shapes (frac prefix)
+//
+//////////////////////////////////////////////////////////////////////
+
+// Mandelbulb
+sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+    float3 pos;
+    pos.x = p.x;
+    pos.y = p.y;
+    pos.z = p.z;
+
+    float maxRThreshold = 100;
+
+    float dr = 1.0;
+    float r = 0;
+    int iterations = 5;
+    
+    float Power = 8; // Z_(n+1) = Z(n)^?
+    int i = 0;
+    for (; i < iterations; i++)
+    {
+        r = length(p);
+        if (r>maxRThreshold) break;
+
+        // xyz -> polar
+        float theta = acos( p.z / r );
+        float phi = atan2( p.y, p.x );
+        dr = pow( r, Power-1.0)*Power*dr + 1.0;
+
+        // transform point
+        float zr = pow( r, Power );
+        theta = theta * Power;
+        phi = phi * Power;
+
+        // polar -> xyz
+        p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        p += pos;
+        
+
+    }
+
+
+    sdfData sdf;
+    sdf.mat = mat;
+    //sdf.mat.col.y = sin(p.x);
+    //sdf.dist = sdfSphere(pos, 10).dist;
+    //sdf.mat = mat;
+    sdf.dist = 0.5*log(r)*r/dr;
+    //sdf.mat = mat;
+
+
+    return sdf;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// Transforms
+//
+//////////////////////////////////////////////////////////////////////
+
+
 //rotate point p around origin, a radians
-float3 rotX(float3 p, float a) {
+float3 rotX(float3 p, float a)
+{
     return mul(float3x3(1, 0, 0, 0, cos(a), -sin(a), 0, sin(a), cos(a)), p);
 }
 
 //rotate point p around origin, a radians
-float3 rotY(float3 p, float a) {
+float3 rotY(float3 p, float a)
+{
     return mul(float3x3(cos(a), 0, sin(a), 0, 1, 0, -sin(a), 0, cos(a)), p);
 }
 
 //rotate point p around origin, a radians
-float3 rotZ(float3 p, float a) {
+float3 rotZ(float3 p, float a)
+{
     return mul(float3x3(cos(a), -sin(a), 0, sin(a), cos(a), 0, 0, 0, 1), p);
 }
 
 //repeats space every r units, centered on the origin
-inline float3 repXYZ(float3 p, float3 r) {
+inline float3 repXYZ(float3 p, float3 r)
+{
     float3 o = p;
     o = fmod(abs(p + r/2.0), r) - r/2.0;
     o *= sign(o);
@@ -577,7 +671,8 @@ inline float3 repXYZ(float3 p, float3 r) {
 }
 
 //repeats space every r units, centered on the origin
-inline float3 repXZ(float3 p, float x, float z) {
+inline float3 repXZ(float3 p, float x, float z)
+{
     float3 o = p;
     o.x = fmod(abs(p.x) + x/2.0, x) - x/2.0;
     o.x *= sign(p.x);
