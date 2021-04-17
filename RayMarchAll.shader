@@ -110,7 +110,10 @@
                 {
                     //col = fixed4(1,1,1,0);
                     //col = sky(ray.vRayDir);
-                    col += (ray.iSteps/200.0);
+                    //col += (ray.iSteps/200.0);
+                    col += 0.01/ray.minDist;
+
+                    if (col.x<0.1) discard; //"dynamic" discard
                     return col;
                 }
 
