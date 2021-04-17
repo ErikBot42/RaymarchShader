@@ -635,6 +635,47 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     return sdf;
 }
 
+void sphereFold(inout float3 p, inout float dz, float minRadius, float fixedRadius);
+void boxFold(inout float3 p, float dz, float foldingLimit);
+
+// Mandelbox
+sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor,
+ material mat = DEFMAT)
+{
+    float3 offset = p;
+    float dr = 0;
+   
+    // Parameters
+    int iterations = 10;
+    /*float foldingLimit = 0.2 + _SinTime.x/4 + 0.25;
+    float minRadius = 0.07;
+    float fixedRadius = 0.2;*/
+    
+    //float scaleFactor = -0.8;
+    
+
+    /*float foldingLimit = _FoldingLimit;
+    float minRadius = _MinRadius;
+    float fixedRadius = _FixedRadius;*/
+    
+
+    for(int i=0; i<iterations; i++)
+    {
+        boxFold(p, dr, foldingLimit);
+        sphereFold(p, dr, minRadius, fixedRadius);
+
+        p = scaleFactor*p + offset;
+        dr = dr*abs(scaleFactor)+1.0;
+    }
+
+    sdfData sdf;
+    sdf.mat = mat;
+
+    float r = length(p);
+    sdf.dist = r/abs(dr);
+    return sdf;
+}
+
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -681,12 +722,39 @@ inline float3 repXZ(float3 p, float x, float z)
     return o;
 }
 
-// Reflect point if inside sphere
-/*float3 sphereFold(inout float dz)
+// Reflect point if inside/outside sphere
+void sphereFold(
+    inout float3 p, 
+    inout float dz, 
+    float minRadius, 
+    float fixedRadius)
 {
-    float r2 = dot(    
-}*/
+    float r2 = dot(p,p);
+    float r = length(p);
+    if (r<minRadius)
+    {
+        // Inner scaling linear
+        float factor = fixedRadius/minRadius;
+        p *= factor;
+        dz *= factor;
+    }
+    else if (r2<fixedRadius)
+    {
+        // Sphere inversion
+        float factor = fixedRadius/r2;
+        p *= factor;
+        dz *= factor;
+    }
+    // else no transform
+}
 
+// Reflect if outside box
+void boxFold(inout float3 p, 
+    float dz, 
+    float foldingLimit)
+{
+    p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
+}
 
 
 //////////////////////////////////////////////////////////////////////

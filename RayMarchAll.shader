@@ -11,6 +11,11 @@
         _MaxDist ("Max distance", Float) = 40
         _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
 
+        [Header(Mandelbox debug)]
+        _FoldingLimit ("FoldingLimit", Range(0.03, 2)) = 0.3 
+        _MinRadius ("MinRadius", Range(0.03, 2)) = 0.07 
+        _FixedRadius ("FixedRadius", Range(0.03, 2)) = 0.2 
+        _ScaleFactor ("ScaleFactor", Range(-2, 0.03)) = -0.8 
 
         //https://docs.unity3d.com/ScriptReference/MaterialPropertyDrawer.html
         
@@ -42,10 +47,17 @@
             //#define DISCARD_ON_MISS
             //#define USE_REFLECTIONS
             //#define MAX_REFLECTIONS 3
+
+
             #include "RayMarchLib.cginc"
             
             float3 _SunPos;
             float _Scale;
+
+            float _FoldingLimit;
+            float _MinRadius;
+            float _FixedRadius;
+            float _ScaleFactor;
 
             sdfData scene(float3 p)
             {
@@ -61,8 +73,12 @@
 
 
                 #ifdef _SDF_MANDELBULB
-                o = fracMandelbulb(rotZ(p, _Time.x));
-                o.dist*=0.9;
+                o = fracMandelbulb(rotZ(p/0.8, _Time.x));
+                o.dist*=0.6;
+                #elif _SDF_MANDELCUBE
+                float scale = 2;
+                o = fracMandelbox(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
+                o.dist*=scale;
                 #elif _SDF_NONE
                 o = sdfSphere(p, 1);
                 #elif _SDF_DEMOSCENE
@@ -94,7 +110,7 @@
                 {
                     //col = fixed4(1,1,1,0);
                     //col = sky(ray.vRayDir);
-                    col += (ray.iSteps/100.0);
+                    col += (ray.iSteps/200.0);
                     return col;
                 }
 
@@ -117,7 +133,7 @@
 
                 //#ifdef _OVERLAY_ADD
                 //col *= (ray.iSteps/100.0);
-                col *= (10.0/ray.iSteps);
+                col *= (50.0/ray.iSteps);
                 //#endif
 
                 //col *= lightShadow(ray.vHit, vSunDir, 50);
