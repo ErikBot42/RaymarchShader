@@ -142,7 +142,11 @@ v2f vert (appdata v)
 #ifdef USE_REFLECTIONS
 fragOut frag (v2f i)
 {
+    #ifdef CONSTRAIN_TO_MESH
+    float3 vLastBounce = i.vHitPos;
+    #else
     float3 vLastBounce = i.vCamPos;
+    #endif
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);//current direction
     float fRayLen = 0;//since last bounce
     sdfData point_data;
@@ -195,7 +199,11 @@ fragOut frag (v2f i)
 fragOut frag (v2f i)
 {
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
+    #ifdef CONSTRAIN_TO_MESH
+    rayData ray = castRay(i.vHitPos, vRayDir);
+    #else
     rayData ray = castRay(i.vCamPos, vRayDir);
+    #endif
     #ifdef DISCARD_ON_MISS
     if (ray.bMissed)
     {discard;}
