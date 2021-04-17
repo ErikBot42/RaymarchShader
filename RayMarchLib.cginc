@@ -4,6 +4,8 @@
 
 #include "UnityCG.cginc"
 
+// Multi compile stuff
+
 #define V_X  float3(1, 0, 0)
 #define V_Y  float3(0, 1, 0)
 #define V_Z  float3(0, 0, 1)
@@ -33,7 +35,7 @@
 int _MaxSteps = 100;
 float _MaxDist = 100;
 float _SurfDist = 0.00001;
-#else//precompile quality settings
+#else//pre compile quality settings
 #ifndef MAX_STEPS
 #define MAX_STEPS 256
 #endif
@@ -438,7 +440,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
-//get intersection of 2 SDFs
+//intersection of SDF A and B
 sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
@@ -447,7 +449,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
     return sC;
 }
 
-//get intersection of 2 SDFs, with smoothing
+//intersection of SDF A and B, with smoothing
 sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
@@ -571,7 +573,7 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 
 //////////////////////////////////////////////////////////////////////
 //
-// Fractals and complex shapes (frac prefix)
+// Fractals, complex shapes and scenes  (frac prefix)
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -584,13 +586,20 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     pos.y = p.y;
     pos.z = p.z;
 
-    float maxRThreshold = 100;
 
     float dr = 1.0;
     float r = 0;
-    int iterations = 5;
-    
-    float Power = 8; // Z_(n+1) = Z(n)^?
+
+    // Lowest number of iterations without loosing a significant amount of detail
+    // Depends on maxRThreshold
+    //int iterations = 6;
+    int iterations = 20;
+
+    float maxRThreshold = 100;
+
+    // Z_(n+1) = Z(n)^?
+    // float Power = 8 + 6 * sin(_Time.x); 
+    float Power = 8;
     int i = 0;
     for (; i < iterations; i++)
     {
@@ -623,7 +632,6 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     sdf.dist = 0.5*log(r)*r/dr;
     //sdf.mat = mat;
 
-
     return sdf;
 }
 
@@ -635,25 +643,25 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
 //////////////////////////////////////////////////////////////////////
 
 
-//rotate point p around origin, a radians
+// rotate point p around origin, a radians
 float3 rotX(float3 p, float a)
 {
     return mul(float3x3(1, 0, 0, 0, cos(a), -sin(a), 0, sin(a), cos(a)), p);
 }
 
-//rotate point p around origin, a radians
+// rotate point p around origin, a radians
 float3 rotY(float3 p, float a)
 {
     return mul(float3x3(cos(a), 0, sin(a), 0, 1, 0, -sin(a), 0, cos(a)), p);
 }
 
-//rotate point p around origin, a radians
+// rotate point p around origin, a radians
 float3 rotZ(float3 p, float a)
 {
     return mul(float3x3(cos(a), -sin(a), 0, sin(a), cos(a), 0, 0, 0, 1), p);
 }
 
-//repeats space every r units, centered on the origin
+// repeats space every r units, centered on the origin
 inline float3 repXYZ(float3 p, float3 r)
 {
     float3 o = p;
@@ -662,7 +670,7 @@ inline float3 repXYZ(float3 p, float3 r)
     return o;
 }
 
-//repeats space every r units, centered on the origin
+// repeats space every r units, centered on the origin
 inline float3 repXZ(float3 p, float x, float z)
 {
     float3 o = p;
@@ -671,6 +679,41 @@ inline float3 repXZ(float3 p, float x, float z)
     o.z = fmod(abs(p.z) + z/2.0, z) - z/2.0;
     o.z *= sign(p.z);
     return o;
+}
+
+// Reflect point if inside sphere
+/*float3 sphereFold(inout float dz)
+{
+    float r2 = dot(    
+}*/
+
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// Color transform
+//
+//////////////////////////////////////////////////////////////////////
+
+
+fixed4 HSV (fixed h, fixed s, fixed v)
+{
+    h *= 6;
+    fixed c = s * v;
+    float x = c * (1 - abs(fmod(h, 2) - 1));
+    float m = v-c;
+    c += m;
+    x += m;
+
+    fixed4 colors[6] = {
+        fixed4(c, x, m, 1),
+        fixed4(x, c, m, 1),
+        fixed4(m, c, x, 1),
+        fixed4(m, x, c, 1),
+        fixed4(x, m, c, 1),
+        fixed4(c, m, x, 1)};
+
+    return colors[int(h)];
 }
 
 #endif //RAY_MARCH_LIB_INCLUDED
