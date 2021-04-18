@@ -22,7 +22,7 @@
         // toggles TEST_A_ON
         [Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Mandelbulb, Mandelcube, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Mandelbulb, Mandelbox, Demoscene)] _SDF ("SDF", Float) = 0
         
     }
     SubShader
@@ -39,7 +39,7 @@
 
             #pragma multi_compile TEST_C_ON TEST_A_ON
             
-            #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELCUBE _SDF_DEMOSCENE
+            #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELBOX _SDF_DEMOSCENE
             //#pragma multi_compile _OVERLAY_NONE _OVERLAY_ADD _OVERLAY_MULTIPLY
 
             #define USE_WORLD_SPACE
@@ -75,10 +75,10 @@
                 #ifdef _SDF_MANDELBULB
                 o = fracMandelbulb(rotZ(p/0.8, _Time.x));
                 o.dist*=0.6;
-                #elif _SDF_MANDELCUBE
+                #elif _SDF_MANDELBOX
                 float scale = 2;
                 o = fracMandelbox(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
-                o.dist*=scale;
+                o.dist*=scale*0.1;
                 #elif _SDF_NONE
                 o = sdfSphere(p, 1);
                 #elif _SDF_DEMOSCENE
@@ -111,9 +111,9 @@
                     //col = fixed4(1,1,1,0);
                     //col = sky(ray.vRayDir);
                     //col += (ray.iSteps/200.0);
-                    col += 0.01/ray.minDist;
+                    col += 0.001/ray.minDist;
 
-                    if (col.x<0.1) discard; //"dynamic" discard
+                    if (col.x<0.01) discard; //"dynamic" discard
                     return col;
                 }
 
@@ -125,7 +125,13 @@
                 col = ray.mat.col;
                 //col = fixed4(1,1,1,1);
                 col = HSV(frac(length(ray.vHit)*1.0 + _Time.x), 1, 1);
+                //col = HSV(frac(length(ray.vHit.x)*1.0 + _Time.x), 1, 1);
                 //col = HSV(frac(length(ray.vHit)/3.0), 1, 1);
+                //float factor = 0.2;
+
+                //col.x = ray.vHit.x*factor+factor;
+                //col.y = ray.vHit.y*factor+factor;
+                //col.z = ray.vHit.z*factor+factor;
                 //col.x = sin(length(ray.vHit)*5.0 + _Time.y);
                 //col.y = sin(length(ray.vHit)*5.0 + _Time.y + degrees(120));
                 //col.z = sin(length(ray.vHit)*5.0 + _Time.y + degrees(240));

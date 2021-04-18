@@ -642,14 +642,18 @@ void sphereFold(inout float3 p, inout float dz, float minRadius, float fixedRadi
 void boxFold(inout float3 p, float dz, float foldingLimit);
 
 // Mandelbox
-sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor,
- material mat = DEFMAT)
+sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor, material mat = DEFMAT)
 {
+    // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
+
     float3 offset = p;
     float dr = 0;
    
     // Parameters
     int iterations = 10;
+    scaleFactor = -2 + (_SinTime.x*4+2);
+    fixedRadius = 1.0;
+    minRadius = 0.5;
     /*float foldingLimit = 0.2 + _SinTime.x/4 + 0.25;
     float minRadius = 0.07;
     float fixedRadius = 0.2;*/
@@ -664,7 +668,7 @@ sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixed
 
     for(int i=0; i<iterations; i++)
     {
-        boxFold(p, dr, foldingLimit);
+        boxFold(p, dr, 1);
         sphereFold(p, dr, minRadius, fixedRadius);
 
         p = scaleFactor*p + offset;
@@ -678,6 +682,49 @@ sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixed
     sdf.dist = r/abs(dr);
     return sdf;
 }
+
+// Mandelbox alternate implementation, possibly faster
+sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor, material mat = DEFMAT)
+{
+    // http://www.fractalforums.com/3d-fractal-generation/a-mandelbox-distance-estimate-formula/
+    float scale = 2;
+
+    float DEfactor = scale;
+    int iterations;
+    for (int i = 0; i<iterations; i++)
+    {
+        fixedRadius = 1.0;
+        float fR2 = fixedRadius*fixedRadius;
+        minRadius = 0.5;
+        float mR2 = minRadius*minRadius;
+
+        // Box fold?
+        if (p.x > 1.0)
+            p.x = 2.0 - p.x;
+        else if (p.x < -1.0) p.x = -2.0 - p.x;
+        if (p.y > 1.0)
+            p.y = 2.0 - p.y;
+        else if (p.y < -1.0) p.y = -2.0 - p.y;
+        if (p.z > 1.0)
+            p.z = 2.0 - p.z;
+        else if (p.z < -1.0) p.z = -2.0 - p.z;
+
+        // radius squared
+        float r2 = dot(p,p);
+
+        if (r2 < mR2)
+        {
+            p*=(fR2/r2);
+
+        }
+    }
+
+    sdfData sdf;
+    sdf.mat = mat;
+    sdf.dist = 1;
+
+}
+
 
 
 //////////////////////////////////////////////////////////////////////
@@ -757,6 +804,7 @@ void boxFold(inout float3 p,
     float foldingLimit)
 {
     p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
+    //p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
 }
 
 
