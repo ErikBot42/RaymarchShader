@@ -258,7 +258,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     rayData ray;
     ray.vRayDir = vRayDir;
     ray.vRayStart = vRayStart;
-    ray.minDist = 1.0/0.0;//"infinity"
+    ray.minDist = 30000.0;// budget "infinity"
 
     #ifdef USE_DYNAMIC_QUALITY
     for (int i = 0; i < _MaxSteps; i++)
@@ -292,6 +292,14 @@ rayData castRay(float3 vRayStart, float3 vRayDir)
     ray.vNorm  = getNorm(vPos, sdf_data.dist);
     return ray;
 }
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// Lighting
+//
+//////////////////////////////////////////////////////////////////////
+
 
 //generates a skybox, use when ray didn't hit anything (ray_data.bMissed)
 inline fixed4 sky(float3 vRayDir)
@@ -376,14 +384,24 @@ fixed4 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
     return fLight * fAO * fShadow;
 }
 
+
+//////////////////////////////////////////////////////////////////////
+//
+// Interpolation
+//
+//////////////////////////////////////////////////////////////////////
+
+
 //soft min of a and b with smoothing factor k
-inline float smin(float a, float b, float k) {
+inline float smin(float a, float b, float k) 
+{
     float h = max(k - abs(a-b), 0) / k;
     return min(a, b) - h*h*h*k * 1/6.0;
 }
 
 //soft max of a and b with smoothing factor k 
-inline float smax(float a, float b, float k) {
+inline float smax(float a, float b, float k) 
+{
     float h = max(k - abs(a - b), 0) / k;
     return max(a, b) + h*h*h*k * 1/6.0;
 }
@@ -588,6 +606,11 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 //
 //////////////////////////////////////////////////////////////////////
 
+//TODO: 
+// complex :julia, 
+// simple sierpinsky, menger
+
+
 // Mandelbulb
 sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
 {
@@ -604,15 +627,14 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     // Lowest number of iterations without loosing a significant amount of detail
     // Depends on maxRThreshold
     //int iterations = 6;
-    int iterations = 20;
+    int iterations = 8;
 
-    float maxRThreshold = 100;
+    float maxRThreshold = 2;
 
     // Z_(n+1) = Z(n)^?
     // float Power = 8 + 6 * sin(_Time.x); 
     float Power = 8;
-    int i = 0;
-    for (; i < iterations; i++)
+    for (int i = 0; i < iterations; i++)
     {
         r = length(p);
         if (r>maxRThreshold) break;
@@ -650,7 +672,7 @@ void sphereFold(inout float3 p, inout float dz, float minRadius, float fixedRadi
 void boxFold(inout float3 p, float dz, float foldingLimit);
 
 // Mandelbox
-sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor, material mat = DEFMAT)
+sdfData fracMandelbox(float3 p, float scaleFactor, material mat = DEFMAT)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
 
@@ -658,10 +680,10 @@ sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixed
     float dr = 0;
    
     // Parameters
-    int iterations = 10;
-    scaleFactor = -2 + (_SinTime.x*4+2);
-    fixedRadius = 1.0;
-    minRadius = 0.5;
+    int iterations = 15;
+    //scaleFactor = -2 + (_SinTime.x*4+2);
+    float fixedRadius = 1.0;
+    float minRadius = 0.5;
     /*float foldingLimit = 0.2 + _SinTime.x/4 + 0.25;
     float minRadius = 0.07;
     float fixedRadius = 0.2;*/
@@ -680,7 +702,8 @@ sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixed
         sphereFold(p, dr, minRadius, fixedRadius);
 
         p = scaleFactor*p + offset;
-        dr = dr*abs(scaleFactor)+1.0;
+        //dr = dr*abs(scaleFactor)+1.0;
+        dr = dr*abs(scaleFactor)+1;
     }
 
     sdfData sdf;
@@ -695,12 +718,14 @@ sdfData fracMandelbox(float3 p, float foldingLimit, float minRadius, float fixed
 sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor, material mat = DEFMAT)
 {
     // http://www.fractalforums.com/3d-fractal-generation/a-mandelbox-distance-estimate-formula/
-    float scale = 2;
+    float scale = -2;
 
-    float DEfactor = scale;
-    int iterations;
+    int iterations = 10;
+    float DEfactor;
     for (int i = 0; i<iterations; i++)
     {
+        DEfactor = scale;
+
         fixedRadius = 1.0;
         float fR2 = fixedRadius*fixedRadius;
         minRadius = 0.5;
@@ -722,18 +747,58 @@ sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixe
 
         if (r2 < mR2)
         {
-            p*=(fR2/r2);
-
+            p*=(fR2/mR2);
+            DEfactor*=(fR2/mR2);
         }
+        else if (r2 < fR2)
+        {
+            p*=(fR2/r2);
+            DEfactor*=(fR2/r2);
+        }
+        p=p*scale+1;
+        DEfactor*=scale;
     }
 
     sdfData sdf;
     sdf.mat = mat;
-    sdf.dist = 1;
-
+    sdf.dist = length(p)/abs(DEfactor);
+    return sdf;
 }
 
+// Feather
+sdfData fracFeather(float3 p, material mat=DEFMAT)
+{
+    // https://fractalforums.org/index.php?action=gallery;sa=view;id=5732
+    int iterations = 8;
+    //float cx = 2.0 + _SinTime.z*0.1;
+    float cx = 2.0;
+    float cy = 2.7;
+    float cz = 1.4;
+    float cw = 0.1;
+    float dx = 1.5;// + _FoldingLimit-0.5;
+    
+    float lp,r2,s = 1;
 
+    float icy = 1.0 / cy;
+    float3 p2,cy3 = float3(cy,cy,cy);
+
+    for (int i=0; i<iterations; i++) {
+        p -= cx * round(p / cx);
+   
+        p2 = pow(abs(p),cy3);
+        lp = pow(p2.x + p2.y + p2.z, icy);
+       
+        r2 = dx / max( pow(lp,cz), cw);
+        p *= r2;
+        s *= r2;
+    }
+    
+    sdfData o;
+    o.mat = mat;
+    o.dist = length(p)/s-.001;
+    return o;
+
+}
 
 //////////////////////////////////////////////////////////////////////
 //

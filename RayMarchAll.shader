@@ -11,6 +11,7 @@
         _MaxDist ("Max distance", Float) = 40
         _SurfDist ("Surface distance threshold", Range(0.00001, 0.05)) = 0.001
 
+
         [Header(Mandelbox debug)]
         _FoldingLimit ("FoldingLimit", Range(0.03, 2)) = 0.3 
         _MinRadius ("MinRadius", Range(0.03, 2)) = 0.07 
@@ -18,12 +19,23 @@
         _ScaleFactor ("ScaleFactor", Range(-2, 0.03)) = -0.8 
 
         //https://docs.unity3d.com/ScriptReference/MaterialPropertyDrawer.html
-        
+       
+        [Header(Variant toggles)]
         // toggles TEST_A_ON
-        [Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
+        //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Mandelbulb, Mandelbox, Demoscene)] _SDF ("SDF", Float) = 0
-        
+        [KeywordEnum(None, Mandelbulb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
+        [KeywordEnum(None, Twist, Rotate, Repeat)] _PTRANS ("Position transform", Float) = 0
+        [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
+
+        [Header(general live sliders and toggles)]
+        _Slider_SDF ("SDF slider", Range(-1,1)) = 0
+        _Slider_Transform ("Transform slider", Range(-1,1)) = 0
+
+        //[Toggle(ANIMATE_SDF_ON)] _AnimateSDF("Animate SDF", Int) = 0
+        //[Toggle(ANIMATE_TRANFORM_ON)] _AnimateSDF("Animate Transform", Int) = 0
+
     }
     SubShader
     {
@@ -37,50 +49,210 @@
             #pragma vertex vert
             #pragma fragment frag
 
-            #pragma multi_compile TEST_C_ON TEST_A_ON
             
-            #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELBOX _SDF_DEMOSCENE
-            //#pragma multi_compile _OVERLAY_NONE _OVERLAY_ADD _OVERLAY_MULTIPLY
+            #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT
+            #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
+            //#pragma multi_compile ANIMATE_SDF_ON
 
+            #ifdef _SPACE_WORLD
             #define USE_WORLD_SPACE
-            #define USE_DYNAMIC_QUALITY
+            #endif
+            //#define USE_DYNAMIC_QUALITY
+
+
+            #define CONSTRAIN_TO_MESH
             //#define DISCARD_ON_MISS
             //#define USE_REFLECTIONS
             //#define MAX_REFLECTIONS 3
 
+
+            // precompile performance options
+
+            #ifdef _SDF_MANDELBULB
+            #define MAX_STEPS 200
+            #define MAX_DIST 200
+            #define FUNGE_FACTOR 0.5
+            //This DOUBLES the framerate:
+            #ifndef CONSTRAIN_TO_MESH
+            #define CONSTRAIN_TO_MESH
+            #endif
+            #endif
+
+            float _FoldingLimit;
 
             #include "RayMarchLib.cginc"
             
             float3 _SunPos;
             float _Scale;
 
-            float _FoldingLimit;
             float _MinRadius;
             float _FixedRadius;
             float _ScaleFactor;
+            
+            float _Slider_SDF;
+            float _Slider_Transform;
+
+
+            inline material applyColorTransform(float3 p, in material mat)
+            {
+
+                #ifdef _MTRANS_COLORHSV_SPHERE  
+
+                mat.col = HSV(frac(length(p)*0.5 + _Time.x), 1, 1);
+
+                #elif _MTRANS_COLORHSV_CUBE
+
+                mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*0.5 + _Time.x), 1, 1);
+
+                #elif _MTRANS_COLORXYZ
+
+                float factor = 0.2;
+                
+                mat.col.x = p.x*factor+factor;
+                mat.col.y = p.y*factor+factor;
+                mat.col.z = p.z*factor+factor;
+
+
+                //_MTRANS_NONE
+                #else 
+                // do nothing
+                #endif
+
+                return mat;    
+            }
+
+
+            inline void applyPositionTransform(inout float3 p)
+            {
+                #ifdef _PTRANS_TWIST 
+
+                p = rotZ(p, p.z*_Slider_Transform*2);
+
+                #elif _PTRANS_ROTATE
+
+                p = rotZ(p, _Time.x);
+
+                #elif _PTRANS_REPEAT
+                
+                p = repXYZ(p,8);
+
+                #else
+                // _PTRANS_None
+
+                #endif
+            }
+
+            #define COLTRANS o.mat = applyColorTransform(p, o.mat)
+            
+            //#define STEP_FACTOR 1
+            //#define FUNGE_FACTOR 1
 
             sdfData scene(float3 p)
             {
-                sdfData o;
+                sdfData o = {0,DEFMAT};
+
+
+
                 p/=_Scale;
 
+                applyPositionTransform(p); 
 
                 //////////////////////////////////////////////////////////////////////
-                // all of these should fit in -1.0 to 1.0 
-                // (a 2x2 cube or sphere with radius 1), 
-                // when scaling is set to 1.
+                // all of these should fit in a 1x1x1 cube or sphere 
+                // with radius 1, when scaling is set to 1.
+                //
+                // DE should be stable enough to be viewed from 20 units away
+                // (in world space)
                 //////////////////////////////////////////////////////////////////////
 
+                // TODO: precompile quality settings, add color transform option, add pre transform
+                // Color time, transform time, sdf time
 
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // Mandelbulb * The baseline sdf
+                //
+                //////////////////////////////////////////////////////////////////////
                 #ifdef _SDF_MANDELBULB
-                o = fracMandelbulb(rotZ(p/0.8, _Time.x));
-                o.dist*=0.6;
+                //#define FUNGE_FACTOR _FoldingLimit
+
+                float scale = 0.4;
+                p/=scale;
+                
+                #define COLTRANS_DONE
+                o.mat = applyColorTransform(p, o.mat); 
+
+                o.dist = fracMandelbulb(p).dist;
+                o.dist*=scale;
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // Mandelbox 
+                //
+                //////////////////////////////////////////////////////////////////////
                 #elif _SDF_MANDELBOX
-                float scale = 2;
-                o = fracMandelbox(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
-                o.dist*=scale*0.1;
+                
+                #define FUNGE_FACTOR 0.3
+
+                #define COLTRANS_DONE
+
+                float scaleFactor = _Slider_SDF*3;
+                //float scaleFactor = _SinTime.y*3;
+
+                //float scale = 0.5;
+                float scale = 0.3;
+                //_SurfDist = 0.0001;
+                if (scaleFactor>0) 
+                {
+                    scaleFactor+=1;
+                    scale/=1*(scaleFactor+1)/(scaleFactor-1);
+                    //_SurfDist=scale*0.0001;
+                }
+
+                o.mat = applyColorTransform(p, o.mat); 
+                p/=scale;
+
+
+
+                o.dist = fracMandelbox(p, scaleFactor).dist;
+                //o = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
+                //p.x +=_SinTime.z*4;
+
+                float3 dim = float3(2,2,2)/scale;
+                o = sdfInter(p, sdfBox(p,dim,0), o);
+
+                o.dist*=scale;
+
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // None
+                //
+                //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
                 o = sdfSphere(p, 1);
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // Feather
+                //
+                //////////////////////////////////////////////////////////////////////
+                #elif _SDF_FEATHER
+                #define FUNGE_FACTOR 0.5
+                //p = dot(p,p)*10;
+                //float3 p_shifted = p; p_shifted.x+=_Time.x;
+                o = fracFeather(p);
+                float3 dim = float3(1,1,1);
+                o = sdfInter(p, sdfBox(p,dim,0), o);
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // Demoscene
+                //
+                //////////////////////////////////////////////////////////////////////
                 #elif _SDF_DEMOSCENE
                 //p/=0.5;
                 //material mGrass = mat(0.001, 0.15, 0.001, 0.5);
@@ -95,6 +267,15 @@
                 o = sdfAdd(p, o, sdfTorus(p, 5, 0.5, mBlue), 0.2);
                 #else
                 o = sdfCylinder(p, 1, 1);
+                #endif 
+
+                #ifndef COLTRANS_DONE
+                o.mat = applyColorTransform(p, o.mat); 
+                #endif
+
+                // if DE over/undershoots
+                #ifdef FUNGE_FACTOR
+                o.dist*=FUNGE_FACTOR;
                 #endif
 
                 o.dist*=_Scale;
@@ -103,61 +284,90 @@
 
             fixed4 lightPoint(rayData ray)
             {
+                #ifndef STEP_FACTOR
+                #define STEP_FACTOR 1
+                #endif
+
+                #ifndef FUNGE_FACTOR
+                #define FUNGE_FACTOR 1
+                #endif
+
+
                 float3 vSunDir = normalize(_SunPos);
 
                 fixed4 col = 0;
                 if (ray.bMissed)
                 {
+                    //return col;
                     //col = fixed4(1,1,1,0);
                     //col = sky(ray.vRayDir);
                     //col += (ray.iSteps/200.0);
-                    col += 0.001/ray.minDist;
 
-                    if (col.x<0.01) discard; //"dynamic" discard
-                    return col;
+                    // Glow
+                    col += (0.01/ray.minDist)*FUNGE_FACTOR;
+
+                    //if (col.x<0.01) discard; //"dynamic" discard
+                }
+                else
+                {
+
+                    //float3 norm = getNorm(ray.vHit, ray.dist);
+                    //col.x=norm.x; 
+                    //col.y=norm.y; 
+                    //col.z=norm.z; 
+
+                    col = ray.mat.col;
+
+
+                    //col = applyColorTransform(ray.vHit, ray.mat).col;
+                    //col = fixed4(1,1,1,1);
+                    //col = HSV(frac(length(ray.vHit.x)*1.0 + _Time.x), 1, 1);
+                    //col = HSV(frac(length(ray.vHit)/3.0), 1, 1);
+                    //col.x = sin(length(ray.vHit)*5.0 + _Time.y);
+                    //col.y = sin(length(ray.vHit)*5.0 + _Time.y + degrees(120));
+                    //col.z = sin(length(ray.vHit)*5.0 + _Time.y + degrees(240));
+                    /*col.x = sin(ray.vHit.x);
+                    col.y = sin(ray.vHit.y);
+                    col.z = sin(ray.vHit.z);*/
+                    //col = ray.mat.col;// * (lightSun(ray.vNorm, vSunDir));
+
+                    //#ifdef _OVERLAY_ADD
+                    //col *= (ray.iSteps/100.0);
+                    col *= (20.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
+                    //#endif
+
+
+                    //col = ray.mat.col;
+
+
+                    //col *= lightShadow(ray.vHit, vSunDir, 50);
+                    //col += ray.mat.col * lightSky(ray.vNorm, 1);
+                    //col *= lightAO(ray.vHit, ray.vNorm);
+                    //col = pow(col, 0.5);
+                    //col = 0.5;
+                    
+                    // TODO: "free" Effects
+                    // glow: min of DE, blend other color/brighten
+                    // ambient occlusion: number of steps, darken
+                    // fog: 
+
                 }
 
-                //float3 norm = getNorm(ray.vHit, ray.dist);
-                //col.x=norm.x; 
-                //col.y=norm.y; 
-                //col.z=norm.z; 
+                fixed4 cFog = fixed4(.0,.0,.0,.0);
 
-                col = ray.mat.col;
-                //col = fixed4(1,1,1,1);
-                col = HSV(frac(length(ray.vHit)*1.0 + _Time.x), 1, 1);
-                //col = HSV(frac(length(ray.vHit.x)*1.0 + _Time.x), 1, 1);
-                //col = HSV(frac(length(ray.vHit)/3.0), 1, 1);
-                //float factor = 0.2;
-
-                //col.x = ray.vHit.x*factor+factor;
-                //col.y = ray.vHit.y*factor+factor;
-                //col.z = ray.vHit.z*factor+factor;
-                //col.x = sin(length(ray.vHit)*5.0 + _Time.y);
-                //col.y = sin(length(ray.vHit)*5.0 + _Time.y + degrees(120));
-                //col.z = sin(length(ray.vHit)*5.0 + _Time.y + degrees(240));
-                /*col.x = sin(ray.vHit.x);
-                col.y = sin(ray.vHit.y);
-                col.z = sin(ray.vHit.z);*/
-                //col = ray.mat.col;// * (lightSun(ray.vNorm, vSunDir));
-
-                //#ifdef _OVERLAY_ADD
-                //col *= (ray.iSteps/100.0);
-                col *= (50.0/ray.iSteps);
-                //#endif
-
-                //col *= lightShadow(ray.vHit, vSunDir, 50);
-                //col += ray.mat.col * lightSky(ray.vNorm, 1);
-                //col *= lightAO(ray.vHit, ray.vNorm);
-                //col = pow(col, 0.5);
-                //col = 0.5;
-                
-                // TODO: "free" Effects
-                // glow: min of DE, blend other color/brighten
-                // ambient occlusion: number of steps, darken
-                // fog: 
-
+                col = lightFog(col, cFog, ray.dist, 160, 320);
                 return col;
             }
+            
+            // defined per scene:
+            // in: point
+            // out:
+            // normal offset/rotate
+            // material  
+
+
+            
+
             ENDCG
         }
     }
