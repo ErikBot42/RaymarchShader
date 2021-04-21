@@ -52,17 +52,17 @@
             
             #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             //#pragma multi_compile ANIMATE_SDF_ON
 
             #ifdef _SPACE_WORLD
             #define USE_WORLD_SPACE
+            //#define REPEAT_SPACE
             #endif
+
             //#define USE_DYNAMIC_QUALITY
-
-
-            #define CONSTRAIN_TO_MESH
+            //#define CONSTRAIN_TO_MESH
             //#define DISCARD_ON_MISS
             //#define USE_REFLECTIONS
             //#define MAX_REFLECTIONS 3
@@ -72,17 +72,18 @@
 
             #ifdef _SDF_MANDELBULB
             #define MAX_STEPS 200
-            #define MAX_DIST 200
+            #define MAX_DIST 30
             #define FUNGE_FACTOR 0.5
             //This DOUBLES the framerate:
             #ifndef CONSTRAIN_TO_MESH
-            #define CONSTRAIN_TO_MESH
+            //#define CONSTRAIN_TO_MESH
             #endif
             #endif
 
             float _FoldingLimit;
 
             #include "RayMarchLib.cginc"
+
             
             float3 _SunPos;
             float _Scale;
@@ -126,17 +127,30 @@
 
             inline void applyPositionTransform(inout float3 p)
             {
+
+
+                #ifdef REPEAT_SPACE
+                float r=3;
+                /*p.y = fmod(abs(p.y + 4), 8) - 4;
+                p.x = fmod(abs(p.x + 4), 8) - 4;
+                p.z = fmod(abs(p.z + 4), 8) - 4;*/
+
+                p = repXYZUnsigned(p,r);
+                //p = repXYZ(p,8);
+                #endif
+
                 #ifdef _PTRANS_TWIST 
 
                 p = rotZ(p, p.z*_Slider_Transform*2);
 
                 #elif _PTRANS_ROTATE
 
+
+                //o = fmod(abs(p + r/2.0), r) - r/2.0;
+                //p.z = fmod(p.z,8);
+                //p = rotZ(p, _Slider_Transform);
                 p = rotZ(p, _Time.x);
 
-                #elif _PTRANS_REPEAT
-                
-                p = repXYZ(p,8);
 
                 #else
                 // _PTRANS_None
@@ -179,7 +193,7 @@
                 #ifdef _SDF_MANDELBULB
                 //#define FUNGE_FACTOR _FoldingLimit
 
-                float scale = 0.4;
+                float scale = 0.2;
                 p/=scale;
                 
                 #define COLTRANS_DONE
@@ -292,80 +306,131 @@
                 #define FUNGE_FACTOR 1
                 #endif
 
-
-                float3 vSunDir = normalize(_SunPos);
+                fixed4 glowColor = fixed4(1,1,1,1);
+                //fixed4 glowColor = ray.mat.col;
+                //fixed4 glowColor = fixed4(1,1,1,1)*(0.01/ray.minDist)*FUNGE_FACTOR;
+                //glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
+                glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
 
                 fixed4 col = 0;
                 if (ray.bMissed)
                 {
-                    //return col;
-                    //col = fixed4(1,1,1,0);
-                    //col = sky(ray.vRayDir);
-                    //col += (ray.iSteps/200.0);
+                    fixed4 cFog = fixed4(.0,.0,.0,.0);
 
-                    // Glow
-                    col += (0.01/ray.minDist)*FUNGE_FACTOR;
+                    col += glowColor;
 
-                    //if (col.x<0.01) discard; //"dynamic" discard
+                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
                 }
                 else
                 {
-
-                    //float3 norm = getNorm(ray.vHit, ray.dist);
-                    //col.x=norm.x; 
-                    //col.y=norm.y; 
-                    //col.z=norm.z; 
-
                     col = ray.mat.col;
 
-
-                    //col = applyColorTransform(ray.vHit, ray.mat).col;
-                    //col = fixed4(1,1,1,1);
-                    //col = HSV(frac(length(ray.vHit.x)*1.0 + _Time.x), 1, 1);
-                    //col = HSV(frac(length(ray.vHit)/3.0), 1, 1);
-                    //col.x = sin(length(ray.vHit)*5.0 + _Time.y);
-                    //col.y = sin(length(ray.vHit)*5.0 + _Time.y + degrees(120));
-                    //col.z = sin(length(ray.vHit)*5.0 + _Time.y + degrees(240));
-                    /*col.x = sin(ray.vHit.x);
-                    col.y = sin(ray.vHit.y);
-                    col.z = sin(ray.vHit.z);*/
-                    //col = ray.mat.col;// * (lightSun(ray.vNorm, vSunDir));
-
-                    //#ifdef _OVERLAY_ADD
-                    //col *= (ray.iSteps/100.0);
                     col *= (20.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
-                    //#endif
-
-
-                    //col = ray.mat.col;
-
-
-                    //col *= lightShadow(ray.vHit, vSunDir, 50);
-                    //col += ray.mat.col * lightSky(ray.vNorm, 1);
-                    //col *= lightAO(ray.vHit, ray.vNorm);
-                    //col = pow(col, 0.5);
-                    //col = 0.5;
                     
-                    // TODO: "free" Effects
-                    // glow: min of DE, blend other color/brighten
-                    // ambient occlusion: number of steps, darken
-                    // fog: 
+                    //fixed4 cFog = glowColor;
 
+                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
                 }
 
-                fixed4 cFog = fixed4(.0,.0,.0,.0);
 
-                col = lightFog(col, cFog, ray.dist, 160, 320);
+                return 0.01*fixed4(1,1,1,1)*ray.iSteps;
                 return col;
             }
             
-            // defined per scene:
-            // in: point
-            // out:
-            // normal offset/rotate
-            // material  
-
-
+//            // defined per scene:
+//            // in: point
+//            // out:
+//            // normal offset/rotate
+//            // material  
+//
+//            /*
+//
+//            fixed4 lightPoint(rayData ray)
+//            {
+//                #ifndef STEP_FACTOR
+//                #define STEP_FACTOR 1
+//                #endif
+//
+//                #ifndef FUNGE_FACTOR
+//                #define FUNGE_FACTOR 1
+//                #endif
+//
+//
+//                fixed4 glowColor = fixed4(1,1,1,1)*(0.01/ray.minDist)*FUNGE_FACTOR;
+//
+//
+//                float3 vSunDir = normalize(_SunPos);
+//
+//                fixed4 col = 0;
+//                if (ray.bMissed)
+//                {
+//                    //return col;
+//                    //col = fixed4(1,1,1,0);
+//                    //col = sky(ray.vRayDir);
+//                    //col += (ray.iSteps/200.0);
+//
+//                    fixed4 cFog = fixed4(.0,.0,.0,.0);
+//
+//
+//                    // Glow
+//                    col += glowColor;
+//
+//                    col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+//                    //if (col.x<0.01) discard; //"dynamic" discard
+//                }
+//                else
+//                {
+//
+//                    //float3 norm = getNorm(ray.vHit, ray.dist);
+//                    //col.x=norm.x; 
+//                    //col.y=norm.y; 
+//                    //col.z=norm.z; 
+//
+//                    col = ray.mat.col;
+//
+//
+//                    //col = applyColorTransform(ray.vHit, ray.mat).col;
+//                    //col = fixed4(1,1,1,1);
+//                    //col = HSV(frac(length(ray.vHit.x)*1.0 + _Time.x), 1, 1);
+//                    //col = HSV(frac(length(ray.vHit)/3.0), 1, 1);
+//                    //col.x = sin(length(ray.vHit)*5.0 + _Time.y);
+//                    //col.y = sin(length(ray.vHit)*5.0 + _Time.y + degrees(120));
+//                    //col.z = sin(length(ray.vHit)*5.0 + _Time.y + degrees(240));
+//                    /*col.x = sin(ray.vHit.x);
+//                    col.y = sin(ray.vHit.y);
+//                    col.z = sin(ray.vHit.z);*/
+//                    //col = ray.mat.col;// * (lightSun(ray.vNorm, vSunDir));
+//
+//                    //#ifdef _OVERLAY_ADD
+//                    //col *= (ray.iSteps/100.0);
+//                    col *= (20.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
+//                    //#endif
+//
+//
+//                    //col = ray.mat.col;
+//
+//
+//                    //col *= lightShadow(ray.vHit, vSunDir, 50);
+//                    //col += ray.mat.col * lightSky(ray.vNorm, 1);
+//                    //col *= lightAO(ray.vHit, ray.vNorm);
+//                    //col = pow(col, 0.5);
+//                    //col = 0.5;
+//                    
+//                    // TODO: "free" Effects
+//                    // glow: min of DE, blend other color/brighten
+//                    // ambient occlusion: number of steps, darken
+//                    // fog: 
+//                    
+//                    fixed4 cFog = glowColor;
+//
+//                    col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+//                }
+//
+//
+//
+//                return col;
+//            }
+//            */
             
 
             ENDCG

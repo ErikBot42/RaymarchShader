@@ -50,6 +50,11 @@ float _SurfDist = 0.00001;
 
 #define col(r, g, b) fixed4(r, g, b, 1)
 
+/*enum class Ray
+{
+
+}*/
+
 struct appdata
 {
     float4 vertex : POSITION;
@@ -124,7 +129,7 @@ struct sdfData
 sdfData scene(float3 p);
 fixed4 lightPoint(rayData r);
 fixed4 rayMarch(float3 p, float3 d);
-rayData castRay(float3 p, float3 d);
+rayData castRay(float3 p, float3 d, float startDist = 0);
 
 
 v2f vert (appdata v)
@@ -145,13 +150,16 @@ v2f vert (appdata v)
 #ifdef USE_REFLECTIONS
 fragOut frag (v2f i)
 {
+
+    float fRayLen = 0;//since last bounce
+
     #ifdef CONSTRAIN_TO_MESH
     float3 vLastBounce = i.vHitPos;
+    fRayLen += length(i.vHitPos - i.vCamPos);
     #else
     float3 vLastBounce = i.vCamPos;
     #endif
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);//current direction
-    float fRayLen = 0;//since last bounce
     sdfData point_data;
     rayData ray;
 
@@ -203,13 +211,16 @@ fragOut frag (v2f i)
 {
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
     #ifdef CONSTRAIN_TO_MESH
-    rayData ray = castRay(i.vHitPos, vRayDir);
+    //rayData ray = castRay(i.vHitPos, vRayDir, length(i.vHitPos-i.vCamPos));
+    rayData ray = castRay(i.vCamPos, vRayDir, length(i.vHitPos-i.vCamPos));
+    //rayData ray = castRay(i.vCamPos, vRayDir, 1);
+    //rayData ray = castRay(i.vCamPos, vRayDir, 0);
+
     #else
     rayData ray = castRay(i.vCamPos, vRayDir);
     #endif
     #ifdef DISCARD_ON_MISS
-    if (ray.bMissed)
-    {discard;}
+    if (ray.bMissed) discard;
     #endif
     fragOut o;
     o.col = lightPoint(ray);
@@ -249,9 +260,10 @@ inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
 }
 
 //marches a ray through the scene once
-rayData castRay(float3 vRayStart, float3 vRayDir)
+rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
 {
-    float fRayLen = 0;// total distance marched / distance from camera
+    float fRayLen = startDist;//startDist;// total distance marched / distance from camera
+
     float3 vPos;
     sdfData sdf_data;
 
@@ -626,7 +638,7 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
 
     // Lowest number of iterations without loosing a significant amount of detail
     // Depends on maxRThreshold
-    //int iterations = 6;
+    //int iterations = 1;
     int iterations = 8;
 
     float maxRThreshold = 2;
@@ -832,6 +844,12 @@ inline float3 repXYZ(float3 p, float3 r)
     o = fmod(abs(p + r/2.0), r) - r/2.0;
     o *= sign(o);
     return o;
+}
+
+// repeats space every r units, centered on the origin, no sign
+inline float3 repXYZUnsigned(float3 p, float3 r)
+{
+    return fmod(abs(p + r/2.0), r) - r/2.0;
 }
 
 // repeats space every r units, centered on the origin
