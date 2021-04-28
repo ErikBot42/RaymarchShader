@@ -116,6 +116,7 @@ struct rayData
     fixed3 vNorm;
     bool bMissed;
     float minDist;
+    float distToMinDist;
 };
 
 //returned from distance functions, including main scene
@@ -271,6 +272,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
     ray.vRayDir = vRayDir;
     ray.vRayStart = vRayStart;
     ray.minDist = 30000.0;// budget "infinity"
+    ray.distToMinDist = 0;
 
     #ifdef USE_DYNAMIC_QUALITY
     for (int i = 0; i < _MaxSteps; i++)
@@ -288,7 +290,12 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
         #endif
 
         fRayLen += sdf_data.dist;// move forward
-        ray.minDist = min(sdf_data.dist, ray.minDist);
+
+        if (ray.minDist>sdf_data.dist) 
+        {
+            ray.minDist = sdf_data.dist;
+            ray.distToMinDist = fRayLen;
+        }
         
         #ifdef USE_DYNAMIC_QUALITY
         if (fRayLen > _MaxDist) {ray.bMissed = true; break;}//flag this as transparent/sky

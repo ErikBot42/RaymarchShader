@@ -28,6 +28,7 @@
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         [KeywordEnum(None, Twist, Rotate, Repeat)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
+        [KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
 
         [Header(general live sliders and toggles)]
         _Slider_SDF ("SDF slider", Range(-1,1)) = 0
@@ -54,11 +55,11 @@
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
-            //#pragma multi_compile ANIMATE_SDF_ON
+            #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 
             #ifdef _SPACE_WORLD
             #define USE_WORLD_SPACE
-            //#define REPEAT_SPACE
+            #define REPEAT_SPACE
             #endif
 
             //#define USE_DYNAMIC_QUALITY
@@ -66,6 +67,7 @@
             //#define DISCARD_ON_MISS
             //#define USE_REFLECTIONS
             //#define MAX_REFLECTIONS 3
+
 
 
             // precompile performance options
@@ -80,6 +82,10 @@
             #endif
             #endif
 
+            #ifndef MAX_DIST
+            #define MAX_DIST 20
+            #endif 
+
             float _FoldingLimit;
 
             #include "RayMarchLib.cginc"
@@ -93,8 +99,8 @@
             float _ScaleFactor;
             
             float _Slider_SDF;
-            float _Slider_Transform;
 
+            float _Slider_Transform;
 
             inline material applyColorTransform(float3 p, in material mat)
             {
@@ -105,7 +111,7 @@
 
                 #elif _MTRANS_COLORHSV_CUBE
 
-                mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*0.5 + _Time.x), 1, 1);
+                mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*2 + _Time.x), 1, 1);
 
                 #elif _MTRANS_COLORXYZ
 
@@ -130,7 +136,7 @@
 
 
                 #ifdef REPEAT_SPACE
-                float r=3;
+                float r=2;
                 /*p.y = fmod(abs(p.y + 4), 8) - 4;
                 p.x = fmod(abs(p.x + 4), 8) - 4;
                 p.z = fmod(abs(p.z + 4), 8) - 4;*/
@@ -165,6 +171,13 @@
 
             sdfData scene(float3 p)
             {
+
+                #ifdef _ANIMATE_OFF
+                float sdfSlider = _Slider_SDF;
+                #else
+                float sdfSlider = sin(_Time.x*0.5);
+                #endif
+
                 sdfData o = {0,DEFMAT};
 
 
@@ -193,7 +206,7 @@
                 #ifdef _SDF_MANDELBULB
                 //#define FUNGE_FACTOR _FoldingLimit
 
-                float scale = 0.2;
+                float scale = 0.4;
                 p/=scale;
                 
                 #define COLTRANS_DONE
@@ -213,17 +226,22 @@
 
                 #define COLTRANS_DONE
 
-                float scaleFactor = _Slider_SDF*3;
+                float scaleFactor = sdfSlider*3;
                 //float scaleFactor = _SinTime.y*3;
 
                 //float scale = 0.5;
-                float scale = 0.3;
+                float scale = 0.15;
                 //_SurfDist = 0.0001;
                 if (scaleFactor>0) 
                 {
-                    scaleFactor+=1;
+                    //scaleFactor+=1;
+                    scaleFactor+=2;
                     scale/=1*(scaleFactor+1)/(scaleFactor-1);
                     //_SurfDist=scale*0.0001;
+                }
+                else
+                {
+                    scaleFactor-=1;
                 }
 
                 o.mat = applyColorTransform(p, o.mat); 
@@ -306,34 +324,35 @@
                 #define FUNGE_FACTOR 1
                 #endif
 
-                fixed4 glowColor = fixed4(1,1,1,1);
+                //fixed4 glowColor = fixed4(1,1,1,1);
                 //fixed4 glowColor = ray.mat.col;
-                //fixed4 glowColor = fixed4(1,1,1,1)*(0.01/ray.minDist)*FUNGE_FACTOR;
                 //glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
-                glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
+                //glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
 
+                //fixed4 glowColor = fixed4(1,1,1,1)*(0.1/ray.minDist)*FUNGE_FACTOR;
+                //fixed4 glowColor = 0;
+                //glowColor = saturate(glowColor)*0.5;
+
+                fixed4 cFog = 0;
                 fixed4 col = 0;
                 if (ray.bMissed)
                 {
-                    fixed4 cFog = fixed4(.0,.0,.0,.0);
-
-                    col += glowColor;
-
-                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+                    //fixed4 cFog = fixed4(.0,.0,.0,.0);
+                    //col = glowColor;
+                    //cFog = glowColor;
+                    //col = lightFog(col, cFog, ray.distToMinDist, 0, MAX_DIST);
                 }
                 else
                 {
                     col = ray.mat.col;
-
-                    col *= (20.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
-                    
+                    col *= (10.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
+                    //col += glowColor;
                     //fixed4 cFog = glowColor;
-
-                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+                    col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
                 }
 
 
-                return 0.01*fixed4(1,1,1,1)*ray.iSteps;
+                //return 0.01*fixed4(1,1,1,1)*ray.iSteps;
                 return col;
             }
             
