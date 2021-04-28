@@ -58,8 +58,8 @@
             #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 
             #ifdef _SPACE_WORLD
-            #define USE_WORLD_SPACE
-            #define REPEAT_SPACE
+                #define USE_WORLD_SPACE
+                #define REPEAT_SPACE
             #endif
 
             //#define USE_DYNAMIC_QUALITY
@@ -68,22 +68,24 @@
             //#define USE_REFLECTIONS
             //#define MAX_REFLECTIONS 3
 
-
-
             // precompile performance options
 
             #ifdef _SDF_MANDELBULB
-            #define MAX_STEPS 200
-            #define MAX_DIST 30
-            #define FUNGE_FACTOR 0.5
-            //This DOUBLES the framerate:
-            #ifndef CONSTRAIN_TO_MESH
-            //#define CONSTRAIN_TO_MESH
-            #endif
+                #define MAX_STEPS 200
+                #define FUNGE_FACTOR 0.5
+
+                //This DOUBLES the framerate:
+                #ifndef CONSTRAIN_TO_MESH
+                //#define CONSTRAIN_TO_MESH
+                #endif
+            #elif _SDF_MANDELBOX
+                #define FUNGE_FACTOR 0.3
+
+                //#define STEP_FACTOR 1
             #endif
 
             #ifndef MAX_DIST
-            #define MAX_DIST 20
+                #define MAX_DIST 20
             #endif 
 
             float _FoldingLimit;
@@ -104,63 +106,42 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
-
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-
-                mat.col = HSV(frac(length(p)*0.5 + _Time.x), 1, 1);
-
+                    mat.col = HSV(frac(length(p)*0.5 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORHSV_CUBE
-
-                mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*2 + _Time.x), 1, 1);
-
+                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*2 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORXYZ
-
-                float factor = 0.2;
-                
-                mat.col.x = p.x*factor+factor;
-                mat.col.y = p.y*factor+factor;
-                mat.col.z = p.z*factor+factor;
-
-
-                //_MTRANS_NONE
+                    float factor = 0.2;
+                    mat.col.x = p.x*factor+factor;
+                    mat.col.y = p.y*factor+factor;
+                    mat.col.z = p.z*factor+factor;
                 #else 
-                // do nothing
+                    // do nothing
                 #endif
-
                 return mat;    
             }
 
 
             inline void applyPositionTransform(inout float3 p)
             {
-
-
                 #ifdef REPEAT_SPACE
-                float r=2;
-                /*p.y = fmod(abs(p.y + 4), 8) - 4;
-                p.x = fmod(abs(p.x + 4), 8) - 4;
-                p.z = fmod(abs(p.z + 4), 8) - 4;*/
+                    float r=2;
+                    /*p.y = fmod(abs(p.y + 4), 8) - 4;
+                    p.x = fmod(abs(p.x + 4), 8) - 4;
+                    p.z = fmod(abs(p.z + 4), 8) - 4;*/
 
-                p = repXYZUnsigned(p,r);
-                //p = repXYZ(p,8);
+                    p = repXYZUnsigned(p,r);
+                    //p = repXYZ(p,8);
                 #endif
-
                 #ifdef _PTRANS_TWIST 
-
-                p = rotZ(p, p.z*_Slider_Transform*2);
-
+                    p = rotZ(p, p.z*_Slider_Transform*2);
                 #elif _PTRANS_ROTATE
-
-
-                //o = fmod(abs(p + r/2.0), r) - r/2.0;
-                //p.z = fmod(p.z,8);
-                //p = rotZ(p, _Slider_Transform);
-                p = rotZ(p, _Time.x);
-
-
+                    //o = fmod(abs(p + r/2.0), r) - r/2.0;
+                    //p.z = fmod(p.z,8);
+                    //p = rotZ(p, _Slider_Transform);
+                    p = rotZ(p, _Time.x);
                 #else
-                // _PTRANS_None
-
+                    // do nothing
                 #endif
             }
 
@@ -222,7 +203,6 @@
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_MANDELBOX
                 
-                #define FUNGE_FACTOR 0.3
 
                 #define COLTRANS_DONE
 
@@ -324,27 +304,31 @@
                 #define FUNGE_FACTOR 1
                 #endif
 
-                //fixed4 glowColor = fixed4(1,1,1,1);
+                fixed4 glowColor = fixed4(1,1,1,1);
                 //fixed4 glowColor = ray.mat.col;
-                //glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
+                glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
                 //glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
 
                 //fixed4 glowColor = fixed4(1,1,1,1)*(0.1/ray.minDist)*FUNGE_FACTOR;
                 //fixed4 glowColor = 0;
-                //glowColor = saturate(glowColor)*0.5;
+                glowColor = saturate(glowColor);
+
 
                 fixed4 cFog = 0;
+
+                //cFog = lightFog(glowColor, cFog, ray.distToMinDist, 0, MAX_DIST);
+
                 fixed4 col = 0;
                 if (ray.bMissed)
                 {
                     //fixed4 cFog = fixed4(.0,.0,.0,.0);
                     //col = glowColor;
+                    col = cFog;
                     //cFog = glowColor;
-                    //col = lightFog(col, cFog, ray.distToMinDist, 0, MAX_DIST);
                 }
                 else
                 {
-                    col = ray.mat.col;
+                    col = ray.mat.col*glowColor;
                     col *= (10.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
                     //col += glowColor;
                     //fixed4 cFog = glowColor;
