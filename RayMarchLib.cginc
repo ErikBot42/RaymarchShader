@@ -38,22 +38,19 @@ float _SurfDist = 0.00001;
 #else//pre compile quality settings
 #ifndef MAX_STEPS
 #define MAX_STEPS 256
+//256
 #endif
 #ifndef MAX_DIST
 #define MAX_DIST 128
 #endif
 #ifndef SURF_DIST
-#define SURF_DIST 0.00001
+#define SURF_DIST 0.0001
+//#define SURF_DIST 0.00001
 #endif
 #endif
 
 
 #define col(r, g, b) fixed4(r, g, b, 1)
-
-/*enum class Ray
-{
-
-}*/
 
 struct appdata
 {
@@ -646,9 +643,11 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     // Lowest number of iterations without loosing a significant amount of detail
     // Depends on maxRThreshold
     //int iterations = 1;
-    int iterations = 8;
+    //int iterations = 8;
+    const int iterations = 6;
 
-    float maxRThreshold = 2;
+    //float maxRThreshold = 2;
+    const float maxRThreshold = 2;
 
     // Z_(n+1) = Z(n)^?
     // float Power = 8 + 6 * sin(_Time.x); 
@@ -674,7 +673,6 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
         
 
     }
-
 
     sdfData sdf;
     sdf.mat = mat;

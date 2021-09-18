@@ -46,7 +46,14 @@
 
         Pass
         {
+
+			/*TODO:
+			[ ] calc things on demand.
+			[ ] first step should use simpler sdf.
+
+			*/	
             CGPROGRAM
+
             #pragma vertex vert
             #pragma fragment frag
 
@@ -71,16 +78,19 @@
             // precompile performance options
 
             #ifdef _SDF_MANDELBULB
-                #define MAX_STEPS 200
-                #define FUNGE_FACTOR 0.5
+				#define EXTREME_AO
+                #define MAX_STEPS 100
+
+                //#define MAX_STEPS 200
+                #define FUNGE_FACTOR 0.6
 
                 //This DOUBLES the framerate:
-                #ifndef CONSTRAIN_TO_MESH
-                //#define CONSTRAIN_TO_MESH
-                #endif
+                #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
-                #define FUNGE_FACTOR 0.3
+                //#define MAX_STEPS 500
+                #define FUNGE_FACTOR 0.5
 
+                #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
             #endif
 
@@ -124,6 +134,7 @@
 
             inline void applyPositionTransform(inout float3 p)
             {
+				//return;
                 #ifdef REPEAT_SPACE
                     float r=2;
                     /*p.y = fmod(abs(p.y + 4), 8) - 4;
@@ -303,6 +314,8 @@
                 #ifndef FUNGE_FACTOR
                 #define FUNGE_FACTOR 1
                 #endif
+				
+				
 
                 fixed4 glowColor = fixed4(1,1,1,1);
                 //fixed4 glowColor = ray.mat.col;
@@ -323,16 +336,31 @@
                 {
                     //fixed4 cFog = fixed4(.0,.0,.0,.0);
                     //col = glowColor;
-                    col = cFog;
+                    //col = cFog;
+                    //col = 10 * glowColor/ray.iSteps;
+                    //col = 10 * glowColor/ray.distToMinDist;
                     //cFog = glowColor;
                 }
                 else
                 {
+    				//fixed3 vNorm;
                     col = ray.mat.col*glowColor;
-                    col *= (10.0/ray.iSteps)*STEP_FACTOR/FUNGE_FACTOR;
+					//float colorFactor = dot(float4(ray.vNorm,1),V_Y);
+					//colorFactor = max(0,colorFactor)*0.1;
+					 
+					//float colorFactor = STEP_FACTOR/FUNGE_FACTOR;
+					col *= STEP_FACTOR/FUNGE_FACTOR;
+					#ifdef EXTREME_AO
+                    col *= (100.0/(ray.iSteps*ray.iSteps));
+					#else
+                    col *= (10.0/ray.iSteps);
+					#endif
+                    //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps))*STEP_FACTOR/FUNGE_FACTOR;
                     //col += glowColor;
                     //fixed4 cFog = glowColor;
-                    col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+                    //col *= colorFactor*glowColor;
+					return col;
+                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
                 }
 
 
