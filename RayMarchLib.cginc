@@ -146,6 +146,7 @@ v2f vert (appdata v)
 
 
 #ifdef USE_REFLECTIONS
+#define CALC_NORM
 fragOut frag (v2f i)
 {
 
@@ -222,7 +223,8 @@ fragOut frag (v2f i)
     #endif
     fragOut o;
     o.col = lightPoint(ray);
-    
+
+	// writing to depth buffer costs about 1-2 frames at 4k
     #ifdef USE_WORLD_SPACE
         float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
     #else
@@ -237,7 +239,7 @@ fragOut frag (v2f i)
 //gets normal of a point
 inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
 {
-    ////if epsilon is smaller than 0.001, there are often artifacts
+    //if epsilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = scene(vPos).dist - float3(
             scene(vPos - e.xyy).dist,
@@ -305,7 +307,9 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
     ray.iSteps = i;
     ray.mat    = sdf_data.mat;
     ray.vHit   = vPos;
+	#ifdef CALC_NORM
     ray.vNorm  = getNorm(vPos, sdf_data.dist);
+	#endif
     return ray;
 }
 
@@ -403,7 +407,7 @@ fixed4 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 
 //////////////////////////////////////////////////////////////////////
 //
-// Interpolation
+// Interpolation and Math
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -440,6 +444,67 @@ inline material mixMat(material a, material b, float fac)
     m.fRough = lerp(a.fRough, b.fRough, fac);
     return m;
 }
+
+// from: https://github.com/michaldrobot/ShaderFastLibs/blob/master/ShaderFastMathLib.h
+// modified to be more "optimized" (WAY worse approximations)
+static const float fsl_PI = 3.1415926535897932384626433f;
+static const float fsl_PI_half = fsl_PI/2;
+inline float acosFast4(float inX)
+{
+	return 1.57-inX;
+	float x1 = abs(inX);
+	//float x2 = x1 * x1;
+	//float x3 = x2 * x1;
+	float s;
+
+	s = -0.2121144f * x1 + 1.5707288f;
+	//s = 0.0742610f * x2 + s;
+	//s = -0.0187293f * x3 + s;
+	s = sqrt(1.0f - x1) * s;
+
+	// acos function mirroring
+	// check per platform if compiles to a selector - no branch neeeded
+	return s;
+	//return inX >= 0.0f ? s : fsl_PI - s;
+}
+
+// polynomial degree 2
+// Tune for positive input [0, infinity] and provide output [0, PI/2]
+inline float ATanPos(float x)
+{
+	const float C1 = 1.01991;
+	const float C2 = -0.218891;
+    float t0 = (x < 1.0f) ? x : 1.0f / x;
+    float t1 = (C2 * t0 + C1) * t0; // p(x)
+    return t1;//return (x < 1.0f) ? t1: fsl_PI_half - t1; // undo range reduction
+} 
+// Common function, ATanPos is implemented below
+// input [-infinity, infinity] and output [-PI/2, PI/2]
+inline float ATan(float x) 
+{     
+    float t0 = ATanPos(abs(x));     
+    return t0;//(x < 0.0f) ? -t0: t0; // undo range reduction 
+}
+
+inline float atanFast4(float inX)
+{
+	//return atan(inX);
+	return ATan(inX);
+	float  x = inX;
+	return x*(-0.1784f * abs(x) - 0.0663f * x * x + 1.0301f);
+}
+
+// https://en.wikipedia.org/wiki/Atan2#Definition_and_computation
+inline float atanFast4_2(float y, float x)
+{
+	//return sign(x)*sign(x)*atanFast4(y/x)+((1-sign(x))/2)*(1-sign(y)-sign(y)*sign(y))*fsl_PI;
+	return atanFast4(y/x)+(1-sign(x))*(sign(y))*fsl_PI/2;
+
+}
+
+
+
+
 
 
 //////////////////////////////////////////////////////////////////////
@@ -626,6 +691,50 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 // complex :julia, 
 // simple sierpinsky, menger
 
+// Mandelbolb - OPTIMIZED AF, still a fractal but visually diffrent.
+sdfData fracMandelbolb(float3 p, material mat = DEFMAT)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+    float3 pos;
+    pos.x = p.x;
+    pos.y = p.y;
+    pos.z = p.z;
+
+    float dr = 1.0;
+    float r = 0;
+
+    const int iterations = 4;
+
+    const float maxRThreshold = 2;//2;
+
+    const float Power = 16;
+    for (int i = 0; i < iterations; i++)
+    {
+        r = length(p);
+        if (r>maxRThreshold) break;
+
+        // xyz -> polar
+        //float theta = acos( p.z / r );
+        float theta = acosFast4( p.z / r );
+        //float phi = atan2( p.y, p.x );
+        float phi = atanFast4_2( p.y, p.x );
+        dr = pow( r, Power-1.0)*Power*dr + 1.0;
+
+        // transform point
+        float zr = pow( r, Power );
+        theta = theta * Power;
+        phi = phi * Power;
+
+        // polar -> xyz
+        p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        p += pos;
+    }
+
+    sdfData sdf;
+    sdf.mat = mat;
+    sdf.dist = 0.5*log(r)*r/dr;
+    return sdf;
+}
 
 // Mandelbulb
 sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
@@ -636,7 +745,6 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     pos.y = p.y;
     pos.z = p.z;
 
-
     float dr = 1.0;
     float r = 0;
 
@@ -644,7 +752,7 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
     // Depends on maxRThreshold
     //int iterations = 1;
     //int iterations = 8;
-    const int iterations = 6;
+    const int iterations = 5;
 
     //float maxRThreshold = 2;
     const float maxRThreshold = 2;
@@ -697,7 +805,7 @@ sdfData fracMandelbox(float3 p, float scaleFactor, material mat = DEFMAT)
     float dr = 0;
    
     // Parameters
-    int iterations = 15;
+    int iterations = 8;//20;//14;
     //scaleFactor = -2 + (_SinTime.x*4+2);
     float fixedRadius = 1.0;
     float minRadius = 0.5;
@@ -783,14 +891,13 @@ sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixe
 }
 
 // Feather
-sdfData fracFeather(float3 p, material mat=DEFMAT)
+sdfData fracFeather(float3 p, float cx = 2.0, float cy = 2.7, float cz = 1.4, material mat=DEFMAT)
 {
     // https://fractalforums.org/index.php?action=gallery;sa=view;id=5732
-    int iterations = 8;
-    //float cx = 2.0 + _SinTime.z*0.1;
-    float cx = 2.0;
-    float cy = 2.7;
-    float cz = 1.4;
+    int iterations = 5;
+    //float cx = 2.0;
+    //float cy = 2.7;
+    //float cz = 1.4;
     float cw = 0.1;
     float dx = 1.5;// + _FoldingLimit-0.5;
     

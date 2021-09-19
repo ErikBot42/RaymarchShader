@@ -24,7 +24,7 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Mandelbulb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Testing, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         [KeywordEnum(None, Twist, Rotate, Repeat)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
@@ -40,7 +40,17 @@
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+
+        //Tags { "RenderType"="Opaque" }
+        //Tags { "Queue"="Transparent" "RenderType"="Opaque" }
+		Tags { // transparent
+			"Queue"="Transparent" 
+				"RenderType"="Transparent" 
+				"ForceNoShadowCasting"="True"
+				"DisableBatching"="True" // batching can prevent access to object space
+		}
+		Blend SrcAlpha OneMinusSrcAlpha // enable transparency
+
         Cull Off
         LOD 100
 
@@ -53,12 +63,13 @@
 
 			*/	
             CGPROGRAM
+			//#define DEBUG_COLOR_MODE
 
             #pragma vertex vert
             #pragma fragment frag
 
             
-            #pragma multi_compile _SDF_NONE _SDF_MANDELBULB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            #pragma multi_compile _SDF_NONE _SDF_TESTING _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
@@ -77,21 +88,28 @@
 
             // precompile performance options
 
-            #ifdef _SDF_MANDELBULB
-				#define EXTREME_AO
-                #define MAX_STEPS 100
+            #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB)
+				//#define EXTREME_AO
+                //#define MAX_STEPS 14
+                //#define MAX_STEPS 20
+                #define MAX_STEPS 20
 
                 //#define MAX_STEPS 200
-                #define FUNGE_FACTOR 0.6
+                #define FUNGE_FACTOR 1.4
 
                 //This DOUBLES the framerate:
                 #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
-                //#define MAX_STEPS 500
-                #define FUNGE_FACTOR 0.5
+                #define MAX_STEPS 50
+                #define FUNGE_FACTOR 0.3
+
 
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
+			#elif _SDF_FEATHER
+				#define MAX_STEPS 30
+				#define CONSTRAIN_TO_MESH
+				#define FUNGE_FACTOR 0.75
             #endif
 
             #ifndef MAX_DIST
@@ -205,7 +223,28 @@
                 o.mat = applyColorTransform(p, o.mat); 
 
                 o.dist = fracMandelbulb(p).dist;
+                //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
+				#elif _SDF_MANDELBOLB
+
+                float scale = 0.4;
+                p/=scale;
+                
+                #define COLTRANS_DONE
+                o.mat = applyColorTransform(p, o.mat); 
+
+                o.dist = fracMandelbolb(p).dist;
+                //o.dist = sdfSphere(p,0.5).dist;
+                o.dist*=scale;
+
+				#elif _SDF_TESTING
+
+                #define COLTRANS_DONE
+                o.mat = applyColorTransform(p, o.mat); 
+
+				o.dist = 50.5*log(length(p))*length(p)*p.x;
+
+
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -242,6 +281,7 @@
 
                 o.dist = fracMandelbox(p, scaleFactor).dist;
                 //o = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
+                //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
                 //p.x +=_SinTime.z*4;
 
                 float3 dim = float3(2,2,2)/scale;
@@ -264,7 +304,6 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_FEATHER
-                #define FUNGE_FACTOR 0.5
                 //p = dot(p,p)*10;
                 //float3 p_shifted = p; p_shifted.x+=_Time.x;
                 o = fracFeather(p);
@@ -305,7 +344,7 @@
                 return o;
             }
 
-            fixed4 lightPoint(rayData ray)
+            fixed4 lightPoint(rayData ray) //2ms !!!
             {
                 #ifndef STEP_FACTOR
                 #define STEP_FACTOR 1
@@ -314,10 +353,22 @@
                 #ifndef FUNGE_FACTOR
                 #define FUNGE_FACTOR 1
                 #endif
+
 				
+				#ifdef DEBUG_COLOR_MODE
+				if(ray.bMissed)
+				{
+					return fixed4(10.0/ray.iSteps,1,0,1);
+				}
+				else
+				{
+					return fixed4(10.0/ray.iSteps,0,1,1);
+				}
+				#endif
 				
 
                 fixed4 glowColor = fixed4(1,1,1,1);
+				//return glowColor;
                 //fixed4 glowColor = ray.mat.col;
                 glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
                 //glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
@@ -350,20 +401,22 @@
 					 
 					//float colorFactor = STEP_FACTOR/FUNGE_FACTOR;
 					col *= STEP_FACTOR/FUNGE_FACTOR;
-					#ifdef EXTREME_AO
-                    col *= (100.0/(ray.iSteps*ray.iSteps));
-					#else
-                    col *= (10.0/ray.iSteps);
-					#endif
+					//#ifdef EXTREME_AO
+                    //col.w = (100.0/(ray.iSteps*ray.iSteps));
+                    //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps));
+					//#else
+					//#endif
+                    col.w = 15.0*(1.0/ray.iSteps-(1.0/MAX_STEPS));
+					// Linear:
+                    //col.w = 1.0*(1.0-float(ray.iSteps)/MAX_STEPS);
                     //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps))*STEP_FACTOR/FUNGE_FACTOR;
                     //col += glowColor;
                     //fixed4 cFog = glowColor;
                     //col *= colorFactor*glowColor;
-					return col;
+					//col.w = 0.2;
                     //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+					//col *= col.w;
                 }
-
-
                 //return 0.01*fixed4(1,1,1,1)*ray.iSteps;
                 return col;
             }
