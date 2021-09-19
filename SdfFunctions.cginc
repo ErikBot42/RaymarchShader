@@ -11,98 +11,68 @@
 //////////////////////////////////////////////////////////////////////
 
 //create sphere
-sdfData sdfSphere(float3 p, float fRadius, material mat = DEFMAT)
+float sdfSphere(float3 p, float fRadius)
 {
-    sdfData sdf;
-    sdf.dist = length(p) - fRadius;
-    sdf.mat = mat;
-    return sdf;
+    return length(p) - fRadius;
 }
 
 //create plane pointing to positive Y
-sdfData sdfPlane(float3 p, float fHeight, material mat = DEFMAT)
+float sdfPlane(float3 p, float fHeight)
 {
-    sdfData sdf;
-    sdf.dist = p.y - fHeight;
-    sdf.mat = mat;
-    return sdf;
+    return p.y - fHeight;
 }
 
 //create plane with normal
-sdfData sdfPlane(float3 p, float3 vNorm, float fHeight, material mat = DEFMAT)
+float sdfPlane(float3 p, float3 vNorm, float fHeight)
 {
-    sdfData sdf;
-    sdf.dist = dot(p, normalize(vNorm)) - fHeight;
-    sdf.mat = mat;
-    return sdf;
+    return dot(p, normalize(vNorm)) - fHeight;
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, material mat = DEFMAT)
+float sdfBox(float3 p, float3 vDim)
 {
-    sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
-    sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
-    sdf.mat = mat;
-    return sdf;
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
 
 //create cuboid
-sdfData sdfBox(float3 p, float3 vDim, float fRound, material mat = DEFMAT)
+float sdfBox(float3 p, float3 vDim, float fRound)
 {
-    sdfData sdf;
     float3 q = abs(p) - vDim/2.0;
-    sdf.dist = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
-    sdf.mat = mat;
-    return sdf;
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - fRound;
 }
 
 //create line segment
-sdfData sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius, material mat = DEFMAT)
+float sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius)
 {
-    sdfData sdf;
     float h = min(1, max(0, dot(p-vStart, vEnd-vStart) / dot(vEnd-vStart, vEnd-vStart)));
-    sdf.dist = length(p-vStart-(vEnd-vStart)*h)-fRadius;
-    sdf.mat = mat;
-    return sdf;
+    return length(p-vStart-(vEnd-vStart)*h)-fRadius;
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, material mat = DEFMAT)
+float sdfCylinder(float3 p, float fRadius, float fHeight)
 {
-    sdfData sdf;
-    sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius);
-    sdf.mat = mat;
-    return sdf;
+    return max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius);
 }
 
 //create cylinder
-sdfData sdfCylinder(float3 p, float fRadius, float fHeight, float fRound, material mat = DEFMAT)
+float sdfCylinder(float3 p, float fRadius, float fHeight, float fRound)
 {
-    sdfData sdf;
-    sdf.dist = max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
-    sdf.mat = mat;
-    return sdf;
+    return max(abs(p.y) - fHeight/2.0, length(p.xz) - fRadius) - fRound;
 }
 
 //create torus
-sdfData sdfTorus(float3 p, float fRadius, float fThickness, material mat = DEFMAT)
+float sdfTorus(float3 p, float fRadius, float fThickness)
 {
-    sdfData sdf;
     float2 q = float2(length(p.xz) - fRadius, p.y);
-    sdf.dist = length(q) - fThickness;
-    sdf.mat = mat;
-    return sdf;
+    return length(q) - fThickness;
 }
 
 //triangular prism (BOUND)
-sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
+float sdfTriPrism(float3 p, float fSide, float fDepth)
 {
     float3 q = abs(p);
-    sdfData sdf;
-    sdf.dist = max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
-    sdf.mat = mat;
-    return sdf;
+    return max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
 }
 
 
@@ -117,7 +87,7 @@ sdfData sdfTriPrism(float3 p, float fSide, float fDepth, material mat = DEFMAT)
 // simple sierpinsky, menger
 
 // Mandelbolb - OPTIMIZED AF, still a fractal but visually diffrent.
-sdfData fracMandelbolb(float3 p, material mat = DEFMAT)
+float fracMandelbolb(float3 p)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
     float3 pos;
@@ -155,14 +125,11 @@ sdfData fracMandelbolb(float3 p, material mat = DEFMAT)
         p += pos;
     }
 
-    sdfData sdf;
-    sdf.mat = mat;
-    sdf.dist = 0.5*log(r)*r/dr;
-    return sdf;
+    return 0.5*log(r)*r/dr;
 }
 
 // Mandelbulb
-sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
+float fracMandelbulb(float3 p)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
     float3 pos;
@@ -207,19 +174,15 @@ sdfData fracMandelbulb(float3 p, material mat = DEFMAT)
 
     }
 
-    sdfData sdf;
-    sdf.mat = mat;
     //sdf.mat.col.y = sin(p.x);
     //sdf.dist = sdfSphere(pos, 10).dist;
     //sdf.mat = mat;
-    sdf.dist = 0.5*log(r)*r/dr;
+    return 0.5*log(r)*r/dr;
     //sdf.mat = mat;
-
-    return sdf;
 }
 
 // Mandelbox
-sdfData fracMandelbox(float3 p, float scaleFactor, material mat = DEFMAT)
+float fracMandelbox(float3 p, float scaleFactor)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
 
@@ -253,16 +216,13 @@ sdfData fracMandelbox(float3 p, float scaleFactor, material mat = DEFMAT)
         dr = dr*abs(scaleFactor)+1;
     }
 
-    sdfData sdf;
-    sdf.mat = mat;
 
     float r = length(p);
-    sdf.dist = r/abs(dr);
-    return sdf;
+    return r/abs(dr);
 }
 
 // Mandelbox alternate implementation, possibly faster
-sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor, material mat = DEFMAT)
+float fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor)
 {
     // http://www.fractalforums.com/3d-fractal-generation/a-mandelbox-distance-estimate-formula/
     float scale = -2;
@@ -305,15 +265,11 @@ sdfData fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixe
         p=p*scale+1;
         DEfactor*=scale;
     }
-
-    sdfData sdf;
-    sdf.mat = mat;
-    sdf.dist = length(p)/abs(DEfactor);
-    return sdf;
+    return length(p)/abs(DEfactor);
 }
 
 // Feather
-sdfData fracFeather(float3 p, material mat=DEFMAT)
+float fracFeather(float3 p)
 {
     // https://fractalforums.org/index.php?action=gallery;sa=view;id=5732
     int iterations = 5;
@@ -338,11 +294,7 @@ sdfData fracFeather(float3 p, material mat=DEFMAT)
         s *= r2;
     }
     
-    sdfData o;
-    o.mat = mat;
-    o.dist = length(p)/s-.001;
-    return o;
-
+    return length(p)/s-.001;
 }
 
 #endif

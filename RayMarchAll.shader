@@ -224,7 +224,7 @@
                 #define COLTRANS_DONE
                 o.mat = applyColorTransform(p, o.mat); 
 
-                o.dist = fracMandelbulb(p).dist;
+                o.dist = fracMandelbulb(p);
                 //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
 				#elif _SDF_MANDELBOLB
@@ -235,7 +235,7 @@
                 #define COLTRANS_DONE
                 o.mat = applyColorTransform(p, o.mat); 
 
-                o.dist = fracMandelbolb(p).dist;
+                o.dist = fracMandelbolb(p);
                 //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
 
@@ -281,13 +281,16 @@
 
 
 
-                o.dist = fracMandelbox(p, scaleFactor).dist;
+                o.dist = fracMandelbox(p, scaleFactor);
                 //o = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
                 //p.x +=_SinTime.z*4;
 
                 float3 dim = float3(2,2,2)/scale;
-                o = sdfInter(p, sdfBox(p,dim,0), o);
+
+
+
+                //o = sdfInter(p, sdfBox(p,dim,0), o);
 
                 o.dist*=scale;
 
@@ -298,7 +301,7 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
-                o = sdfSphere(p, 1);
+                o.dist = sdfSphere(p, 0.5);
 
                 //////////////////////////////////////////////////////////////////////
                 //
