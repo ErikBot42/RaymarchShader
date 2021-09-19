@@ -92,6 +92,7 @@
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
                 //#define MAX_STEPS 20
+                //#define MAX_STEPS 20
                 #define MAX_STEPS 20
 
                 //#define MAX_STEPS 200
@@ -107,7 +108,8 @@
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
 			#elif _SDF_FEATHER
-				#define MAX_STEPS 30
+				#define MAX_STEPS 70
+				//#define MAX_STEPS 30
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.75
             #endif
