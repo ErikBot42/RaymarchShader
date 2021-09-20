@@ -234,9 +234,31 @@ float fracMandelbox3(float3 p, float scaleFactor)
     for(int i=0; i<iterations; i++)
     {
         boxFold2(pdr, 1);
-		//boxFold(pdr.xyz,pdr.w,1);
-        //sphereFold2(pdr, minRadius2, fixedRadius2);
-		sphereFold(pdr.xyz,pdr.w, minRadius, fixedRadius);
+        sphereFold2(pdr, minRadius*minRadius, fixedRadius*fixedRadius);
+
+        pdr.xyz = scaleFactor*pdr.xyz + offset3;
+        pdr.w = pdr.w*abs(scaleFactor)+1;
+    }
+    float r = length(pdr.xyz);
+    return r/abs(pdr.w);
+}
+
+// Testing, definetly has things wrong about it.
+// Looks similar, significantly cheaper.
+float fracMandelbox4(float3 p, float scaleFactor)
+{
+
+    float3 offset3 = p;
+    //float dr = 1.0;
+	float4 pdr = float4(p,1);
+    int iterations = 10;
+    //float fixedRadius = 1.0;
+    float minRadius = 1 + _SinTime.y*0.5;//0.5;
+    for(int i=0; i<iterations; i++)
+    {
+        boxFold2(pdr, 1);
+    	//sphereFold2(pdr, minRadius*minRadius, fixedRadius*fixedRadius);
+    	sphereFold2(pdr, minRadius);
 
         pdr.xyz = scaleFactor*pdr.xyz + offset3;
         pdr.w = pdr.w*abs(scaleFactor)+1;
@@ -245,6 +267,7 @@ float fracMandelbox3(float3 p, float scaleFactor)
     float r = length(pdr.xyz);
     return r/abs(pdr.w);
 }
+
 // Mandelbox alternate implementation, possibly faster
 float fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor)
 {

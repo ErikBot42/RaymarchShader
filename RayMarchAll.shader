@@ -192,6 +192,7 @@
                 float sdfSlider = _Slider_SDF;
                 #else
                 float sdfSlider = sin(_Time.x*0.5);
+                //float sdfSlider = pingPong(_Time.x,1,1);
                 #endif
 
                 sdfData o = {0,DEFMAT};
@@ -286,7 +287,8 @@
 
 
                 //o.dist = fracMandelbox(p, scaleFactor);
-                o.dist = fracMandelbox3(p, scaleFactor);
+                //o.dist = fracMandelbox3(p, scaleFactor);
+                o.dist = fracMandelbox4(p, scaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
                 //p.x +=_SinTime.z*4;

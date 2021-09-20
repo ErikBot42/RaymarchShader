@@ -87,13 +87,32 @@ void sphereFold2(
 		float factor = fixedRadius2/minRadius2;
 		pdz *= factor;
 	}
-	else
+	else if(r2<fixedRadius2)
 	{
 		float factor = fixedRadius2/r2;
 		pdz *= factor;
 	}
 }
 
+void sphereFold2(
+	inout float4 pdz,
+	const float R
+)
+{
+	float r = length(pdz.xyz);
+	//float r2 = dot(pdz.xyz, pdz.xyz);
+	float R2 = R*R;
+	if (r<R)
+	{
+		float factor = R2/(r*r);
+		pdz *= factor;
+	}
+	//else if(r2<fixedRadius2)
+	//{
+	//	float factor = fixedRadius2/r2;
+	//	pdz *= factor;
+	//}
+}
 //void sphereFold(
 //    inout float3 p, 
 //    inout float dz, 

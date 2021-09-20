@@ -59,5 +59,11 @@ inline float atanFast4_2(float y, float x)
 
 }
 
+// Triangle wave to [-magnitude,magnitude]
+inline float pingPong(float curr, float speed = 1, float magnitude = 1)
+{
+	return (abs(frac(curr * speed)*2)-0.5)*magnitude;
+}
+
 #endif
 
