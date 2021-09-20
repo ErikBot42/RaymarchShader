@@ -141,9 +141,9 @@
             inline material applyColorTransform(float3 p, in material mat)
             {
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = HSV(frac(length(p)*2 + _Time.x), 1, 1);
+                    mat.col = HSV(frac(length(p)*8 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORHSV_CUBE
-                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*2 + _Time.x), 1, 1);
+                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORXYZ
                     float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
@@ -185,14 +185,15 @@
             //#define STEP_FACTOR 1
             //#define FUNGE_FACTOR 1
 
+
             float sdf(float3 p)
             {
 
                 #ifdef _ANIMATE_OFF
                 float sdfSlider = _Slider_SDF;
                 #else
-                float sdfSlider = sin(_Time.x*0.5);
-                //float sdfSlider = pingPong(_Time.x,1,1);
+                //float sdfSlider = sin(_Time.x*0.5);
+                float sdfSlider = pingPong(_Time.x,.125);
                 #endif
 
                 sdfData o = {0,DEFMAT};
@@ -227,7 +228,7 @@
                 p/=scale;
                 
                 #define COLTRANS_DONE
-                o.mat = applyColorTransform(p, o.mat); 
+                //o.mat = applyColorTransform(p, o.mat); 
 
                 o.dist = fracMandelbulb(p);
                 //o.dist = sdfSphere(p,0.5).dist;
@@ -238,9 +239,11 @@
                 p/=scale;
                 
                 #define COLTRANS_DONE
-                o.mat = applyColorTransform(p, o.mat); 
+                //o.mat = applyColorTransform(p, o.mat); 
+
 
                 o.dist = fracMandelbolb(p);
+
                 //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
 
@@ -318,6 +321,7 @@
                 #elif _SDF_FEATHER
                 //p = dot(p,p)*10;
                 //float3 p_shifted = p; p_shifted.x+=_Time.x;
+				//boxFold(p,0,1);
                 o.dist = fracFeather(p);
                 float3 dim = float3(1,1,1);
                 o.dist = max(sdfBox(p,dim,0), o.dist);

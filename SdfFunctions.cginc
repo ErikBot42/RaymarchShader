@@ -251,9 +251,9 @@ float fracMandelbox4(float3 p, float scaleFactor)
     float3 offset3 = p;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
-    int iterations = 10;
+    int iterations = 8;//6;//10;
     //float fixedRadius = 1.0;
-    float minRadius = 1 + _SinTime.y*0.5;//0.5;
+    float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
     for(int i=0; i<iterations; i++)
     {
         boxFold2(pdr, 1);
