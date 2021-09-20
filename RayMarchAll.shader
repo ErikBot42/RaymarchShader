@@ -101,11 +101,12 @@
                 //This DOUBLES the framerate:
                 #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
-                #define MAX_STEPS 50
-                //#define FUNGE_FACTOR 0.2
-                #define FUNGE_FACTOR 0.5
+                //#define MAX_STEPS 50
+                #define MAX_STEPS 30
+                #define FUNGE_FACTOR 1
 				//#define SURF_DIST 0.0003
-				#define SURF_DIST 0.0001
+				//#define SURF_DIST 0.0001
+				#define SURF_DIST 0.00005
 
 
                 #define CONSTRAIN_TO_MESH
@@ -284,8 +285,9 @@
 
 
 
-                o.dist = fracMandelbox(p, scaleFactor);
-                //o = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
+                //o.dist = fracMandelbox(p, scaleFactor);
+                o.dist = fracMandelbox3(p, scaleFactor);
+                //o.dist = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
                 //p.x +=_SinTime.z*4;
 

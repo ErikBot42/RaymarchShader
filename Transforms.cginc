@@ -55,6 +55,7 @@ void sphereFold(
     float fixedRadius)
 {
     float r = length(p);
+    float r2 = dot(p,p);
     if (r<(minRadius*minRadius))
     {
         // Inner scaling linear
@@ -62,17 +63,14 @@ void sphereFold(
         p *= factor;
         dz *= factor;
     }
-    else {
-    	float r2 = dot(p,p);
-		if (r2<(fixedRadius*fixedRadius))
-		{
-			// Sphere inversion
-			float factor = (fixedRadius*fixedRadius)/r2;
-			p *= factor;
-			dz *= factor;
-		}
+	else if (r2<(fixedRadius*fixedRadius))
+	{
+		// Sphere inversion
+		float factor = (fixedRadius*fixedRadius)/r2;
+		p *= factor;
+		dz *= factor;
 	}
-    // else no transform
+	// else no transform
 }
 
 // A optimized variant, requires dz to be stored in float4
