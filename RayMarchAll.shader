@@ -92,11 +92,10 @@
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
                 //#define MAX_STEPS 20
-                //#define MAX_STEPS 20
-                #define MAX_STEPS 20
-
+                #define MAX_STEPS 200
                 //#define MAX_STEPS 200
-                #define FUNGE_FACTOR 1.4
+                //#define FUNGE_FACTOR 1.4
+                #define FUNGE_FACTOR 1
 
                 //This DOUBLES the framerate:
                 #define CONSTRAIN_TO_MESH
@@ -104,10 +103,9 @@
                 //#define MAX_STEPS 50
                 #define MAX_STEPS 30
                 #define FUNGE_FACTOR 1
-				//#define SURF_DIST 0.0003
 				//#define SURF_DIST 0.0001
-				#define SURF_DIST 0.00005
-
+				//#define SURF_DIST 0.00005
+				#define SURF_DIST 0.0002
 
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
@@ -429,6 +427,7 @@
                     //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps));
 					//#else
 					//#endif
+
                     col.w = 15.0*(1.0/ray.iSteps-(1.0/MAX_STEPS));
 					// Linear:
                     //col.w = 1.0*(1.0-float(ray.iSteps)/MAX_STEPS);

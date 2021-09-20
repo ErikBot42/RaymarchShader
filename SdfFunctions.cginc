@@ -128,59 +128,76 @@ float fracMandelbolb(float3 p)
     return 0.5*log(r)*r/dr;
 }
 
+void pow3D(inout float3 p, in const float power, in const float r)
+{
+	// xyz -> zr,theta,phi
+	float theta = acos( p.z / r );
+	float phi = atan2( p.y, p.x );
+
+	// scale and rotate
+	// this is the generalized operation
+	float zr = pow(r,power);
+	theta = theta * power;
+	phi = phi * power;
+
+	// polar -> xyz
+	p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+
+}
+
 // Mandelbulb
 float fracMandelbulb(float3 p)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
-    float3 pos;
-    pos.x = p.x;
-    pos.y = p.y;
-    pos.z = p.z;
-
+    float3 c = p;
     float dr = 1.0;
-    float r = 0;
+    float r;
 
-    // Lowest number of iterations without loosing a significant amount of detail
-    // Depends on maxRThreshold
-    //int iterations = 1;
-    //int iterations = 8;
-    const int iterations = 5;
+    const int iterations = 8;//5
 
-    //float maxRThreshold = 2;
-    const float maxRThreshold = 2;
+    const float maxRThreshold = 2; //"infinity"
 
-    // Z_(n+1) = Z(n)^?
-    // float Power = 8 + 6 * sin(_Time.x); 
-    float Power = 8;
+    float Power = 8; // Z_(n+1) = Z(n)^? + c
     for (int i = 0; i < iterations; i++)
     {
         r = length(p);
         if (r>maxRThreshold) break;
 
-        // xyz -> polar
-        float theta = acos( p.z / r );
-        float phi = atan2( p.y, p.x );
-        dr = pow( r, Power-1.0)*Power*dr + 1.0;
-
-        // transform point
-        float zr = pow( r, Power );
-        theta = theta * Power;
-        phi = phi * Power;
-
-        // polar -> xyz
-        p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
-        p += pos;
-        
-
+		dr = pow( r, Power-1.0)*Power*dr + 1.0;
+		
+		pow3D(p, Power, r);
+        p += c;
     }
-
-    //sdf.mat.col.y = sin(p.x);
-    //sdf.dist = sdfSphere(pos, 10).dist;
-    //sdf.mat = mat;
     return 0.5*log(r)*r/dr;
-    //sdf.mat = mat;
 }
 
+
+// Juliabulb
+float fracJuliabulb(float3 p)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+	float time = _Time.z;
+    float3 c = float3(sin(time*0.12354), sin(time*0.328432), sin(time*0.234723))*1;
+    float dr = 1.0;
+    float r;
+
+    const int iterations = 10;//5
+
+    const float maxRThreshold = 1.5;//2; //"infinity"
+
+    float Power = 3;//8; // Z_(n+1) = Z(n)^? + c
+    for (int i = 0; i < iterations; i++)
+    {
+        r = length(p);
+        if (r>maxRThreshold) break;
+
+		dr = pow( r, Power-1.0)*Power*dr;
+		
+		pow3D(p, Power, r);
+        p += c;
+    }
+    return 0.5*log(r)*r/dr;
+}
 // Mandelbox
 float fracMandelbox(float3 p, float scaleFactor)
 {
@@ -251,9 +268,10 @@ float fracMandelbox4(float3 p, float scaleFactor)
     float3 offset3 = p;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
-    int iterations = 8;//6;//10;
+    int iterations = 5;//10;
     //float fixedRadius = 1.0;
-    float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
+    //float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
+    float minRadius = 1;
     for(int i=0; i<iterations; i++)
     {
         boxFold2(pdr, 1);
