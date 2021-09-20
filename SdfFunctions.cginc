@@ -187,10 +187,10 @@ float fracMandelbox(float3 p, float scaleFactor)
     // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
 
     float3 offset3 = p;
-    float dr = 0;
+    float dr = 1.0;//0;
    
     // Parameters
-    int iterations = 4;//20;//14;
+    int iterations = 10;//4;//20;//14;
     //scaleFactor = -2 + (_SinTime.x*4+2);
     float fixedRadius = 1.0;
     float minRadius = 0.5;
@@ -221,6 +221,45 @@ float fracMandelbox(float3 p, float scaleFactor)
     return r/abs(dr);
 }
 
+// Mandelbox with 4d float
+float fracMandelbox3(float3 p, float scaleFactor)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
+
+    float3 offset3 = p;
+    float dr = 1.0;
+   
+    // Parameters
+    int iterations = 10;//4;//20;//14;
+    //scaleFactor = -2 + (_SinTime.x*4+2);
+    float fixedRadius = 1.0;
+    float minRadius = 0.5;
+    /*float foldingLimit = 0.2 + _SinTime.x/4 + 0.25;
+    float minRadius = 0.07;
+    float fixedRadius = 0.2;*/
+    
+    //float scaleFactor = -0.8;
+    
+
+    /*float foldingLimit = _FoldingLimit;
+    float minRadius = _MinRadius;
+    float fixedRadius = _FixedRadius;*/
+    
+
+    for(int i=0; i<iterations; i++)
+    {
+        boxFold(p, dr, 1);
+        sphereFold(p, dr, minRadius, fixedRadius);
+
+        p = scaleFactor*p + offset3;
+        //dr = dr*abs(scaleFactor)+1.0;
+        dr = dr*abs(scaleFactor)+1;
+    }
+
+
+    float r = length(p);
+    return r/abs(dr);
+}
 // Mandelbox alternate implementation, possibly faster
 float fracMandelbox2(float3 p, float foldingLimit, float minRadius, float fixedRadius, float scaleFactor)
 {

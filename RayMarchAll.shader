@@ -102,8 +102,10 @@
                 #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
                 #define MAX_STEPS 50
-                #define FUNGE_FACTOR 0.2
-				#define SURF_DIST 0.0003
+                //#define FUNGE_FACTOR 0.2
+                #define FUNGE_FACTOR 0.5
+				//#define SURF_DIST 0.0003
+				#define SURF_DIST 0.0001
 
 
                 #define CONSTRAIN_TO_MESH

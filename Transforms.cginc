@@ -55,19 +55,19 @@ void sphereFold(
     float fixedRadius)
 {
     float r = length(p);
-    if (r<minRadius)
+    if (r<(minRadius*minRadius))
     {
         // Inner scaling linear
-        float factor = fixedRadius/minRadius;
+        float factor = (fixedRadius*fixedRadius)/(minRadius*minRadius);
         p *= factor;
         dz *= factor;
     }
     else {
     	float r2 = dot(p,p);
-		if (r2<fixedRadius)
+		if (r2<(fixedRadius*fixedRadius))
 		{
 			// Sphere inversion
-			float factor = fixedRadius/r2;
+			float factor = (fixedRadius*fixedRadius)/r2;
 			p *= factor;
 			dz *= factor;
 		}
@@ -75,13 +75,67 @@ void sphereFold(
     // else no transform
 }
 
+// A optimized variant, requires dz to be stored in float4
+void sphereFold2(
+	inout float4 pdz,
+	const float minRadius2,
+	const float fixedRadius2
+)
+{
+	float r = length(pdz.xyz);
+	float r2 = dot(pdz.xyz, pdz.xyz);
+	if (r<minRadius2)
+	{
+		float factor = fixedRadius2/minRadius2;
+		pdz *= factor;
+	}
+	else
+	{
+		float factor = fixedRadius2/r2;
+		pdz *= factor;
+	}
+}
+
+//void sphereFold(
+//    inout float3 p, 
+//    inout float dz, 
+//    float minRadius, 
+//    float fixedRadius)
+//{
+//    float r = length(p);
+//    if (r<minRadius)
+//    {
+//        // Inner scaling linear
+//        float factor = fixedRadius/minRadius;
+//        p *= factor;
+//        dz *= factor;
+//    }
+//    else {
+//    	float r2 = dot(p,p);
+//		if (r2<fixedRadius)
+//		{
+//			// Sphere inversion
+//			float factor = fixedRadius/r2;
+//			p *= factor;
+//			dz *= factor;
+//		}
+//	}
+//    // else no transform
+//}
+
+
 // Reflect if outside box
 void boxFold(inout float3 p, 
     float dz, 
     float foldingLimit)
 {
     p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
-    //p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
 }
+
+void boxFold2(inout float4 pdz, float foldingLimit)
+{
+    pdz.xyz = clamp(pdz.xyz, -foldingLimit, foldingLimit) * 2.0 - pdz.xyz;
+}
+
 
 #endif

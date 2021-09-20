@@ -31,19 +31,26 @@
             
             float3 _SunPos;
 
-            sdfData scene(float3 p)
-            {
-                sdfData o;
-                material mGrass = mat(0.001, 0.15, 0.001, 0.5);
-                o = sdfPlane(p, -.5, mGrass);
-                material mDirt = mat(0.18, 0.05, 0.02, 1);
-                o = sdfInter(p, o, sdfSphere(p, 9, mDirt), 0.5);
-                
-                o = sdfAdd(p, o, sdfSphere(p, 2, mat(0.1,0)), 0.3);
-                material mBlue = mat(0.05, 0.1, 0.2, 1);
-                o = sdfAdd(p, o, sdfTorus(p, 5, 0.5, mBlue), 0.2);
-                return o;
-            }
+			float sdf(float3 p) {return sdfSphere(p,1);}
+			material calcMaterial(float3 p) {
+				material mat; 
+				mat.col = fixed4 (1,1,1,1);
+				return mat;
+				}
+
+            //sdfData scene(float3 p)
+            //{
+            //    sdfData o;
+            //    material mGrass = mat(0.001, 0.15, 0.001, 0.5);
+            //    o = sdfPlane(p, -.5, mGrass);
+            //    material mDirt = mat(0.18, 0.05, 0.02, 1);
+            //    o = sdfInter(p, o, sdfSphere(p, 9, mDirt), 0.5);
+            //    
+            //    o = sdfAdd(p, o, sdfSphere(p, 2, mat(0.1,0)), 0.3);
+            //    material mBlue = mat(0.05, 0.1, 0.2, 1);
+            //    o = sdfAdd(p, o, sdfTorus(p, 5, 0.5, mBlue), 0.2);
+            //    return o;
+            //}
 
             fixed4 lightPoint(rayData ray)
             {
