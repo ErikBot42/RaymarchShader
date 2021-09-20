@@ -54,7 +54,6 @@ void sphereFold(
     float minRadius, 
     float fixedRadius)
 {
-    float r2 = dot(p,p);
     float r = length(p);
     if (r<minRadius)
     {
@@ -63,13 +62,16 @@ void sphereFold(
         p *= factor;
         dz *= factor;
     }
-    else if (r2<fixedRadius)
-    {
-        // Sphere inversion
-        float factor = fixedRadius/r2;
-        p *= factor;
-        dz *= factor;
-    }
+    else {
+    	float r2 = dot(p,p);
+		if (r2<fixedRadius)
+		{
+			// Sphere inversion
+			float factor = fixedRadius/r2;
+			p *= factor;
+			dz *= factor;
+		}
+	}
     // else no transform
 }
 

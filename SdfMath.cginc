@@ -51,7 +51,7 @@ inline material mixMat(material a, material b, float fac)
 
 
 //union of SDF A and B
-sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
+sdfData sdfDataAdd(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = min(sA.dist, sB.dist);
@@ -60,7 +60,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB)
 }
 
 //union of SDF A and B, with smoothing
-sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
+sdfData sdfDataAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smin(sA.dist, sB.dist, fSmooth);
@@ -69,7 +69,7 @@ sdfData sdfAdd(float3 p, sdfData sA, sdfData sB, float fSmooth)
 }
 
 //remove the SDF B from A (colour is from A)
-sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
+sdfData sdfDataSub(float3 p, sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = max(sA.dist, -sB.dist);
@@ -78,7 +78,7 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB)
 }
 
 //remove the SDF B from A (colour is from A), with smoothing
-sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
+sdfData sdfDataSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smax(sA.dist, -sB.dist, fSmooth);
@@ -86,8 +86,10 @@ sdfData sdfSub(float3 p, sdfData sA, sdfData sB, float fSmooth)
     return sC;
 }
 
+
+
 //intersection of SDF A and B
-sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
+sdfData sdfDataInter(sdfData sA, sdfData sB)
 {
     sdfData sC;
     sC.dist = max(sA.dist, sB.dist);
@@ -96,7 +98,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB)
 }
 
 //intersection of SDF A and B, with smoothing
-sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
+sdfData sdfDataInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
 {
     sdfData sC;
     sC.dist = smax(sA.dist, sB.dist, fSmooth);
@@ -105,7 +107,7 @@ sdfData sdfInter(float3 p, sdfData sA, sdfData sB, float fSmooth)
 }
 
 //round edges of an SDF
-sdfData sdfRound(float3 p, sdfData sdfIn, float fRadius)
+sdfData sdfDataRound(float3 p, sdfData sdfIn, float fRadius)
 {
     sdfData sdfOut = sdfIn;
     sdfOut.dist -= fRadius;

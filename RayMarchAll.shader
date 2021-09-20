@@ -102,7 +102,8 @@
                 #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
                 #define MAX_STEPS 50
-                #define FUNGE_FACTOR 0.3
+                #define FUNGE_FACTOR 0.2
+				#define SURF_DIST 0.0003
 
 
                 #define CONSTRAIN_TO_MESH
@@ -137,11 +138,11 @@
             inline material applyColorTransform(float3 p, in material mat)
             {
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = HSV(frac(length(p)*0.5 + _Time.x), 1, 1);
+                    mat.col = HSV(frac(length(p)*2 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORHSV_CUBE
                     mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*2 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORXYZ
-                    float factor = 0.2;
+                    float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
                     mat.col.y = p.y*factor+factor;
                     mat.col.z = p.z*factor+factor;
@@ -181,7 +182,7 @@
             //#define STEP_FACTOR 1
             //#define FUNGE_FACTOR 1
 
-            sdfData scene(float3 p)
+            float sdf(float3 p)
             {
 
                 #ifdef _ANIMATE_OFF
@@ -276,7 +277,7 @@
                     scaleFactor-=1;
                 }
 
-                o.mat = applyColorTransform(p, o.mat); 
+                //o.mat = applyColorTransform(p, o.mat); 
                 p/=scale;
 
 
@@ -311,9 +312,9 @@
                 #elif _SDF_FEATHER
                 //p = dot(p,p)*10;
                 //float3 p_shifted = p; p_shifted.x+=_Time.x;
-                o = fracFeather(p);
+                o.dist = fracFeather(p);
                 float3 dim = float3(1,1,1);
-                o = sdfInter(p, sdfBox(p,dim,0), o);
+                o.dist = max(sdfBox(p,dim,0), o.dist);
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -346,10 +347,17 @@
                 #endif
 
                 o.dist*=_Scale;
-                return o;
+                return o.dist;
             }
 
-            fixed4 lightPoint(rayData ray) //2ms !!!
+			material calcMaterial(float3 p)
+			{
+				material mat = DEFMAT;
+				applyPositionTransform(p);
+				return applyColorTransform(p, mat);
+			}
+
+            fixed4 lightPoint(rayData ray)
             {
                 #ifndef STEP_FACTOR
                 #define STEP_FACTOR 1

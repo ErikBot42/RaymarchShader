@@ -186,11 +186,11 @@ float fracMandelbox(float3 p, float scaleFactor)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/11/distance-estimated-3d-fractals-vi-the-mandelbox/
 
-    float3 offset = p;
+    float3 offset3 = p;
     float dr = 0;
    
     // Parameters
-    int iterations = 8;//20;//14;
+    int iterations = 4;//20;//14;
     //scaleFactor = -2 + (_SinTime.x*4+2);
     float fixedRadius = 1.0;
     float minRadius = 0.5;
@@ -211,7 +211,7 @@ float fracMandelbox(float3 p, float scaleFactor)
         boxFold(p, dr, 1);
         sphereFold(p, dr, minRadius, fixedRadius);
 
-        p = scaleFactor*p + offset;
+        p = scaleFactor*p + offset3;
         //dr = dr*abs(scaleFactor)+1.0;
         dr = dr*abs(scaleFactor)+1;
     }

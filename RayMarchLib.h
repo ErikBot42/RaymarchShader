@@ -86,15 +86,6 @@ struct sdfData // returned from distance functions, including main scene
     material mat;
 };
 
-
-float sdf(float3 p);
-material calcMaterial(float3 p);
-
-sdfData scene(float3 p);
-fixed4 lightPoint(rayData r);
-fixed4 rayMarch(float3 p, float3 d);
-rayData castRay(float3 p, float3 d, float startDist = 0);
-
 #define V_X  float3(1, 0, 0)
 #define V_Y  float3(0, 1, 0)
 #define V_Z  float3(0, 0, 1)
@@ -115,5 +106,25 @@ rayData castRay(float3 p, float3 d, float startDist = 0);
 #define M_PURPLE    {fixed4(0.05, 0.001, 0.2, 1), 1}
 #define M_WHITE     {fixed4(0.5, 0.5, 0.5, 1), 1}
 #define M_MIRROR    {fixed4(0.1, 0.1, 0.1, 1), 0}
+
+// Implemented by shaderlab file.
+float sdf(float3 p);
+material calcMaterial(float3 p);
+
+sdfData scene(float3 p)
+{
+	sdfData data;
+	data.dist = sdf(p);
+	material mat;
+	mat.col = fixed4(.2,.2,.2,1);
+	mat.fRough = 1;
+	data.mat = calcMaterial(p);
+	return data;
+}
+
+fixed4 lightPoint(rayData r);
+fixed4 rayMarch(float3 p, float3 d);
+rayData castRay(float3 p, float3 d, float startDist = 0);
+
 
 #endif

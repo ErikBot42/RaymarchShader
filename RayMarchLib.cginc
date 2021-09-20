@@ -119,10 +119,10 @@ inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
 {
     //if epsilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
-    float3 n = scene(vPos).dist - float3(
-            scene(vPos - e.xyy).dist,
-            scene(vPos - e.yxy).dist,
-            scene(vPos - e.yyx).dist);
+    float3 n = sdf(vPos) - float3(
+            sdf(vPos - e.xyy),
+            sdf(vPos - e.yxy),
+            sdf(vPos - e.yyx));
     return normalize(n);
 }
 //gets normal, provided you have the distance for pos (1 less call to scene())
@@ -131,9 +131,9 @@ inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
     ////if epilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = fPointDist - float3(
-            scene(vPos - e.xyy).dist,
-            scene(vPos - e.yxy).dist,
-            scene(vPos - e.yyx).dist);
+            sdf(vPos - e.xyy),
+            sdf(vPos - e.yxy),
+            sdf(vPos - e.yyx));
     return normalize(n);
 }
 
@@ -143,7 +143,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
     float fRayLen = startDist;//startDist;// total distance marched / distance from camera
 
     float3 vPos;
-    sdfData sdf_data;
+	float dist;
 
     rayData ray;
     ray.vRayDir = vRayDir;
@@ -158,19 +158,19 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
     #endif
     {
         vPos = vRayStart + fRayLen * vRayDir;
-        sdf_data = scene(vPos);
+        dist = sdf(vPos);
 
         #ifdef USE_DYNAMIC_QUALITY
-        if (abs(sdf_data.dist) < _SurfDist) break;
+        if (abs(dist) < _SurfDist) break;
         #else
-        if (abs(sdf_data.dist) < SURF_DIST) break;
+        if (abs(dist) < SURF_DIST) break;
         #endif
 
-        fRayLen += sdf_data.dist;// move forward
+        fRayLen += dist;// move forward
 
-        if (ray.minDist>sdf_data.dist) 
+        if (ray.minDist>dist) 
         {
-            ray.minDist = sdf_data.dist;
+            ray.minDist = dist;
             ray.distToMinDist = fRayLen;
         }
         
@@ -183,10 +183,10 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
 
     ray.dist   = fRayLen;
     ray.iSteps = i;
-    ray.mat    = sdf_data.mat;
+    ray.mat    = calcMaterial(vPos);//sdf_data.mat;
     ray.vHit   = vPos;
 	#ifdef CALC_NORM
-    ray.vNorm  = getNorm(vPos, sdf_data.dist);
+    //ray.vNorm  = getNorm(vPos, dist);
 	#endif
     return ray;
 }
