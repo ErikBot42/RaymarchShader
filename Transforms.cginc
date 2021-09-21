@@ -113,6 +113,20 @@ void sphereFold2(
 	//	pdz *= factor;
 	//}
 }
+
+// Mengercube fold
+void mengerFold(inout float3 p)
+{
+	float a = min(p.x-p.y,0.0);
+	p.x -= a;
+	p.y += a;
+	a = min(p.x-p.z,0.0);
+	p.x -= a;
+	p.z += a;
+	a = min(p.y-p.z,0.0);
+	p.y -= a;
+	p.z += a;
+}
 //void sphereFold(
 //    inout float3 p, 
 //    inout float dz, 
@@ -154,5 +168,21 @@ void boxFold2(inout float4 pdz, float foldingLimit)
     pdz.xyz = clamp(pdz.xyz, -foldingLimit, foldingLimit) * 2.0 - pdz.xyz;
 }
 
+// Abs fold
+void absFold(inout float3 p, const float3 c)
+{
+	p = abs(p-c)+c;
+}
+
+void planeFold(inout float3 p, const float3 n, const float d)
+{
+	p -= 2.0 * min(0.0,dot(p,n)-d)*n;
+}
+
+void scaleTranslate(inout float3 p, const float scale, const float3 delta)
+{
+	p*=scale;
+	p+=delta;
+}
 
 #endif

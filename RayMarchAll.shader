@@ -105,7 +105,9 @@
                 #define FUNGE_FACTOR 1
 				//#define SURF_DIST 0.0001
 				//#define SURF_DIST 0.00005
+				//#define SURF_DIST 0.0002
 				#define SURF_DIST 0.0002
+				#define MAX_DIST 2000
 
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
@@ -114,6 +116,16 @@
 				//#define MAX_STEPS 30
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.75
+			#elif _SDF_TESTING
+				//#define MAX_STEPS 1000
+				//#define MAX_STEPS 50
+				#define MAX_STEPS 500
+				//#define CONSTRAIN_TO_MESH
+				#define MAX_DIST 100
+				//#define FUNGE_FACTOR 0.05
+				#define FUNGE_FACTOR 1
+				//#define FUNGE_FACTOR 0.8
+                #define CONSTRAIN_TO_MESH
             #endif
 
             #ifndef MAX_DIST
@@ -247,12 +259,31 @@
 
 				#elif _SDF_TESTING
 
-                #define COLTRANS_DONE
-                o.mat = applyColorTransform(p, o.mat); 
+                //o.mat = applyColorTransform(p, o.mat); 
 
-				o.dist = 50.5*log(length(p))*length(p)*p.x;
+				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
+                float scale = 0.3;
+				p/=scale;
+				int iterations =1;
+				for (int k = 0; k<iterations; k++)
+				{
+					absFold(p,0);
+					mengerFold(p);
+					scaleTranslate(p,3.0,float3(-2,-2,0));
+					//scale/=3.5;
+					scale/=3.8;
+					planeFold(p,float3(0,0,-1),-1);
+					//planeFold(p,float3(0,_SinTime.x*0.3,-_SinTime.y*0.3-1),-_SinTime.z*0.3-1);
+				}
 
+                o.dist = fracJuliabulb(p);
+                //o.dist = fracMandelbulb(p);
+				//o.dist = sdfBox(p,float3(2,2,2));
+				//o.dist = sdfSphere(p,1);
+				//o.dist/=pow(3,iterations);
+				o.dist*=0.4;
+                o.dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
                 //

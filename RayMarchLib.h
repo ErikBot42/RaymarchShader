@@ -50,8 +50,11 @@ struct appdata
 struct v2f
 {
     float4 vertex : SV_POSITION;
+	float3 vDir : TEXCOORD0;
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
+	float3 distEstimate : TEXCOORD3;
+    fixed4 color : COLOR;
 };
 
 struct fragOut
@@ -125,6 +128,6 @@ sdfData scene(float3 p)
 fixed4 lightPoint(rayData r);
 fixed4 rayMarch(float3 p, float3 d);
 rayData castRay(float3 p, float3 d, float startDist = 0);
-
+float castRayEstimate(in float3 vRayStart, const float3 vDir, const int iSteps, const float fMaxDist, const float fSurfaceDist, const float fStartLength=0, const float fSurfaceDistPerMetre=0);
 
 #endif
