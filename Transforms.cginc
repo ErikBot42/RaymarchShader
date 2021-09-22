@@ -114,7 +114,6 @@ void sphereFold2(
 	//}
 }
 
-// Mengercube fold
 void mengerFold(inout float3 p)
 {
 	float a = min(p.x-p.y,0.0);
@@ -184,5 +183,6 @@ void scaleTranslate(inout float3 p, const float scale, const float3 delta)
 	p*=scale;
 	p+=delta;
 }
+
 
 #endif

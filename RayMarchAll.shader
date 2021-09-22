@@ -24,9 +24,9 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Testing, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
-        [KeywordEnum(None, Twist, Rotate, Repeat)] _PTRANS ("Position transform", Float) = 0
+        [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
         [KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
 
@@ -64,14 +64,16 @@
 			*/	
             CGPROGRAM
 			//#define DEBUG_COLOR_MODE
-
-            #pragma vertex vert
-            #pragma fragment frag
-
+			//#define VERTEX_DEBUG_COLORS
+			//#define ENABLE_TRANSPARENCY
             
-            #pragma multi_compile _SDF_NONE _SDF_TESTING _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+			#pragma vertex vert
+            #pragma fragment frag
+			
+            
+            #pragma multi_compile _SDF_NONE _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 
@@ -104,30 +106,26 @@
             #elif _SDF_MANDELBOX
                 //#define MAX_STEPS 50
                 #define MAX_STEPS 30
-                #define FUNGE_FACTOR 1
+                #define FUNGE_FACTOR 0.9
 				//#define SURF_DIST 0.0001
 				//#define SURF_DIST 0.00005
 				//#define SURF_DIST 0.0002
-				#define SURF_DIST 0.0002
+				//#define SURF_DIST 0.0002
 				#define MAX_DIST 2000
 
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
 			#elif _SDF_FEATHER
-				#define MAX_STEPS 70
+				//#define MAX_STEPS 70
+				#define MAX_STEPS 30
 				//#define MAX_STEPS 30
 				#define CONSTRAIN_TO_MESH
-				#define FUNGE_FACTOR 0.75
-			#elif _SDF_TESTING
-				//#define MAX_STEPS 1000
-				//#define MAX_STEPS 30
+				#define FUNGE_FACTOR 0.9
+			#elif _SDF_JULIABULB
 				#define MAX_STEPS 30
-				//#define MAX_STEPS 500
-				//#define CONSTRAIN_TO_MESH
-				#define MAX_DIST 100
-				//#define FUNGE_FACTOR 0.05
-				#define FUNGE_FACTOR 1
-				//#define FUNGE_FACTOR 0.8
+                #define CONSTRAIN_TO_MESH
+			#elif _SDF_TESTING			
+				#define MAX_STEPS 30
                 #define CONSTRAIN_TO_MESH
             #endif
 
@@ -239,25 +237,14 @@
 
                 float scale = 0.4;
                 p/=scale;
-                
-                #define COLTRANS_DONE
-                //o.mat = applyColorTransform(p, o.mat); 
-
                 o.dist = fracMandelbulb(p);
-                //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
+
 				#elif _SDF_MANDELBOLB
 
                 float scale = 0.4;
                 p/=scale;
-                
-                #define COLTRANS_DONE
-                //o.mat = applyColorTransform(p, o.mat); 
-
-
                 o.dist = fracMandelbolb(p);
-
-                //o.dist = sdfSphere(p,0.5).dist;
                 o.dist*=scale;
 
 				#elif _SDF_TESTING
@@ -266,9 +253,9 @@
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
-                float scale = 0.4;
+                float scale = 0.28;
 				p/=scale;
-				int iterations =0;
+				int iterations = 5;
 				for (int k = 0; k<iterations; k++)
 				{
 					absFold(p,0);
@@ -280,13 +267,24 @@
 					//planeFold(p,float3(0,_SinTime.x*0.3,-_SinTime.y*0.3-1),-_SinTime.z*0.3-1);
 				}
 
-                o.dist = fracJuliabulb(p);
+                //o.dist = fracJuliabulb(p);
                 //o.dist = fracMandelbulb(p);
-				//o.dist = sdfBox(p,float3(2,2,2));
+				o.dist = sdfBox(p,float3(2,2,2));
 				//o.dist = sdfSphere(p,1);
 				//o.dist/=pow(3,iterations);
 				//o.dist*=0.4;
 				o.dist*=1;
+                o.dist*=scale;
+
+                //////////////////////////////////////////////////////////////////////
+                //
+                // Juliabulb
+                //
+                //////////////////////////////////////////////////////////////////////
+				#elif _SDF_JULIABULB
+                float scale = 0.4;
+                p/=scale;
+                o.dist = fracJuliabulb(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
                 o.dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
@@ -299,7 +297,7 @@
 
                 #define COLTRANS_DONE
 
-                float scaleFactor = sdfSlider*3;
+                float scaleFactor = vSdfConfig.w*3;//sdfSlider*3;
                 //float scaleFactor = _SinTime.y*3;
 
                 //float scale = 0.5;

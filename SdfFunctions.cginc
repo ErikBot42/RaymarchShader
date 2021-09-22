@@ -172,19 +172,21 @@ float fracMandelbulb(float3 p)
 }
 
 // Juliabulb
-float fracJuliabulb(float3 p)
+float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 6)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
 	float time = _Time.z*2;
-    float3 c = float3(sin(time*0.12354), sin(time*0.328432), sin(time*0.234723))*1;
+    //float3 c = float3(sin(time*0.12354), sin(time*0.328432), sin(time*0.234723))*1;
+    //float3 c = float3(sin(time),cos(time),sin(time*0.096234))*(sin(0.254*time)+1);
     float dr = 1.0;
     float r;
+
 
     const int iterations = 10;//5
 
     const float maxRThreshold = 1.5;//2; //"infinity"
 
-    float Power = 6;//8; // Z_(n+1) = Z(n)^? + c
+    //float Power = 6;//8; // Z_(n+1) = Z(n)^? + c
     for (int i = 0; i < iterations; i++)
     {
         r = length(p);

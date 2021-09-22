@@ -24,17 +24,21 @@
 #endif
 
 #ifdef USE_DYNAMIC_QUALITY//quality settings as unity material properties
+
 int _MaxSteps = 100;
+#define MAX_STEPS _MaxSteps
 float _MaxDist = 100;
+#define MAX_DIST _MaxDist
 float _SurfDist = 0.00001;
+#define SURF_DIST _SurfDist
+
 #else//pre compile quality settings
 #ifndef MAX_STEPS
 #define MAX_STEPS 256
-//256
-#endif
+#endif //256
 #ifndef MAX_DIST
 #define MAX_DIST 128
-#endif
+#endif //128
 #ifndef SURF_DIST
 //#define SURF_DIST 0.00001
 #define SURF_DIST 0.0001
@@ -55,7 +59,7 @@ struct v2f
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
 	float3 distEstimate : TEXCOORD3;
-	float4 wanderingVector : TANGENT;
+	float4 vSdfConfig : TANGENT;
     fixed4 color : COLOR;
 	// NORMAL : float3
 };
@@ -114,6 +118,7 @@ struct sdfData // returned from distance functions, including main scene
 #define M_MIRROR    {fixed4(0.1, 0.1, 0.1, 1), 0}
 
 // Implemented by shaderlab file.
+float4 vSdfConfig;
 float sdf(float3 p);
 material calcMaterial(float3 p);
 
