@@ -45,6 +45,7 @@ float _SurfDist = 0.00001;
 struct appdata
 {
     float4 vertex : POSITION;
+	float3 normal : NORMAL;
 };
 
 struct v2f
@@ -54,7 +55,9 @@ struct v2f
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
 	float3 distEstimate : TEXCOORD3;
+	float4 wanderingVector : TANGENT;
     fixed4 color : COLOR;
+	// NORMAL : float3
 };
 
 struct fragOut

@@ -9,19 +9,28 @@
 #include "FastMath.cginc"
 #include "RayMarchUtil.cginc"
 
+//#define DISABLE_TRANSPARENCY
+
 v2f vert (appdata v)
 {
     v2f o;
     o.vertex = UnityObjectToClipPos(v.vertex);
 #ifdef USE_WORLD_SPACE
+	float3 viewDir = WorldSpaceViewDir(v.vertex);
+	float3 normal = UnityObjectToWorldNormal(v.normal);
     o.vCamPos = _WorldSpaceCameraPos;
     o.vHitPos = mul(unity_ObjectToWorld, v.vertex);
-#else
+#else // Object space
+	float3 viewDir = ObjSpaceViewDir(v.vertex);
+	float3 normal = v.normal;
     o.vCamPos = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
     o.vHitPos = v.vertex; 
 #endif
+	viewDir = normalize(viewDir);
+	normal = normalize(normal);
+
 	o.vDir = normalize(o.vHitPos - o.vCamPos);
-	o.vCamPos *=1;// scaling
+	o.vCamPos *=1;// TODO: vertex based scaling
     
 
 	//rayData ray = castRay(o.vCamPos, o.vDir);
@@ -29,8 +38,14 @@ v2f vert (appdata v)
 	float3 vDeltaPos = o.vHitPos - o.vCamPos; // constrain to mesh
 	float fDeltaDist = length(vDeltaPos); // dist from camera to vertex
 
-	float fEdgeLength = 0.02; // estimated distance between vertices.
+	float cosHeightVertex = abs(dot(normal, viewDir)); // assuming mesh is sphere with relatively equally spaced points.
+
+	//float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
+	float fEdgeLength = cosHeightVertex*0.068;// ICOSPHERE: estimated distance between vertices from the perspective of an orthographic camera
+	//float fEdgeLength = 0.02; // estimated distance between vertices from the perspective of an orthographic camera
 	float fSurfDistPerMeter = fEdgeLength/fDeltaDist;
+    
+	//o.color = fixed4(val,0,0,1);
 
 	//o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
 	//o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
@@ -38,7 +53,10 @@ v2f vert (appdata v)
 	//o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.01, 0); // somehow WAY slower...
 	
 	//#define VERTEX_DEBUG_COLORS
-    
+	//#define USE_VERTEX_COLOR
+	//#define DISABLE_Z_WRITE
+    //o.color.xyz = v.normal;
+	//v.vertex;//v.normal * 0.5 + 0.5 + _SinTime;
     //o.color = lightPoint(ray);
     //o.color = fixed4(float(ray.iSteps)/MAX_STEPS,0,0,1);
 	//o.color = fixed4(1,0,0,1);
@@ -141,20 +159,34 @@ fragOut frag (v2f i)
     fragOut o;
     o.col = lightPoint(ray);
 	//o.col = HSV(i.distEstimate, ray.dist, 1);//i.distEstimate/2.0;// TESTING
+
 	#ifdef VERTEX_DEBUG_COLORS
+	o.col.b = 0;
 	o.col.g = o.col.w;
 	o.col.w = 1;
-	o.col.r = 0.5/i.distEstimate;
+	//o.col.r = 0.5/i.distEstimate;
+	o.col.r = 1/i.distEstimate;
+	#endif
+
+	#ifdef USE_VERTEX_COLOR
+	o.col = i.color;
 	#endif
 
 	// writing to depth buffer costs about 1-2 frames at 4k
-    #ifdef USE_WORLD_SPACE
-        float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
-    #else
-        float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(ray.vHit, 1)));
-    #endif
+	#ifndef DISABLE_Z_WRITE
+    	#ifdef USE_WORLD_SPACE
+    	    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(ray.vHit, 1));
+    	#else
+    	    float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(ray.vHit, 1)));
+    	#endif
+    	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	#endif
+
+	#ifdef DISABLE_TRANSPARENCY
+	o.col *= o.col.w;
+	o.col.w = 1;
+	#endif
     
-    o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
     return o;
 }
 #endif
@@ -210,8 +242,8 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
         if (abs(dist) < _SurfDist) break;
         #else
         //if (abs(dist) < SURF_DIST) break;
-        if (abs(dist) < (fRayLen * 0.0003)) break; //TESTING 8k
-        //if (abs(dist) < (fRayLen * 0.0005)) break; //TESTING 1080p
+        if (abs(dist) < (fRayLen * 0.0001)) break; //TESTING 8k
+        //if (abs(dist) < (fRayLen * 0.0007)) break; //TESTING 1080p
         #endif
 
         fRayLen += dist;// move forward

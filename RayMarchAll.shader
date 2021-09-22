@@ -80,6 +80,8 @@
                 #define REPEAT_SPACE
             #endif
 
+			#define DISCARD_ON_MISS
+
             //#define USE_DYNAMIC_QUALITY
             //#define CONSTRAIN_TO_MESH
             //#define DISCARD_ON_MISS
@@ -91,8 +93,8 @@
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB)
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
-                //#define MAX_STEPS 20
-                #define MAX_STEPS 200
+                #define MAX_STEPS 20
+                //#define MAX_STEPS 200
                 //#define MAX_STEPS 200
                 //#define FUNGE_FACTOR 1.4
                 #define FUNGE_FACTOR 1
@@ -118,8 +120,9 @@
 				#define FUNGE_FACTOR 0.75
 			#elif _SDF_TESTING
 				//#define MAX_STEPS 1000
-				//#define MAX_STEPS 50
-				#define MAX_STEPS 500
+				//#define MAX_STEPS 30
+				#define MAX_STEPS 30
+				//#define MAX_STEPS 500
 				//#define CONSTRAIN_TO_MESH
 				#define MAX_DIST 100
 				//#define FUNGE_FACTOR 0.05
@@ -263,9 +266,9 @@
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
-                float scale = 0.3;
+                float scale = 0.4;
 				p/=scale;
-				int iterations =1;
+				int iterations =0;
 				for (int k = 0; k<iterations; k++)
 				{
 					absFold(p,0);
@@ -282,7 +285,8 @@
 				//o.dist = sdfBox(p,float3(2,2,2));
 				//o.dist = sdfSphere(p,1);
 				//o.dist/=pow(3,iterations);
-				o.dist*=0.4;
+				//o.dist*=0.4;
+				o.dist*=1;
                 o.dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
