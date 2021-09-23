@@ -98,15 +98,21 @@ float fracMandelbolb(float3 p)
     float dr = 1.0;
     float r = 0;
 
-    const int iterations = 4;
+    const int iterations = 10;//4;
 
     const float maxRThreshold = 2;//2;
 
-    const float Power = 16;
-    for (int i = 0; i < iterations; i++)
+    const float Power = 8;//16;
+
+	float dist;
+	float fracScale = 1;
+    for (int i = 0; ; i++)
     {
         r = length(p);
-        if (r>maxRThreshold) break;
+		dist = 0.5*log(r)*r/dr;
+
+        if (r>maxRThreshold || (!(i < iterations)) || dist/fracScale>0.05) break;
+		fracScale*=0.5;
 
         // xyz -> polar
         //float theta = acos( p.z / r );
@@ -125,7 +131,8 @@ float fracMandelbolb(float3 p)
         p += pos;
     }
 
-    return 0.5*log(r)*r/dr;
+
+    return dist;//0.5*log(r)*r/dr;
 }
 
 void pow3D(inout float3 p, in const float power, in const float r)
@@ -145,6 +152,39 @@ void pow3D(inout float3 p, in const float power, in const float r)
 
 }
 
+void pow3D_8(inout float3 p, in const float r)
+{
+	fixed power = 8;
+	// xyz -> zr,theta,phi
+	float theta = acos( p.z / r );
+	float phi = atan2( p.y, p.x );
+
+	// scale and rotate
+	// this is the generalized operation
+	float zr = pow(r,power);
+	theta = theta * power;
+	phi = phi * power;
+
+	// polar -> xyz
+	//p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+	p = zr*float3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+
+	//https://www.iquilezles.org/www/articles/mandelbulb/mandelbulb.htm
+
+	//float x = p.x; float x2 = x*x; float x4 = x2*x2;
+    //float y = p.y; float y2 = y*y; float y4 = y2*y2;
+    //float z = p.z; float z2 = z*z; float z4 = z2*z2;
+
+    //float k3 = x2 + z2;
+    //float k2 = rsqrt( k3*k3*k3*k3*k3*k3*k3 );
+    //float k1 = x4 + y4 + z4 - 6.0*y2*z2 - 6.0*x2*y2 + 2.0*z2*x2;
+    //float k4 = x2 - y2 + z2;
+
+    //p.x =  64.0*x*y*z*(x2-z2)*k4*(x4-6.0*x2*z2+z4)*k1*k2;
+    //p.y = -16.0*y2*k3*k4*k4 + k1*k1;
+    //p.z = -8.0*y*k4*(x4*x4 - 28.0*x4*x2*z2 + 70.0*x4*z4 - 28.0*x2*z2*z4 + z4*z4)*k1*k2;
+}
+
 // Mandelbulb
 float fracMandelbulb(float3 p)
 {
@@ -153,7 +193,7 @@ float fracMandelbulb(float3 p)
     float dr = 1.0;
     float r;
 
-    const int iterations = 8;//5
+    const int iterations = 5;//8
 
     const float maxRThreshold = 2; //"infinity"
 
@@ -172,7 +212,7 @@ float fracMandelbulb(float3 p)
 }
 
 // Juliabulb
-float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 6)
+float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 8)
 {
     // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
 	float time = _Time.z*2;
@@ -182,7 +222,7 @@ float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 6)
     float r;
 
 
-    const int iterations = 5;//10
+    const int iterations = 4;//10
 
     const float maxRThreshold = 1.5;//2; //"infinity"
 
@@ -194,11 +234,47 @@ float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 6)
 
 		dr = pow( r, Power-1.0)*Power*dr;
 		
-		pow3D(p, Power, r);
+		pow3D_8(p, r);
         p += c;
     }
     return 0.5*log(r)*r/dr;
 }
+
+
+float fracJuliabulb2(float3 p, float3 c = float3(1,1,1), float Power = 8)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+    float3 w = p;
+	//float3 c = float3(1,1,1);
+    float m = dot(w,w);
+
+	float dz = 1.0;
+    
+	for( int i=0; i<4; i++ )
+    {
+        
+        // dz = 8*z^7*dz
+		//dz = 8.0*pow(m,3.5)*dz + 1.0;
+		dz = 8.0*pow(m,3.5)*dz;
+      	//dz = 8.0*pow(sqrt(m),7.0)*dz + 1.0;
+      
+        // z = z^8+z
+		// xyz->polar->xyz
+        float r = length(w);
+        float b = 8.0*acos( w.y/r);
+        float a = 8.0*atan2( w.x, w.z );
+        w = c + pow(r,8.0) * float3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
+
+        m = dot(w,w);
+		if( m > 256.0 )
+            break;
+    }
+
+    //resColor = vec4(m,trap.yzw);
+
+    return 0.25*log(m)*sqrt(m)/dz;
+}
+
 // Mandelbox
 float fracMandelbox(float3 p, float scaleFactor)
 {
@@ -269,7 +345,7 @@ float fracMandelbox4(float3 p, float scaleFactor)
     float3 offset3 = p;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
-    int iterations = 5;//10;
+    int iterations = 15;//5;//10;
     //float fixedRadius = 1.0;
     //float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
     float minRadius = 1;

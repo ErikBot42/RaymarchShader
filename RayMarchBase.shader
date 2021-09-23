@@ -52,25 +52,25 @@
             //    return o;
             //}
 
-            fixed4 lightPoint(rayData ray)
-            {
-                float3 vSunDir = normalize(_SunPos);
+            //fixed4 lightPoint(rayData ray)
+            //{
+            //    float3 vSunDir = normalize(_SunPos);
 
-                if (ray.bMissed)
-                {
-                    return sky(ray.vRayDir);
-                }
+            //    if (ray.bMissed)
+            //    {
+            //        return sky(ray.vRayDir);
+            //    }
 
-                fixed4 col = 0;
+            //    fixed4 col = 0;
 
-                col = ray.mat.col * lightSun(ray.vNorm, vSunDir);
-                col *= lightShadow(ray.vHit, vSunDir, 50);
-                col += ray.mat.col * lightSky(ray.vNorm, 1);
-                //col *= lightAO(ray.vHit, ray.vNorm);
-                
-                col = pow(col, 0.5);
-                return col;
-            }
+            //    col = ray.mat.col * lightSun(ray.vNorm, vSunDir);
+            //    col *= lightShadow(ray.vHit, vSunDir, 50);
+            //    col += ray.mat.col * lightSky(ray.vNorm, 1);
+            //    //col *= lightAO(ray.vHit, ray.vNorm);
+            //    
+            //    col = pow(col, 0.5);
+            //    return col;
+            //}
             ENDCG
         }
     }

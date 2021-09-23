@@ -5,9 +5,9 @@
 
 
 //ambient occlusion quality
-//#ifndef AO_STEPS
-//#define AO_STEPS 5
-//#endif
+#ifndef AO_STEPS
+#define AO_STEPS 20
+#endif
 
 //normals for lighting
 //#ifndef NORMAL_DELTA
@@ -45,10 +45,9 @@ float _SurfDist = 0.00001;
 #endif
 #endif
 
-
 #define TOLERANCE(t) ((t) * SURF_DIST) 
 
-#define DISCARD_ON_MISS
+//#define DISCARD_ON_MISS
 
 struct appdata
 {

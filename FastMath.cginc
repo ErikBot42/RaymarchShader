@@ -8,15 +8,15 @@ static const float fsl_PI = 3.1415926535897932384626433f;
 static const float fsl_PI_half = fsl_PI/2;
 inline float acosFast4(float inX)
 {
-	return 1.57-inX;
+	//return 1.57-inX;
 	float x1 = abs(inX);
-	//float x2 = x1 * x1;
-	//float x3 = x2 * x1;
+	float x2 = x1 * x1;
+	float x3 = x2 * x1;
 	float s;
 
 	s = -0.2121144f * x1 + 1.5707288f;
-	//s = 0.0742610f * x2 + s;
-	//s = -0.0187293f * x3 + s;
+	s = 0.0742610f * x2 + s;
+	s = -0.0187293f * x3 + s;
 	s = sqrt(1.0f - x1) * s;
 
 	// acos function mirroring

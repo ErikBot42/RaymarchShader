@@ -56,6 +56,35 @@ float lightShadow(float3 vPos, float3 vSunDir, float fSharpness = 8)
     return fShadow;
 }
 
+// Calc soft shadow strength based on light angle [0..1]
+float lightSoftShadow(float3 vStart, float3 vDir, float k)
+{
+	//float minDelta = 1;// "Angle" (dy/dx)
+	//float fRayLen = 0;
+	//
+	//for (int i = 0; ; i++)
+	//{
+	//	float3 vPos = vStart + fRayLen*vDir;
+	//	float dist = sdf(vPos);
+	//	fRayLen+=dist;
+	//	minDelta = min(minDelta, dist/fRayLen);
+	//	if (abs(dist)<SURF_DIST || i == iterations) return 0;
+	//	if (fRayLen>MAX_DIST) {break;}
+	//}
+	//return minDelta;
+    float res = 1.0;
+    float t = 0.0;
+    for( int i=0; i<32; i++ )
+    {
+        float h = sdf(vStart + vDir*t);
+        res = min( res, k*h/t );
+        if( res<0.001 ) break;
+        t += clamp( h, 0.01, 0.2 );
+    }
+    return clamp( res, 0.0, 1.0 );
+
+}
+
 //calculate sky light
 inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 {
@@ -73,18 +102,18 @@ float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 }
 
 //ambient occlusion
-//float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
-//{
-//    float ao = 0;
-//    for (int i = 0; i < AO_STEPS; i++)
-//    {
-//        float fOffset = i * fEpsilon;
-//        float fDist = scene(vPos + vNorm * fOffset).dist;
-//        ao += 1/pow(2, i) * (fOffset - fDist);
-//    }
-//    ao = 1 - AO_STEPS * ao;
-//    return ao;
-//}
+float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)
+{
+    float ao = 0;
+    for (int i = 0; i < AO_STEPS; i++)
+    {
+        float fOffset = i * fEpsilon;
+        float fDist = sdf(vPos + vNorm * fOffset);
+        ao += 1/pow(2, i) * (fOffset - fDist);
+    }
+    ao = 1 - AO_STEPS * ao;
+    return ao;
+}
 
 inline fixed4 lightFog(fixed4 col, fixed4 cFog, float fDist, float fStart=16, float fFull=32)
 {
@@ -100,6 +129,7 @@ inline fixed4 lightFog(fixed4 col, fixed4 cFog, float fDist, float fStart=16, fl
 //    float fShadow = lightShadow(vPos, vSunDir);
 //    return fLight * fAO * fShadow;
 //}
+
 
 
 #endif

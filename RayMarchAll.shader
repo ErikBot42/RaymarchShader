@@ -91,25 +91,28 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-
-            #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB)
+			#define MAX_DIST 20
+			//#define SURF_DIST 0.0001
+			#define SURF_DIST 0.0001
+            #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
-                #define MAX_STEPS 50
+                #define MAX_STEPS 128
                 //#define MAX_STEPS 200
                 //#define MAX_STEPS 200
                 //#define FUNGE_FACTOR 1.4
-                #define FUNGE_FACTOR 1
+                //#define FUNGE_FACTOR 1
 
                 //This DOUBLES the framerate:
                 #define CONSTRAIN_TO_MESH
-			#elif _SDF_JULIABULB
+			//#elif _SDF_JULIABULB
 				//#define MAX_STEPS 30
-				#define MAX_STEPS 50
-                #define CONSTRAIN_TO_MESH
+				//#define MAX_STEPS 50
+                //#define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
                 //#define MAX_STEPS 50
-                #define MAX_STEPS 30
+                //#define MAX_STEPS 30
+                #define MAX_STEPS 200
                 #define FUNGE_FACTOR 0.9
 				//#define SURF_DIST 0.0001
 				//#define SURF_DIST 0.00005
@@ -126,8 +129,8 @@
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.9
 			#elif _SDF_TESTING			
-				#define MAX_STEPS 30
-                #define CONSTRAIN_TO_MESH
+				#define MAX_STEPS 200
+                //#define CONSTRAIN_TO_MESH
             #endif
 
             #ifndef MAX_DIST
@@ -153,7 +156,7 @@
             inline material applyColorTransform(float3 p, in material mat)
             {
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = HSV(frac(length(p)*8 + _Time.x), 1, 1);
+                    mat.col = HSV(frac(length(p)*8 + _Time.x), 0.5, 1);
                 #elif _MTRANS_COLORHSV_CUBE
                     mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), 1, 1);
                 #elif _MTRANS_COLORXYZ
@@ -258,7 +261,8 @@
 
                 float scale = 0.28;
 				p/=scale;
-				int iterations = 5;
+				int iterations = 3;
+				float estSideLength = 1;
 				for (int k = 0; k<iterations; k++)
 				{
 					absFold(p,0);
@@ -268,11 +272,14 @@
 					scale/=3.8;
 					planeFold(p,float3(0,0,-1),-1);
 					//planeFold(p,float3(0,_SinTime.x*0.3,-_SinTime.y*0.3-1),-_SinTime.z*0.3-1);
+					dist = sdfBox(p,float3(2,2,2));
+					//break;
+					//if (dist/estSideLength>0.1) break;
+					estSideLength/3;
 				}
 
                 //o.dist = fracJuliabulb(p);
                 //o.dist = fracMandelbulb(p);
-				dist = sdfBox(p,float3(2,2,2));
 				//o.dist = sdfSphere(p,1);
 				//o.dist/=pow(3,iterations);
 				//o.dist*=0.4;
@@ -287,7 +294,7 @@
 				#elif _SDF_JULIABULB
                 float scale = 0.35;
                 p/=scale;
-                dist = fracJuliabulb(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
+                dist = fracJuliabulb2(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
                 dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
@@ -345,7 +352,23 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
-                dist = sdfSphere(p, 0.5);
+                dist = min(sdfSphere(p+float3(-0.25,0,0), 0.2), sdfSphere(p+float3(.25,0,0), 0.2));
+				//if(dist<0.001)
+				//{
+				//	dist += snoise(p*100)*0.0005;
+				//}
+				//if (dist<0.1) 
+				//{
+				//	dist += snoise(p*5)*0.03;
+				//	if (dist<0.01) 
+				//	{
+				//		dist += snoise(p*50)*0.003;
+				//		if(dist<0.001)
+				//		{
+				//			dist += snoise(p*250)*0.0003;
+				//		}
+				//	}
+				//}
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -366,18 +389,17 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_DEMOSCENE
-                //p/=0.5;
                 //material mGrass = mat(0.001, 0.15, 0.001, 0.5);
-                //o = sdfSphere(p, 2);
-				sdfData sdf;
-                material mGrass = mat(0.001, 0.15, 0.001, 0.5);
-                o = sdfPlane(p, -.5, mGrass);
-                material mDirt = mat(0.18, 0.05, 0.02, 1);
-                o = sdfInter(p, o, sdfSphere(p, 9, mDirt), 0.5);
-                
-                o = sdfAdd(p, o, sdfSphere(p, 2, mat(0.1,0)), 0.3);
-                material mBlue = mat(0.05, 0.1, 0.2, 1);
-                o = sdfAdd(p, o, sdfTorus(p, 5, 0.5, mBlue), 0.2);
+				float scale = 0.05;
+				p/=scale;
+                dist = sdfPlane(p, -.5);
+                dist = max(dist, sdfSphere(p, 9));
+                //
+                dist = smin(sdfSphere(p, 2), dist, 0.3);
+                dist = min(sdfSphere(p+float3(0,-6,0), 2), dist);
+                dist = smin(sdfTorus(p, 5, 0.5), dist, 0.2);
+                dist = smin(sdfTorus(p+float3(0,-6,0), 5, 0.5), dist, 0.2);
+				dist*=scale;
                 #else
                 o = sdfCylinder(p, 1, 1);
 				dist = o.dist;
@@ -389,7 +411,7 @@
 
                 // if DE over/undershoots
                 #ifdef FUNGE_FACTOR
-                o.dist*=FUNGE_FACTOR;
+                dist*=FUNGE_FACTOR;
                 #endif
 
                 dist*=_Scale;
@@ -405,83 +427,83 @@
 				return applyColorTransform(p, mat);
 			}
 
-            fixed4 lightPoint(rayData ray)
-            {
-                #ifndef STEP_FACTOR
-                #define STEP_FACTOR 1
-                #endif
+            //fixed4 lightPoint(rayData ray)
+            //{
+            //    #ifndef STEP_FACTOR
+            //    #define STEP_FACTOR 1
+            //    #endif
 
-                #ifndef FUNGE_FACTOR
-                #define FUNGE_FACTOR 1
-                #endif
+            //    #ifndef FUNGE_FACTOR
+            //    #define FUNGE_FACTOR 1
+            //    #endif
 
-				
-				#ifdef DEBUG_COLOR_MODE
-				if(ray.bMissed)
-				{
-					return fixed4(10.0/ray.iSteps,1,0,1);
-				}
-				else
-				{
-					return fixed4(10.0/ray.iSteps,0,1,1);
-				}
-				#endif
-				
+			//	
+			//	#ifdef DEBUG_COLOR_MODE
+			//	if(ray.bMissed)
+			//	{
+			//		return fixed4(10.0/ray.iSteps,1,0,1);
+			//	}
+			//	else
+			//	{
+			//		return fixed4(10.0/ray.iSteps,0,1,1);
+			//	}
+			//	#endif
+			//	
 
-                fixed4 glowColor = fixed4(1,1,1,1);
-				//return glowColor;
-                //fixed4 glowColor = ray.mat.col;
-                glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
-                //glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
+            //    fixed4 glowColor = fixed4(1,1,1,1);
+			//	//return glowColor;
+            //    //fixed4 glowColor = ray.mat.col;
+            //    glowColor = glowColor*(0.01/ray.minDist)*FUNGE_FACTOR;
+            //    //glowColor = glowColor*(0.3/ray.minDist)*FUNGE_FACTOR;
 
-                //fixed4 glowColor = fixed4(1,1,1,1)*(0.1/ray.minDist)*FUNGE_FACTOR;
-                //fixed4 glowColor = 0;
-                glowColor = saturate(glowColor);
+            //    //fixed4 glowColor = fixed4(1,1,1,1)*(0.1/ray.minDist)*FUNGE_FACTOR;
+            //    //fixed4 glowColor = 0;
+            //    glowColor = saturate(glowColor);
 
 
-                fixed4 cFog = 0;
+            //    fixed4 cFog = 0;
 
-                //cFog = lightFog(glowColor, cFog, ray.distToMinDist, 0, MAX_DIST);
+            //    //cFog = lightFog(glowColor, cFog, ray.distToMinDist, 0, MAX_DIST);
 
-                fixed4 col = 0;
-                if (ray.bMissed)
-                {
-                    //fixed4 cFog = fixed4(.0,.0,.0,.0);
-                    //col = glowColor;
-                    //col = cFog;
-                    //col = 10 * glowColor/ray.iSteps;
-                    //col = 10 * glowColor/ray.distToMinDist;
-                    //cFog = glowColor;
-                }
-                else
-                {
-    				//fixed3 vNorm;
-                    col = ray.mat.col*glowColor;
-					//float colorFactor = dot(float4(ray.vNorm,1),V_Y);
-					//colorFactor = max(0,colorFactor)*0.1;
-					 
-					//float colorFactor = STEP_FACTOR/FUNGE_FACTOR;
-					col *= STEP_FACTOR/FUNGE_FACTOR;
-					//#ifdef EXTREME_AO
-                    //col.w = (100.0/(ray.iSteps*ray.iSteps));
-                    //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps));
-					//#else
-					//#endif
+            //    fixed4 col = 0;
+            //    if (ray.bMissed)
+            //    {
+            //        //fixed4 cFog = fixed4(.0,.0,.0,.0);
+            //        //col = glowColor;
+            //        //col = cFog;
+            //        //col = 10 * glowColor/ray.iSteps;
+            //        //col = 10 * glowColor/ray.distToMinDist;
+            //        //cFog = glowColor;
+            //    }
+            //    else
+            //    {
+    		//		//fixed3 vNorm;
+            //        col = ray.mat.col*glowColor;
+			//		//float colorFactor = dot(float4(ray.vNorm,1),V_Y);
+			//		//colorFactor = max(0,colorFactor)*0.1;
+			//		 
+			//		//float colorFactor = STEP_FACTOR/FUNGE_FACTOR;
+			//		col *= STEP_FACTOR/FUNGE_FACTOR;
+			//		//#ifdef EXTREME_AO
+            //        //col.w = (100.0/(ray.iSteps*ray.iSteps));
+            //        //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps));
+			//		//#else
+			//		//#endif
 
-                    col.w = 15.0*(1.0/ray.iSteps-(1.0/MAX_STEPS));
-					// Linear:
-                    //col.w = 1.0*(1.0-float(ray.iSteps)/MAX_STEPS);
-                    //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps))*STEP_FACTOR/FUNGE_FACTOR;
-                    //col += glowColor;
-                    //fixed4 cFog = glowColor;
-                    //col *= colorFactor*glowColor;
-					//col.w = 0.2;
-                    //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
-					//col *= col.w;
-                }
-                //return 0.01*fixed4(1,1,1,1)*ray.iSteps;
-                return col;
-            }
+            //        col.w = 15.0*(1.0/ray.iSteps-(1.0/MAX_STEPS));
+			//		// Linear:
+            //        //col.w = 1.0*(1.0-float(ray.iSteps)/MAX_STEPS);
+            //        //col *= (1000.0/(ray.iSteps*ray.iSteps*ray.iSteps))*STEP_FACTOR/FUNGE_FACTOR;
+            //        //col += glowColor;
+            //        //fixed4 cFog = glowColor;
+            //        //col *= colorFactor*glowColor;
+			//		//col.w = 0.2;
+            //        //col = lightFog(col, cFog, ray.dist, 0, MAX_DIST);
+			//		//col *= col.w;
+            //    }
+            //    //return 0.01*fixed4(1,1,1,1)*ray.iSteps;
+            //    return col;
+            //}
             
 //            // defined per scene:
 //            // in: point
