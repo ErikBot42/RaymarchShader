@@ -62,4 +62,6 @@ crashlytics-build.properties
 *.h.meta
 *.cginc.meta
 *.shader.meta
-shader.meta
+
+# I give up
+*.meta
