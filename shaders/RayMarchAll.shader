@@ -66,6 +66,7 @@
 			//#define DEBUG_COLOR_MODE
 			//#define VERTEX_DEBUG_COLORS
 			//#define ENABLE_TRANSPARENCY
+			//#define DISCARD_ON_MISS
             
 			#pragma vertex vert
             #pragma fragment frag
@@ -82,7 +83,6 @@
                 #define REPEAT_SPACE
             #endif
 
-			#define DISCARD_ON_MISS
 
             //#define USE_DYNAMIC_QUALITY
             //#define CONSTRAIN_TO_MESH
@@ -95,13 +95,17 @@
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB)
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
-                #define MAX_STEPS 20
+                #define MAX_STEPS 50
                 //#define MAX_STEPS 200
                 //#define MAX_STEPS 200
                 //#define FUNGE_FACTOR 1.4
                 #define FUNGE_FACTOR 1
 
                 //This DOUBLES the framerate:
+                #define CONSTRAIN_TO_MESH
+			#elif _SDF_JULIABULB
+				//#define MAX_STEPS 30
+				#define MAX_STEPS 50
                 #define CONSTRAIN_TO_MESH
             #elif _SDF_MANDELBOX
                 //#define MAX_STEPS 50
@@ -121,9 +125,6 @@
 				//#define MAX_STEPS 30
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.9
-			#elif _SDF_JULIABULB
-				#define MAX_STEPS 30
-                #define CONSTRAIN_TO_MESH
 			#elif _SDF_TESTING			
 				#define MAX_STEPS 30
                 #define CONSTRAIN_TO_MESH
@@ -207,7 +208,9 @@
                 float sdfSlider = pingPong(_Time.x,.125);
                 #endif
 
-                sdfData o = {0,DEFMAT};
+                //sdfData o = {0,DEFMAT};
+
+				float dist;
 
 
 
@@ -237,15 +240,15 @@
 
                 float scale = 0.4;
                 p/=scale;
-                o.dist = fracMandelbulb(p);
-                o.dist*=scale;
+                dist = fracMandelbulb(p);
+                dist*=scale;
 
 				#elif _SDF_MANDELBOLB
 
                 float scale = 0.4;
                 p/=scale;
-                o.dist = fracMandelbolb(p);
-                o.dist*=scale;
+                dist = fracMandelbolb(p);
+                dist*=scale;
 
 				#elif _SDF_TESTING
 
@@ -269,12 +272,12 @@
 
                 //o.dist = fracJuliabulb(p);
                 //o.dist = fracMandelbulb(p);
-				o.dist = sdfBox(p,float3(2,2,2));
+				dist = sdfBox(p,float3(2,2,2));
 				//o.dist = sdfSphere(p,1);
 				//o.dist/=pow(3,iterations);
 				//o.dist*=0.4;
-				o.dist*=1;
-                o.dist*=scale;
+				dist*=1;
+                dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -282,10 +285,10 @@
                 //
                 //////////////////////////////////////////////////////////////////////
 				#elif _SDF_JULIABULB
-                float scale = 0.4;
+                float scale = 0.35;
                 p/=scale;
-                o.dist = fracJuliabulb(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
-                o.dist*=scale;
+                dist = fracJuliabulb(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
+                dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -322,7 +325,7 @@
 
                 //o.dist = fracMandelbox(p, scaleFactor);
                 //o.dist = fracMandelbox3(p, scaleFactor);
-                o.dist = fracMandelbox4(p, scaleFactor);
+                dist = fracMandelbox4(p, scaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
                 //p.x +=_SinTime.z*4;
@@ -333,7 +336,7 @@
 
                 //o = sdfInter(p, sdfBox(p,dim,0), o);
 
-                o.dist*=scale;
+                dist*=scale;
 
 
                 //////////////////////////////////////////////////////////////////////
@@ -342,7 +345,7 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
-                o.dist = sdfSphere(p, 0.5);
+                dist = sdfSphere(p, 0.5);
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -353,9 +356,9 @@
                 //p = dot(p,p)*10;
                 //float3 p_shifted = p; p_shifted.x+=_Time.x;
 				//boxFold(p,0,1);
-                o.dist = fracFeather(p);
+                dist = fracFeather(p);
                 float3 dim = float3(1,1,1);
-                o.dist = max(sdfBox(p,dim,0), o.dist);
+                dist = max(sdfBox(p,dim,0), o.dist);
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -366,6 +369,7 @@
                 //p/=0.5;
                 //material mGrass = mat(0.001, 0.15, 0.001, 0.5);
                 //o = sdfSphere(p, 2);
+				sdfData sdf;
                 material mGrass = mat(0.001, 0.15, 0.001, 0.5);
                 o = sdfPlane(p, -.5, mGrass);
                 material mDirt = mat(0.18, 0.05, 0.02, 1);
@@ -376,19 +380,22 @@
                 o = sdfAdd(p, o, sdfTorus(p, 5, 0.5, mBlue), 0.2);
                 #else
                 o = sdfCylinder(p, 1, 1);
+				dist = o.dist;
                 #endif 
 
-                #ifndef COLTRANS_DONE
-                o.mat = applyColorTransform(p, o.mat); 
-                #endif
+                //#ifndef COLTRANS_DONE
+                //o.mat = applyColorTransform(p, o.mat); 
+                //#endif
 
                 // if DE over/undershoots
                 #ifdef FUNGE_FACTOR
                 o.dist*=FUNGE_FACTOR;
                 #endif
 
-                o.dist*=_Scale;
-                return o.dist;
+                dist*=_Scale;
+
+
+                return dist;
             }
 
 			material calcMaterial(float3 p)

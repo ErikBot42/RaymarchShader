@@ -31,7 +31,7 @@
             
             float3 _SunPos;
 
-			float sdf(float3 p) {return sdfSphere(p,1);}
+			float sdf(float3 p) {return sdfSphere(p,0.1);}
 			material calcMaterial(float3 p) {
 				material mat; 
 				mat.col = fixed4 (1,1,1,1);
@@ -66,7 +66,7 @@
                 col = ray.mat.col * lightSun(ray.vNorm, vSunDir);
                 col *= lightShadow(ray.vHit, vSunDir, 50);
                 col += ray.mat.col * lightSky(ray.vNorm, 1);
-                col *= lightAO(ray.vHit, ray.vNorm);
+                //col *= lightAO(ray.vHit, ray.vNorm);
                 
                 col = pow(col, 0.5);
                 return col;

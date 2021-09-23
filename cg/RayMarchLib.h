@@ -5,19 +5,19 @@
 
 
 //ambient occlusion quality
-#ifndef AO_STEPS
-#define AO_STEPS 5
-#endif
+//#ifndef AO_STEPS
+//#define AO_STEPS 5
+//#endif
 
 //normals for lighting
-#ifndef NORMAL_DELTA
-#define NORMAL_DELTA 0.001
-#endif
+//#ifndef NORMAL_DELTA
+//#define NORMAL_DELTA 0.001
+//#endif
 
 //normals for reflection angles
-#ifndef REFL_NORMAL_DELTA
-#define REFL_NORMAL_DELTA 0.001
-#endif
+//#ifndef REFL_NORMAL_DELTA
+//#define REFL_NORMAL_DELTA 0.001
+//#endif
 
 #ifndef MAX_REFLECTIONS
 #define MAX_REFLECTIONS 2
@@ -46,6 +46,10 @@ float _SurfDist = 0.00001;
 #endif
 
 
+#define TOLERANCE(t) ((t) * SURF_DIST) 
+
+#define DISCARD_ON_MISS
+
 struct appdata
 {
     float4 vertex : POSITION;
@@ -72,8 +76,9 @@ struct fragOut
 
 typedef struct material
 {
-    fixed4 col;
-    fixed fRough;
+    fixed4 col; 		// Albedo + transparency
+    fixed fSmoothness;  // How much light should reflect
+	fixed fMetallic;    // Something...
 } material_t;
 
 struct rayData // used for lighting a point
@@ -104,38 +109,28 @@ struct sdfData // returned from distance functions, including main scene
 #define V_YZ float3(0, 1, 1)
 
 #define col(r, g, b) fixed4(r, g, b, 1)
-#define DEFMAT {fixed4(.2,.2,.2,1), 1}
-
-#define M_RED       {fixed4(0.2, 0.001, 0.001, 1), 1}
-#define M_ORANGE    {fixed4(0.2, 0.1, 0.001, 1), 1}
-#define M_YELLOW    {fixed4(0.2, 0.2, 0.001, 1), 1}
-#define M_GREEN     {fixed4(0.001, 0.2, 0.001, 1), 1}
-#define M_BLUE      {fixed4(0.001, 0.001, 0.2, 1), 1}
-#define M_LIGHT_BLUE{fixed4(0.001, 0.05, 0.2, 1), 1}
-#define M_MAGENTA   {fixed4(0.2, 0.001, 0.2, 1), 1}
-#define M_PURPLE    {fixed4(0.05, 0.001, 0.2, 1), 1}
-#define M_WHITE     {fixed4(0.5, 0.5, 0.5, 1), 1}
-#define M_MIRROR    {fixed4(0.1, 0.1, 0.1, 1), 0}
+#define DEFMAT {fixed4(.2,.2,.2,1), 1, 0}
 
 // Implemented by shaderlab file.
 float4 vSdfConfig;
 float sdf(float3 p);
 material calcMaterial(float3 p);
 
-sdfData scene(float3 p)
-{
-	sdfData data;
-	data.dist = sdf(p);
-	material mat;
-	mat.col = fixed4(.2,.2,.2,1);
-	mat.fRough = 1;
-	data.mat = calcMaterial(p);
-	return data;
-}
+//sdfData scene(float3 p)
+//{
+//	sdfData data;
+//	data.dist = sdf(p);
+//	material mat;
+//	mat.col = fixed4(.2,.2,.2,1);
+//	mat.fSmoothness = 1;
+//	mat.fMetallic = 0;
+//	data.mat = calcMaterial(p);
+//	return data;
+//}
 
 fixed4 lightPoint(rayData r);
 fixed4 rayMarch(float3 p, float3 d);
 rayData castRay(float3 p, float3 d, float startDist = 0);
-float castRayEstimate(in float3 vRayStart, const float3 vDir, const int iSteps, const float fMaxDist, const float fSurfaceDist, const float fStartLength=0, const float fSurfaceDistPerMetre=0);
+float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, const float fMaxDist, const float fSurfaceDist, const float fStartLength=0, const float fSurfaceDistPerMetre=0);
 
 #endif

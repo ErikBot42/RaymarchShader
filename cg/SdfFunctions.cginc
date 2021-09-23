@@ -182,7 +182,7 @@ float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 6)
     float r;
 
 
-    const int iterations = 10;//5
+    const int iterations = 5;//10
 
     const float maxRThreshold = 1.5;//2; //"infinity"
 

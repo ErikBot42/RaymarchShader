@@ -42,15 +42,15 @@ v2f vert (appdata v)
 
 	float cosHeightVertex = abs(dot(normal, viewDir)); // assuming mesh is sphere with relatively equally spaced points.
 
-	//float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
+	float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
 	//float fEdgeLength = cosHeightVertex*0.02;// ICOSPHERE7: estimated distance between vertices from the perspective of an orthographic camera
-	float fEdgeLength = cosHeightVertex*0.13;// ICOSPHERE: estimated distance between vertices from the perspective of an orthographic camera
+	//float fEdgeLength = cosHeightVertex*0.13;// ICOSPHERE: estimated distance between vertices from the perspective of an orthographic camera
 	//float fEdgeLength = 0.02; // estimated distance between vertices from the perspective of an orthographic camera
 	float fSurfDistPerMeter = fEdgeLength/fDeltaDist;
     
-	//o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
-	//o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
-	o.distEstimate.x = castRayEstimate(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST*0.9, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
+	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
+	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
+	o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST*0.9, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
 
 	return o;
 }
@@ -190,10 +190,10 @@ inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
             sdf(vPos - e.yyx));
     return normalize(n);
 }
-//gets normal, provided you have the distance for pos (1 less call to scene())
+//gets normal, provided you have the distance for pos (1 less call to sdf())
 inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
 {
-    ////if epilon is smaller than 0.001, there are often artifacts
+    //if epilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = fPointDist - float3(
             sdf(vPos - e.xyy),
@@ -203,6 +203,7 @@ inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
 }
 
 //marches a ray through the scene once
+// TODO: REDUCE
 rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
 {
     float fRayLen = startDist;//startDist;// total distance marched / distance from camera
@@ -217,22 +218,12 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
     ray.minDist = 30000.0;// budget "infinity"
     ray.distToMinDist = 0;
 
-    //#ifdef USE_DYNAMIC_QUALITY
-    //for (int i = 0; i < _MaxSteps; i++)
-    //#else
-    for (int i = 0; i < MAX_STEPS; i++)
-    //#endif
+	for (int i = 0; i < MAX_STEPS; i++)
     {
         vPos = vRayStart + fRayLen * vRayDir;
         dist = sdf(vPos);
 
-        //#ifdef USE_DYNAMIC_QUALITY
-        //if (abs(dist) < _SurfDist) break;
-        //#else
-        //if (abs(dist) < SURF_DIST) break;
-        //if (abs(dist) < (fRayLen * 0.0001)) break; //TESTING 8k
-        if (abs(dist) < (fRayLen * 0.0007)) {ray.bMissed=false;break;} //TESTING 1080p
-        //#endif
+		if (abs(dist) < TOLERANCE(fRayLen)) {ray.bMissed=false;break;}
 
         fRayLen += dist;// move forward
 
@@ -242,17 +233,14 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
             ray.distToMinDist = fRayLen;
         }
         
-        //#ifdef USE_DYNAMIC_QUALITY
-        //if (fRayLen > _MaxDist) {ray.bMissed = true; break;}//flag this as transparent/sky
-        //#else
-        //if (fRayLen > MAX_DIST) {ray.bMissed = true; break;}//flag this as transparent/sky
         if (fRayLen > MAX_DIST) {ray.bMissed = true; break;}//flag this as transparent/sky
-        //#endif
     }
+
+	//ray.bMissed = fRayLen < MAX_DIST;
 
     ray.dist   = fRayLen;
     ray.iSteps = i;
-    ray.mat    = calcMaterial(vPos);//sdf_data.mat;
+    ray.mat    = calcMaterial(vPos);
     ray.vHit   = vPos;
 	#ifdef CALC_NORM
     //ray.vNorm  = getNorm(vPos, dist);
@@ -265,7 +253,7 @@ rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
 // start at vertex? 
 // increase surfacedist with length?
 // very simple lower estimate for length of ray.
-float castRayEstimate(in float3 vRayStart, const float3 vDir, const int iSteps, const float fMaxDist, const float fSurfaceDist, const float fStartLength, const float fSurfaceDistPerMetre)
+float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, const float fMaxDist, const float fSurfaceDist, const float fStartLength, const float fSurfaceDistPerMetre)
 {
 	float fRayLen = fStartLength;
 	for(int i = 0; i<iSteps; i++)

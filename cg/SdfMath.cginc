@@ -30,7 +30,8 @@ inline material mixMat(sdfData sdfA, sdfData sdfB)
     material m;
     float fac = clamp(sdfA.dist/(sdfA.dist + sdfB.dist), 0, 1);
     m.col = lerp(sdfA.mat.col, sdfB.mat.col, fac);
-    m.fRough = lerp(sdfA.mat.fRough, sdfB.mat.fRough, fac);
+    m.fSmoothness = lerp(sdfA.mat.fSmoothness, sdfB.mat.fSmoothness, fac);
+    m.fMetallic = lerp(sdfA.mat.fMetallic, sdfB.mat.fMetallic, fac);
     return m;
 }
 
@@ -39,7 +40,8 @@ inline material mixMat(material a, material b, float fac)
 {
     material m;
     m.col = lerp(a.col, b.col, fac);
-    m.fRough = lerp(a.fRough, b.fRough, fac);
+    m.fSmoothness = lerp(a.fSmoothness, b.fSmoothness, fac);
+    m.fMetallic = lerp(a.fMetallic, b.fMetallic, fac);
     return m;
 }
 
