@@ -41,15 +41,15 @@
     SubShader
     {
 
-        //Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Opaque" }
         //Tags { "Queue"="Transparent" "RenderType"="Opaque" }
-		Tags { // transparent
-			"Queue"="Transparent" 
-				"RenderType"="Transparent" 
-				"ForceNoShadowCasting"="True"
-				"DisableBatching"="True" // batching can prevent access to object space
-		}
-		Blend SrcAlpha OneMinusSrcAlpha // enable transparency
+		//Tags { // transparent
+		//	"Queue"="Transparent" 
+		//		"RenderType"="Transparent" 
+		//		"ForceNoShadowCasting"="True"
+		//		"DisableBatching"="True" // batching can prevent access to object space
+		//}
+		//Blend SrcAlpha OneMinusSrcAlpha // enable transparency
 
         Cull Off
         LOD 100
@@ -66,7 +66,7 @@
 			//#define DEBUG_COLOR_MODE
 			//#define VERTEX_DEBUG_COLORS
 			//#define ENABLE_TRANSPARENCY
-			//#define DISCARD_ON_MISS
+			#define DISCARD_ON_MISS
             
 			#pragma vertex vert
             #pragma fragment frag
@@ -91,7 +91,7 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_DIST 20
+			#define MAX_DIST 30
 			//#define SURF_DIST 0.0001
 			#define SURF_DIST 0.0001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
@@ -217,6 +217,7 @@
 
 
 
+
                 p/=_Scale;
 
                 applyPositionTransform(p); 
@@ -259,31 +260,36 @@
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
-                float scale = 0.28;
+                float scale = 0.2;
 				p/=scale;
-				int iterations = 3;
-				float estSideLength = 1;
-				for (int k = 0; k<iterations; k++)
-				{
-					absFold(p,0);
-					mengerFold(p);
-					scaleTranslate(p,3.0,float3(-2,-2,0));
-					//scale/=3.5;
-					scale/=3.8;
-					planeFold(p,float3(0,0,-1),-1);
-					//planeFold(p,float3(0,_SinTime.x*0.3,-_SinTime.y*0.3-1),-_SinTime.z*0.3-1);
-					dist = sdfBox(p,float3(2,2,2));
-					//break;
-					//if (dist/estSideLength>0.1) break;
-					estSideLength/3;
-				}
+				dist = mengerSponge(p, _Slider_SDF);
+				//dist = sdfBox(p,float3(1,1,1));
+				//int iterations = 3+int(_SinTime.z*1.9);
+
+				////dist = sierpinski3(p);
+				//float estSideLength = 1;
+				//for (int k = 0; k<iterations; k++)
+				//{
+				//	absFold(p,0);
+				//	mengerFold(p);
+				//	scaleTranslate(p,3.0,float3(-2,-2,0));
+				//	//scale/=3.5;
+				//	//scale/=3.8;
+				//	scale/=3.8;
+				//	planeFold(p,float3(0,0,-1),-1);
+				//	//planeFold(p,float3(0,_SinTime.x*0.3,-_SinTime.y*0.3-1),-_SinTime.z*0.3-1);
+				//	dist = sdfBox(p,float3(1,1,1)*(2));
+				//	//break;
+				//	//if (dist/estSideLength>0.1) break;
+				//	estSideLength/3;
+				//}
 
                 //o.dist = fracJuliabulb(p);
                 //o.dist = fracMandelbulb(p);
 				//o.dist = sdfSphere(p,1);
 				//o.dist/=pow(3,iterations);
 				//o.dist*=0.4;
-				dist*=1;
+				dist*=1.0;
                 dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
@@ -423,7 +429,10 @@
 			material calcMaterial(float3 p)
 			{
 				material mat = DEFMAT;
+				mat.col = fixed4(1,1,1,1)*1;
+				mat.col.w = 1;
 				applyPositionTransform(p);
+				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				return applyColorTransform(p, mat);
 			}
 

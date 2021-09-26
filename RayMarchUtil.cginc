@@ -74,7 +74,7 @@ float lightSoftShadow(float3 vStart, float3 vDir, float k)
 	//return minDelta;
     float res = 1.0;
     float t = 0.0;
-    for( int i=0; i<32; i++ )
+    for( int i=0; i<64; i++ )
     {
         float h = sdf(vStart + vDir*t);
         res = min( res, k*h/t );
@@ -85,10 +85,36 @@ float lightSoftShadow(float3 vStart, float3 vDir, float k)
 
 }
 
+
+float lightSoftShadow2(float3 vStart, float3 vDir, float k)
+{
+	float res = 1.0;
+    float ph = 1e20;
+	float mint = 0.001; float maxt = 2;
+    for( float t=mint; t<maxt; )
+    {
+		float TOL = 0.001;
+        float h = max(sdf(vStart + vDir*t),TOL/1000);// TOL prevents infinite loop in some cases
+        if( h<TOL )
+            return 0.0;
+        float y = h*h/(2.0*ph);
+        float d = sqrt(h*h-y*y);
+        res = min( res, k*d/max(0.0,t-y) );
+        ph = h;
+        t += h;
+    }
+    return res;
+}
+
 //calculate sky light
 inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
 {
     return cSkyCol * (0.5 + 0.5 * vNorm.y);
+}
+
+inline fixed4 lightSky2(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
+{
+    return cSkyCol * pow((0.5 + 0.5 * vNorm.y),5);
 }
 
 //bad ambient occlusion (screen space) based on steps

@@ -35,6 +35,31 @@ float sdfBox(float3 p, float3 vDim)
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
 
+float sdfBox(float2 p, float2 vDim)
+{
+	float2 d = abs(p)-vDim;
+	return length(max(d,0)) + min(max(d.x,d.y),0);
+}
+
+float max2(float2 v)
+{return max(v.x,v.y);}
+// create a infinite cross
+float sdfCross(float3 p)
+{
+	//float da = sdfBox(p.xyz,float3(99999, 1.0, 1.0));
+	//float db = sdfBox(p.yzx,float3(1.0, 99999, 1.0));
+	//float dc = sdfBox(p.zxy,float3(1.0, 1.0, 99999));
+	
+	//float da = sdfBox(p.xy, float2(1,1));
+	//float db = sdfBox(p.yz, float2(1,1));
+	//float dc = sdfBox(p.zx, float2(1,1));
+	
+	float da = max2(abs(p.xy));
+	float db = max2(abs(p.yz)); 
+	float dc = max2(abs(p.zx)); 
+	return min(da, min(db, dc))-1;
+}
+
 //create cuboid
 float sdfBox(float3 p, float3 vDim, float fRound)
 {
@@ -439,4 +464,60 @@ float fracFeather(float3 p)
     return length(p)/s-.001;
 }
 
+//https://github.com/pedrotrschneider/shader-fractals/blob/main/3D/MengerSponge.glsl
+float sierpinski3 (in float3 z) {
+  float iterations = 5.0;
+  float Scale = 2.0 + (sin (_Time.z / 2.0) + 1.0);
+  float3 _Offset = 3.0 * float3 (1.0, 1.0, 1.0);
+  float bailout = 1000.0;
+
+  float r = length (z);
+  int n = 0;
+  while (n < int (iterations) && r < bailout) {
+
+    z.x = abs (z.x);
+    z.y = abs (z.y);
+    z.z = abs (z.z);
+
+    if (z.x - z.y < 0.0) z.xy = z.yx; // fold 1
+    if (z.x - z.z < 0.0) z.xz = z.zx; // fold 2
+    if (z.y - z.z < 0.0) z.zy = z.yz; // fold 3
+
+    z.x = z.x * Scale - _Offset.x * (Scale - 1.0);
+    z.y = z.y * Scale - _Offset.y * (Scale - 1.0);
+    z.z = z.z * Scale;
+
+    if (z.z > 0.5 * _Offset.z * (Scale - 1.0)) {
+      z.z -= _Offset.z * (Scale - 1.0);
+    }
+
+    r = length (z);
+
+    n++;
+  }
+
+  return (length (z) - 2.0) * pow (Scale, -float (n));
+}
+
+// https://iquilezles.org/www/articles/menger/menger.htm
+float mengerSponge(float3 p, float slider=0)
+{
+	float d = sdfBox(p,float3(1,1,1)*(2+slider));
+	//d = max(d,-sdfCross(p*3)/3);return d;
+
+	float s = 1.0;
+	int iterations = 4;
+	for (int m=0; m<iterations; m++)
+	{
+		float fac = pow(4,iterations);
+		float3 a = fmod(p*s+fac, 2.0)-1.0;
+		s *= 3.0;
+		float3 r = abs(1-3.0*abs(a));
+
+		float c = sdfCross(r)/s;
+		d = max(d,c);
+	}
+	
+	return d;
+}
 #endif
