@@ -24,7 +24,7 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
@@ -72,7 +72,7 @@
             #pragma fragment frag
 			
             
-            #pragma multi_compile _SDF_NONE _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
@@ -128,7 +128,7 @@
 				//#define MAX_STEPS 30
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.9
-			#elif _SDF_TESTING			
+			#elif defined(_SDF_TESTING) || defined(_SDF_MENGER)
 				#define MAX_STEPS 200
                 //#define CONSTRAIN_TO_MESH
             #endif
@@ -256,13 +256,30 @@
 
 				#elif _SDF_TESTING
 
+
+				float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
+
+				float x1 = length(float2(p.x,p.z));
+				float y1 = p.y;
+
+				d1 = abs(y1 - x1*x1)/sqrt(2*x1*2*x1+1)-0.0;
+				d1 = y1>(x1*x1) ? d1 : 0;
+
+
+				float d2 = sdfSphere(p,0.3);
+
+				dist = max(d1,d2)-0.01;
+				dist = min(dist, sdfSphere(p+float3(0,-0.25,0),0.1));
+
+				#elif _SDF_MENGER
+
                 //o.mat = applyColorTransform(p, o.mat); 
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
                 float scale = 0.2;
 				p/=scale;
-				dist = mengerSponge(p, _Slider_SDF);
+				dist = mengerSponge(p, _Slider_SDF);//-0.01*(1+_SinTime.z);
 				//dist = sdfBox(p,float3(1,1,1));
 				//int iterations = 3+int(_SinTime.z*1.9);
 
@@ -429,9 +446,10 @@
 			material calcMaterial(float3 p)
 			{
 				material mat = DEFMAT;
-				mat.col = fixed4(1,1,1,1)*1;
+				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
 				applyPositionTransform(p);
+				mat.fSmoothness = frac((p.x+p.y+p.z)*4);
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				return applyColorTransform(p, mat);
 			}

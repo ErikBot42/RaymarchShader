@@ -132,19 +132,20 @@ fragOut frag (v2f i)
 	vSdfConfig = i.vSdfConfig;
 
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
-    #ifdef CONSTRAIN_TO_MESH
-	float len = i.distEstimate.x*1; //length(i.vHitPos-i.vCamPos); 
-	rayData ray;
-	ray = castRay(i.vCamPos, vRayDir, len);
-    #else
-    rayData ray = castRay(i.vCamPos, vRayDir);
-    #endif
+    //#ifdef CONSTRAIN_TO_MESH
+	//float len = i.distEstimate.x*1; //length(i.vHitPos-i.vCamPos); 
+	//rayData ray;
+	//ray = castRay(i.vCamPos, vRayDir, len);
+    //#else
+    //rayData ray = castRay(i.vCamPos, vRayDir);
+    //#endif
 
     #ifdef DISCARD_ON_MISS
-    if (ray.bMissed) discard;
+    //if (ray.bMissed) discard;
     #endif
     fragOut o;
-    o.col = lightPoint(ray);
+    //o.col = lightPoint(ray);
+	o.col = rendererCalculateColor(i.vCamPos, vRayDir, 0, 2);
 
 	#ifdef VERTEX_DEBUG_COLORS
 	o.col.b = 1;
@@ -158,15 +159,15 @@ fragOut frag (v2f i)
 	#endif
 
 	// writing to depth buffer costs about 1-2 frames at 4k -> very cheap
-	#ifndef DISABLE_Z_WRITE
-	float4 zPoint = float4(ray.vHit,1);
-	#ifdef USE_WORLD_SPACE
-		float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
-	#else
-		float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, zPoint));
-	#endif
-		o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
-	#endif
+	//#ifndef DISABLE_Z_WRITE
+	//float4 zPoint = float4(ray.vHit,1);
+	//#ifdef USE_WORLD_SPACE
+	//	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	//#else
+	//	float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, zPoint));
+	//#endif
+	//	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	//#endif
 
 	#ifndef ENABLE_TRANSPARENCY
 	o.col *= o.col.w;
@@ -301,22 +302,29 @@ float3 light1 = normalize(float3(0, 1, -0.1)); // sky
 fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
 
 // get background light from dir.
-fixed4 worldGetBackground( in float3 dir)
+fixed4 worldGetBackground( in float3 dir, in float rough = 0.0)
 {
+
+	float3 light2 = normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
+	fixed3 light2_col = fixed3(1,0.8,0.4);
+
 	// https://stackoverflow.com/questions/53910092/how-can-i-get-the-lighting-information-from-a-skybox
-	half rough = 0;
+	//half rough = 0.5;
 	//rough = 1.7 - 0.7 * rough;
 	float4 reflData = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6);
-	return half4(DecodeHDR(reflData, unity_SpecCube0_HDR),1);
+	fixed4 col = half4(DecodeHDR(reflData, unity_SpecCube0_HDR),1);
+	col += smoothstep(0.85,1.01,dot(dir, light2))*float4(light2_col,1);
+	col += smoothstep(-0.0,-0.8,dir.y)*fixed4(1,0,1,1)*0.4;
+	return col;
 	//half4 skyData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, dir);
 	//return half4(DecodeHDR(skyData, unity_SpecCube0_HDR), 1);
 	
 
-	fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
-	float fac=0.3;
-	fixed4 col = light1_col * min(1,dir.y+0.2);
-	col += fixed4(0.9,0.7,0.2,1)*max(0,dir.y-0.8)*3;
-	return col;
+	//fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
+	//float fac=0.3;
+	//fixed4 col = light1_col * min(1,dir.y+0.2);
+	//col += fixed4(0.9,0.7,0.2,1)*max(0,dir.y-0.8)*3;
+	//return col;
 	//return lightSky2(dir);//*(1-fac+fac*snoise(dir*10));
 }
 
@@ -350,9 +358,9 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir)
 #if 1
 	float k = 4;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
-	//col += light2_col * lightSoftShadow2(newStartPoint, light2, k);
+	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
-	col += worldGetBackground(reflected);
+	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
 #else
 
@@ -366,9 +374,9 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir)
 	col += worldGetBackground(reflected)*refFactor;
 	//col += worldGetBackground(nor)*refFactor;
 	float fac = 0.0;
-	col += max(dot(normalize(pos),light1),0)*light1_col*fac;
-	col += max(dot(normalize(pos),light2),0)*light2_col*fac;
-	col += max(dot(normalize(pos),light3),0)*light3_col*fac;
+	//col += max(dot(normalize(pos),light1),0)*light1_col*fac;
+	//col += max(dot(normalize(pos),light2),0)*light2_col*fac;
+	//col += max(dot(normalize(pos),light3),0)*light3_col*fac;
 
 	//col += light2_col * max(0,dot(reflected, light2));
 #endif
@@ -439,7 +447,7 @@ fixed4 lightPoint(rayData ray)
 
 		fixed4 indirectLighting = ray2.bMissed ? worldGetBackground(ray2.vRayDir) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
 		
-		float fac = 0.1;//1-ray.mat.fSmoothness;//0.3;
+		float fac = .5;//1-ray.mat.fSmoothness;//0.3;
 		fixed4 lighting = 1*directLighting*fac + indirectLighting*(1-fac);
 
 		//lighting *= 0.6+lightSSAO(ray, 5);
@@ -519,9 +527,85 @@ fixed4 lightPoint(rayData ray)
 	//return col;
 }
 
-fixed4 rendererCalculateColor(float3 vStart, float3 vDir, float startDist=0, int numLevels=2)
+// TODO: Subpixel ray split could be done.
+
+// With ray point and dir, calc color
+// ro - ray origin
+// rd - ray direction
+// this is a recursive algorithm in an iterative form.
+fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLevels)
 {
-	
+	numLevels = 1;
+	fixed4 sumCol = fixed4(0,0,0,0); // Running sum of light*color for the final color output.
+	fixed4 prodCol = fixed4(1,1,1,1); // Product of all colors (without light)
+	float currentDist = startDist;
+
+	for (int i=0; i<numLevels; i++)	
+	{
+		rayData ray = castRay(ro, rd);
+		float3 pos = ray.vHit;
+		currentDist+=ray.dist;
+		
+		fixed4 dcol; // direct lighting color
+
+		material mat = calcMaterial(pos); // surface material
+		// missed -> loop should exit.
+		if (ray.bMissed) 
+		{
+			if (i==0) // never interacted with object
+			{
+				dcol = worldGetBackground(rd); 
+				//discard;
+			}
+			else
+			{
+				dcol = worldGetBackground(rd, 1-mat.fSmoothness);
+			}
+			//discard; // will possibly haunt me later
+			sumCol += prodCol*dcol;
+			break;
+			//if (i == 0) {sumCol = dcol; break;}
+			//else 
+			//{
+			//	sumCol += prodCol*dcol;
+			//	break;
+			//}
+		}
+
+		//return fixed4(smoothstep(0,2,ray.dist),0,1,1);
+
+		float3 nor = getNormFull(pos);
+
+		dcol = 1*worldApplyLighting(pos, nor, rd);
+
+		fixed4 surfCol = calcMaterial(pos).col; // surface color
+
+		prodCol*=surfCol;
+
+		sumCol += prodCol*dcol;
+
+		
+		// get new ray dir for next iteration
+		ro = pos;
+		if (mat.fSmoothness>0.5)
+			rd = reflect(rd, nor);
+		else
+			rd = refract(rd, nor, 0.90);
+		//rd = refractionWithTotalReflection(rd, nor, 0.8);
+
+		//return worldGetBackground(rd, 1-mat.fSmoothness);
+		return worldGetBackground(rd, 0);
+		//float3 thing = pos*40;
+		//float shift = 100;
+		//rd = normalize(rd+0.3*float3(snoise(thing),snoise(pos + shift),snoise(pos + shift*2)));
+
+		//fcol *= scol;
+		//tcol += fcol*dcol;
+		//tcol = fcol*dcol;
+		//return mat.col*lighting;
+
+	}
+	return sumCol;
 }
 
 #endif

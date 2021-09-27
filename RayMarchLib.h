@@ -114,7 +114,7 @@ struct sdfData // returned from distance functions, including main scene
 float4 vSdfConfig;
 float sdf(float3 p);
 material calcMaterial(float3 p);
-
+fixed4 rendererCalculateColor(float3 vStart, float3 vDir, float startDist=0, int numLevels=2);
 //sdfData scene(float3 p)
 //{
 //	sdfData data;

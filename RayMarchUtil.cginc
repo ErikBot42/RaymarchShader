@@ -147,6 +147,13 @@ inline fixed4 lightFog(fixed4 col, fixed4 cFog, float fDist, float fStart=16, fl
     return lerp(col, cFog, smoothstep(fStart, fFull, fDist));
 }
 
+// refraction but if angle is great enough it reflects, just like real light
+float3 refractionWithTotalReflection(float3 rd, float3 nor, float rid)
+{
+	float3 refracted = refract(rd, nor, rid);
+	return refracted == float3(0,0,0) ? reflect(rd,nor) : refracted;
+}
+
 //a light pass for debugging
 //fixed4 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 //{

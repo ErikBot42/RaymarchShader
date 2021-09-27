@@ -74,6 +74,11 @@ float sdfLine(float3 p, float3 vStart, float3 vEnd, float fRadius)
     return length(p-vStart-(vEnd-vStart)*h)-fRadius;
 }
 
+//create infinite cylinder
+float sdfCylinder(float3 p, float fRadius)
+{
+    return length(p.xz)-fRadius;
+}
 //create cylinder
 float sdfCylinder(float3 p, float fRadius, float fHeight)
 {
@@ -502,11 +507,12 @@ float sierpinski3 (in float3 z) {
 // https://iquilezles.org/www/articles/menger/menger.htm
 float mengerSponge(float3 p, float slider=0)
 {
-	float d = sdfBox(p,float3(1,1,1)*(2+slider));
+	//float d = sdfBox(p,float3(1,1,1)*(2+slider));
+	float d = sdfSphere(p,(2+slider));
 	//d = max(d,-sdfCross(p*3)/3);return d;
 
 	float s = 1.0;
-	int iterations = 4;
+	int iterations = 3;
 	for (int m=0; m<iterations; m++)
 	{
 		float fac = pow(4,iterations);
@@ -514,7 +520,7 @@ float mengerSponge(float3 p, float slider=0)
 		s *= 3.0;
 		float3 r = abs(1-3.0*abs(a));
 
-		float c = sdfCross(r)/s;
+		float c = sdfCross(r)/(s);
 		d = max(d,c);
 	}
 	
