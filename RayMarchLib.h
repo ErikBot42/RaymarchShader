@@ -94,6 +94,19 @@ struct rayData // used for lighting a point
     float distToMinDist;  // Smallest recorded distance to surface
 };
 
+struct light
+{
+	fixed3 col;
+	float3 dir; // in local space.
+};
+
+struct rayDataMinimal // minimal data for rayMarch
+{
+	float dist;
+	bool bMissed;
+	int iSteps;
+};
+
 struct sdfData // returned from distance functions, including main scene
 {
     float dist;

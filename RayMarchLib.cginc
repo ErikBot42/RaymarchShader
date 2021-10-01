@@ -263,6 +263,46 @@ float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, co
 	return fRayLen;
 }
 
+// simplified and optimized raycast
+rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float startDistToleranceOffset=0)
+{
+	rayDataMinimal data;
+	int i;
+	float dist = startDist;
+	for (i=0; i<MAX_STEPS; i++)
+	{
+		float3 pos = ro + rd*dist;
+		float distToObject = sdf(pos);
+		dist+=distToObject;
+
+		if (dist>MAX_DIST || 
+		    distToObject<TOLERANCE((dist+startDistToleranceOffset))) break;
+	}
+	data.bMissed = dist>MAX_DIST;
+	data.iSteps = i;
+	data.dist = dist;
+	return data;
+}
+
+// Raycast inside object (sdf MUST be signed for this to work).
+// Max dist irrelevant since inside object.
+// Will probably work well if the number of steps is low since 
+// only the normal of this is relevant later.
+// Start length should be >> 0 to make sure ray starts inside object
+// Return dist.
+float insideCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, const float fSurfaceDist, const float fStartLength=0)
+{
+	float fRayLen = fStartLength;
+	int i;
+	for(i = 0; i<iSteps; i++)
+	{
+		float3 vPos = vDir*fRayLen;
+        float dist = -sdf(vPos); // -sdf = inside object
+		if (dist < fSurfaceDist) break;
+        fRayLen += dist;
+	}
+	return i;
+}
 
 fixed4 simpleLightPoint(rayData ray)
 {
@@ -311,10 +351,15 @@ fixed4 worldGetBackground( in float3 dir, in float rough = 0.0)
 	// https://stackoverflow.com/questions/53910092/how-can-i-get-the-lighting-information-from-a-skybox
 	//half rough = 0.5;
 	//rough = 1.7 - 0.7 * rough;
-	float4 reflData = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6);
+	half4 reflData = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6);
+	//half4 reflData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, dir);
 	fixed4 col = half4(DecodeHDR(reflData, unity_SpecCube0_HDR),1);
-	col += smoothstep(0.85,1.01,dot(dir, light2))*float4(light2_col,1);
-	col += smoothstep(-0.0,-0.8,dir.y)*fixed4(1,0,1,1)*0.4;
+	//return col;
+	//col += smoothstep(0.85,1.01,dot(dir, light2))*float4(light2_col,1);
+	//col += smoothstep(0.98,1.02,dot(dir, light2))*float4(light2_col,1);
+	//col += 0.5*smoothstep(0.9995,0.999958816,dot(dir, light2))*float4(light2_col,1);
+	//col += 0.5*smoothstep(0.9995,0.999958816,dot(dir, light2))*float4(1,1,1,1);
+	//col += smoothstep(-0.0,-0.8,dir.y)*fixed4(1,0,1,1)*0.4;
 	return col;
 	//half4 skyData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, dir);
 	//return half4(DecodeHDR(skyData, unity_SpecCube0_HDR), 1);
@@ -328,13 +373,25 @@ fixed4 worldGetBackground( in float3 dir, in float rough = 0.0)
 	//return lightSky2(dir);//*(1-fac+fac*snoise(dir*10));
 }
 
+light getMainLight(float3 pos)
+{	
+	light l;
+	l.dir = _WorldSpaceLightPos0;
+	//int i = 0;
+	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
+	l.col = _LightColor0;
+	return l;
+}
+
+
 // calc the direct light a point recives (including shadows)
 fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir)
 {
 	//float light1_angle = 0.1;
-
-	float3 light2 = normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
-	fixed3 light2_col = fixed3(1,0.8,0.4);
+	light l = getMainLight(pos);
+	float3 light2 = l.dir; 
+	//_WorldSpaceLightPos0;//normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
+	fixed3 light2_col = l.col;//fixed3(1,0.8,0.4);
 	//float light2_angle = 0.01;
 
 	float3 light3 = light2; light3.x*=-1; light3.z*=-1; // sun, other dir
@@ -527,7 +584,15 @@ fixed4 lightPoint(rayData ray)
 	//return col;
 }
 
+
 // TODO: Subpixel ray split could be done.
+// TODO: Fix tolerance based on dist (should be based on total dist)
+// Given that there is no stack/recursion, both reflection and refraction 
+// cannot both be done at one time. Solution might be to not do recursive 
+// refraction
+// Specular = reflective
+// Diffuse = non reflective
+// Fresnel = more reflective at a greater angle towards the normal.
 
 // With ray point and dir, calc color
 // ro - ray origin
@@ -542,34 +607,29 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 	for (int i=0; i<numLevels; i++)	
 	{
-		rayData ray = castRay(ro, rd);
-		float3 pos = ray.vHit;
-		currentDist+=ray.dist;
+		//rayData ray = castRay(ro, rd);
+
+		rayDataMinimal ray = castRayMinimal(ro, rd);//, float startDist=0, float startDistToleranceOffset=0)
+		float3 pos = ro + ray.dist*rd;
+		currentDist += ray.dist;
 		
-		fixed4 dcol; // direct lighting color
+		fixed4 dcol = fixed4(1,1,1,1) * 0.1; // direct lighting color
 
 		material mat = calcMaterial(pos); // surface material
-		// missed -> loop should exit.
-		if (ray.bMissed) 
+		
+		if (ray.bMissed) // missed -> loop should exit.
 		{
 			if (i==0) // never interacted with object
 			{
 				dcol = worldGetBackground(rd); 
-				//discard;
+				//discard; // optional
 			}
 			else
 			{
 				dcol = worldGetBackground(rd, 1-mat.fSmoothness);
 			}
-			//discard; // will possibly haunt me later
 			sumCol += prodCol*dcol;
 			break;
-			//if (i == 0) {sumCol = dcol; break;}
-			//else 
-			//{
-			//	sumCol += prodCol*dcol;
-			//	break;
-			//}
 		}
 
 		//return fixed4(smoothstep(0,2,ray.dist),0,1,1);
@@ -586,15 +646,76 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 		
 		// get new ray dir for next iteration
-		ro = pos;
-		if (mat.fSmoothness>0.5)
-			rd = reflect(rd, nor);
-		else
-			rd = refract(rd, nor, 0.90);
+		rd = reflect(rd, nor);
+		ro = pos + rd*0.0001; // margin to prevent hitting object again
+		//if (1)
+		//else
+		//rd = refract(rd, nor, 1.0/1.3);
+		 
+		/*float fac = 0.5*_SinTime.z;
+		float fac2 = 1;
+		float n_r = fac2*(1.520-fac);
+		float n_g = 1.2;//2.4168;//fac2*(1.526);
+		float n_b = fac2*(1.531+fac);
+
+		float fakeDist;
+
+		float3 rd_r = refractLightFakeSphere(rd, nor, fakeDist, n_r);
+		float3 rd_g = refractLightFakeSphere(rd, nor, fakeDist, n_g);
+		float3 rd_b = refractLightFakeSphere(rd, nor, fakeDist, n_b);
+
+		#if 0
+		fixed4 refracted = fixed4(
+			worldGetBackground(rd_r, 1-mat.fSmoothness).r,
+			worldGetBackground(rd_g, 1-mat.fSmoothness).g,
+			worldGetBackground(rd_b, 1-mat.fSmoothness).b,
+			1
+		);
+		#else
+		fixed4 refracted = worldGetBackground(rd_g, 1-mat.fSmoothness);
+		#endif
+
+		float3 rd_reflected = reflect(rd, nor);
+
+		fixed4 reflected = worldGetBackground(rd_reflected, 1-mat.fSmoothness)*fixed4(1,1,1,1);
+
+		//float reflectance_r = calcReflectance(dot(rd_reflected, nor), 1, n_r);
+		float reflectance_g = calcReflectance(dot(rd_reflected, nor), 1, n_g);
+		//float reflectance_b = calcReflectance(dot(rd_reflected, nor), 1, n_b);
+		
+		#if 0
+		fixed4 col = fixed4(
+			reflected.r*reflectance_r + refracted.r*(1-reflectance_r),
+			reflected.g*reflectance_g + refracted.g*(1-reflectance_g),
+			reflected.b*reflectance_b + refracted.b*(1-reflectance_b),
+			1);
+
+		#else
+		fixed4 col = reflected*reflectance_g + refracted*(1-reflectance_g);
+		#endif
+
+		return col;*/
+		
+
+		//ro += -nor*0.001;
+		//float insideDist = insideCastRay(ro, rd, 1000, 0.0001, 0);
+		//ro += insideDist*rd*1;
+
+		//fixed4 col = fixed4(1,1,1,1);
+		//float fac = 50;
+		//col.r = max(0,sdf(ro))*fac;
+		//col.b = max(0,-sdf(ro))*fac;
+
+		////return col;
+
+		//nor = getNormFull(ro);
+
+		//rd = refract(rd, nor, 1.0/1.52);
+		//if (length(rd)<0.9) return fixed4(1,0,0,1);
 		//rd = refractionWithTotalReflection(rd, nor, 0.8);
 
+		//return worldGetBackground(rd_r, 1-mat.fSmoothness);
 		//return worldGetBackground(rd, 1-mat.fSmoothness);
-		return worldGetBackground(rd, 0);
 		//float3 thing = pos*40;
 		//float shift = 100;
 		//rd = normalize(rd+0.3*float3(snoise(thing),snoise(pos + shift),snoise(pos + shift*2)));

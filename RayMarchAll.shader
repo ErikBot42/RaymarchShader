@@ -41,7 +41,7 @@
     SubShader
     {
 
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Opaque" "LightMode"="ForwardBase" }
         //Tags { "Queue"="Transparent" "RenderType"="Opaque" }
 		//Tags { // transparent
 		//	"Queue"="Transparent" 
@@ -91,13 +91,13 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_DIST 30
+			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
 			#define SURF_DIST 0.0001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
 				//#define EXTREME_AO
                 //#define MAX_STEPS 14
-                #define MAX_STEPS 128
+                #define MAX_STEPS 228
                 //#define MAX_STEPS 200
                 //#define MAX_STEPS 200
                 //#define FUNGE_FACTOR 1.4
@@ -375,7 +375,11 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
-                dist = min(sdfSphere(p+float3(-0.25,0,0), 0.2), sdfSphere(p+float3(.25,0,0), 0.2));
+                dist = sdfSphere(p+float3(-0.25,0,0), 0.2);
+				//dist = min(dist, sdfSphere(p+float3(.25,0,0), 0.2));
+				dist = min(dist, sdfBox(p+float3(0,0.25,0), float3(1,1,1)*0.3));
+
+
 				//if(dist<0.001)
 				//{
 				//	dist += snoise(p*100)*0.0005;
@@ -449,7 +453,7 @@
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
 				applyPositionTransform(p);
-				mat.fSmoothness = frac((p.x+p.y+p.z)*4);
+				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				return applyColorTransform(p, mat);
 			}

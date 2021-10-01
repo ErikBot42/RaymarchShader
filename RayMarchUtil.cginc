@@ -154,6 +154,30 @@ float3 refractionWithTotalReflection(float3 rd, float3 nor, float rid)
 	return refracted == float3(0,0,0) ? reflect(rd,nor) : refracted;
 }
 
+
+// refract light entering and exiting, assuming it is a sphere.
+// default n is for glass
+float3 refractLightFakeSphere(float3 rd, float3 nor, out float distFactor, float3 n = 1.52)
+{
+	float3 rd_ref = refract(rd, nor, 1.0/n);
+	float3 rd_nor = reflect(nor, rd_ref);
+	distFactor = length(nor-rd_nor);
+	return refract(rd_ref, -rd_nor, n/1.0);
+}
+
+// Approximation of the reflectance of a surface.
+// cosAngle is the cosine of the angle relative to normal.
+// that angle can efficiently be obtained by a dot product
+// https://en.wikipedia.org/wiki/Schlick%27s_approximation
+float calcReflectance(const float cosAngle, const float n1 = 1, const float n2 = 1.5)
+{
+	float R0 = (n1-n2)/(n1+n2);
+	R0 = R0*R0;
+	float oneMinusCos = 1-cosAngle;
+	return R0 + (1-R0)*(oneMinusCos*oneMinusCos*oneMinusCos*oneMinusCos*oneMinusCos);
+}
+
+
 //a light pass for debugging
 //fixed4 lightOnly(float3 vPos, float3 vNorm, float3 vSunDir)
 //{
