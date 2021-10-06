@@ -91,7 +91,7 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_DIST 3
+			#define MAX_DIST 10
 			//#define SURF_DIST 0.0001
 			#define SURF_DIST 0.0001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)

@@ -117,7 +117,7 @@ inline fixed4 lightSky2(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
     return cSkyCol * pow((0.5 + 0.5 * vNorm.y),5);
 }
 
-//bad ambient occlusion (screen space) based on steps
+//ambient occlusion (screen space) based on steps
 float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
 {
     #ifdef USE_DYNAMIC_QUALITY
@@ -125,6 +125,12 @@ float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
     #else
     return pow(1 - float(ray_data.iSteps) / MAX_STEPS, fDarkenFactor);
     #endif
+}
+
+//ambient occlusion (screen space) based on steps
+float lightSSAO(int iSteps, int iMaxSteps, float fDarkenFactor)
+{
+	return pow(1.0 - float(iSteps) / float(iMaxSteps), fDarkenFactor);
 }
 
 //ambient occlusion

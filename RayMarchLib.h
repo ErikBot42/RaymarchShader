@@ -41,7 +41,8 @@ float _SurfDist = 0.00001;
 #endif //128
 #ifndef SURF_DIST
 //#define SURF_DIST 0.00001
-#define SURF_DIST 0.0001
+//#define SURF_DIST 0.0001
+#define SURF_DIST 0.001
 #endif
 #endif
 
@@ -64,7 +65,7 @@ struct v2f
 	float3 distEstimate : TEXCOORD3;
 	float4 vSdfConfig : TANGENT;
     fixed4 color : COLOR;
-	// NORMAL : float3
+	float3 normal : NORMAL;
 };
 
 struct fragOut

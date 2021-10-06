@@ -30,6 +30,7 @@ v2f vert (appdata v)
 #endif
 	viewDir = normalize(viewDir);
 	normal = normalize(normal);
+	o.normal = normal;
 
 	o.vDir = normalize(o.vHitPos - o.vCamPos);
 	o.vCamPos *=1;
@@ -132,6 +133,11 @@ fragOut frag (v2f i)
 	vSdfConfig = i.vSdfConfig;
 
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
+	float3 vRayStart = i.vCamPos;	
+	//float3 vRayStart = i.vHitPos;	
+	float startDist = 0;
+	if(dot(i.normal, vRayDir)<0) startDist = length(i.vHitPos-i.vCamPos);
+
     //#ifdef CONSTRAIN_TO_MESH
 	//float len = i.distEstimate.x*1; //length(i.vHitPos-i.vCamPos); 
 	//rayData ray;
@@ -145,7 +151,7 @@ fragOut frag (v2f i)
     #endif
     fragOut o;
     //o.col = lightPoint(ray);
-	o.col = rendererCalculateColor(i.vCamPos, vRayDir, 0, 2);
+	o.col = rendererCalculateColor(vRayStart, vRayDir, startDist, 2);
 
 	#ifdef VERTEX_DEBUG_COLORS
 	o.col.b = 1;
@@ -173,7 +179,9 @@ fragOut frag (v2f i)
 	o.col *= o.col.w;
 	o.col.w = 1;
 	#endif
-    
+   	
+	//if (dot(i.normal,vRayDir)>0) o.col.r = 1;
+
     return o;
 }
 #endif
@@ -385,7 +393,7 @@ light getMainLight(float3 pos)
 
 
 // calc the direct light a point recives (including shadows)
-fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir)
+fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float AOfactor = 1)
 {
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
@@ -400,7 +408,9 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir)
 	//light3_col.g = 2;
 	//light3_col.b = 2;
 
-	fixed3 col = fixed3(1,1,1)*0.0;// "ambient"
+	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
+
+	fixed3 col = ambientColor*AOfactor*0.1;// "ambient"
 	rayData ray;
 	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 	float stepBack = 0.01;
@@ -609,7 +619,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 	{
 		//rayData ray = castRay(ro, rd);
 
-		rayDataMinimal ray = castRayMinimal(ro, rd);//, float startDist=0, float startDistToleranceOffset=0)
+		rayDataMinimal ray = castRayMinimal(ro, rd, startDist);//, float startDist=0, float startDistToleranceOffset=0)
+		startDist = 0; // next startdist is zero
 		float3 pos = ro + ray.dist*rd;
 		currentDist += ray.dist;
 		
@@ -622,7 +633,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 			if (i==0) // never interacted with object
 			{
 				dcol = worldGetBackground(rd); 
-				//discard; // optional
+				discard; // optional
 			}
 			else
 			{
@@ -636,7 +647,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 		float3 nor = getNormFull(pos);
 
-		dcol = 1*worldApplyLighting(pos, nor, rd);
+		dcol = 1*worldApplyLighting(pos, nor, rd, lightSSAO(ray.iSteps, MAX_STEPS, 5));
+		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
 		fixed4 surfCol = calcMaterial(pos).col; // surface color
 
