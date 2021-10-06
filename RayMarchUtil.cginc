@@ -193,6 +193,17 @@ float calcReflectance(const float cosAngle, const float n1 = 1, const float n2 =
 //    return fLight * fAO * fShadow;
 //}
 
+half ray_OneMinusReflectivityFromMetallic(half metallic)
+{
+    half oneMinusDielectricSpec = unity_ColorSpaceDielectricSpec.a;
+    return oneMinusDielectricSpec - metallic * oneMinusDielectricSpec;
+}
 
+half3 ray_DiffuseAndSpecularFromMetallic (half3 albedo, half metallic, out half3 specColor, out half oneMinusReflectivity)
+{
+    specColor = lerp (unity_ColorSpaceDielectricSpec.rgb, albedo, metallic);
+    oneMinusReflectivity = ray_OneMinusReflectivityFromMetallic(metallic);
+    return albedo * oneMinusReflectivity;
+}
 
 #endif

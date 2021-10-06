@@ -350,7 +350,7 @@ float3 light1 = normalize(float3(0, 1, -0.1)); // sky
 fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
 
 // get background light from dir.
-fixed4 worldGetBackground( in float3 dir, in float rough = 0.0)
+fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 {
 
 	float3 light2 = normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
@@ -410,7 +410,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 
 	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
 
-	fixed3 col = ambientColor*AOfactor*0.1;// "ambient"
+	fixed3 col = ambientColor*.2;// "ambient"
 	rayData ray;
 	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 	float stepBack = 0.01;
@@ -465,7 +465,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//ray = castRay(pos + nor*stepBack, light2);
 	//if (ray.bMissed) col += light2_col;
 	
-	return fixed4(col,1);
+	return fixed4(col*AOfactor,1);
 }
 
 //TODO: emmision, reflections
@@ -478,7 +478,7 @@ fixed4 lightPoint(rayData ray)
 {
 
 	fixed4 col;
-	fixed4 skyColor = worldGetBackground(ray.vRayDir);
+	fixed4 skyColor = fixed4(worldGetBackground(ray.vRayDir),1);
 	fixed4 fogColor = skyColor;//, unity_FogColor);
 
 	// TODO: MAKE PROPER RECURSIVE REFLECTION MODEL!!!
@@ -512,7 +512,7 @@ fixed4 lightPoint(rayData ray)
 		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
 		//}
 
-		fixed4 indirectLighting = ray2.bMissed ? worldGetBackground(ray2.vRayDir) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
+		fixed4 indirectLighting = ray2.bMissed ? fixed4(worldGetBackground(ray2.vRayDir),1) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
 		
 		float fac = .5;//1-ray.mat.fSmoothness;//0.3;
 		fixed4 lighting = 1*directLighting*fac + indirectLighting*(1-fac);
@@ -600,8 +600,8 @@ fixed4 lightPoint(rayData ray)
 // Given that there is no stack/recursion, both reflection and refraction 
 // cannot both be done at one time. Solution might be to not do recursive 
 // refraction
-// Specular = reflective
-// Diffuse = non reflective
+// Specular = reflective/smooth
+// Diffuse = non reflective/random reflection
 // Fresnel = more reflective at a greater angle towards the normal.
 
 // With ray point and dir, calc color
@@ -632,12 +632,12 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		{
 			if (i==0) // never interacted with object
 			{
-				dcol = worldGetBackground(rd); 
+				dcol = fixed4(worldGetBackground(rd),1); 
 				discard; // optional
 			}
 			else
 			{
-				dcol = worldGetBackground(rd, 1-mat.fSmoothness);
+				dcol = fixed4(worldGetBackground(rd, 1-mat.fSmoothness),1);
 			}
 			sumCol += prodCol*dcol;
 			break;
@@ -647,7 +647,9 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 		float3 nor = getNormFull(pos);
 
-		dcol = 1*worldApplyLighting(pos, nor, rd, lightSSAO(ray.iSteps, MAX_STEPS, 5));
+		float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 5);
+
+		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
 		fixed4 surfCol = calcMaterial(pos).col; // surface color
@@ -706,8 +708,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		fixed4 col = reflected*reflectance_g + refracted*(1-reflectance_g);
 		#endif
 
-		return col;*/
-		
+		return col;
+		*/	
 
 		//ro += -nor*0.001;
 		//float insideDist = insideCastRay(ro, rd, 1000, 0.0001, 0);
