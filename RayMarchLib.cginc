@@ -423,7 +423,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	
 	float3 reflected = reflect(dir, nor);
 #if 1
-	float k = 4;//100;
+	float k = 1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
 	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
@@ -647,7 +647,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 		float3 nor = getNormFull(pos);
 
-		float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 5);
+		float fAOfactor = 1;//lightSSAO(ray.iSteps, MAX_STEPS, 5);
 
 		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);

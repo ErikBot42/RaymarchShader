@@ -93,8 +93,8 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k)
 	float mint = 0.001; float maxt = 2;
     for( float t=mint; t<maxt; )
     {
-		float TOL = 0.001;
-        float h = max(sdf(vStart + vDir*t),TOL/1000);// TOL prevents infinite loop in some cases
+		float TOL = mint;//0.001;
+        float h = max(sdf(vStart + vDir*t),TOL);// TOL prevents infinite loop in some cases
         if( h<TOL )
             return 0.0;
         float y = h*h/(2.0*ph);
