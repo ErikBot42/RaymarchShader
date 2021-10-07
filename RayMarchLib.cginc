@@ -346,22 +346,11 @@ float3 rand3dTo3d(float3 value){
 	);
 }
 
-float3 light1 = normalize(float3(0, 1, -0.1)); // sky
-fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
-
 // get background light from dir.
 fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 {
-
-	float3 light2 = normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
-	fixed3 light2_col = fixed3(1,0.8,0.4);
-
 	// https://stackoverflow.com/questions/53910092/how-can-i-get-the-lighting-information-from-a-skybox
-	//half rough = 0.5;
-	//rough = 1.7 - 0.7 * rough;
-	half4 reflData = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6);
-	//half4 reflData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, dir);
-	fixed4 col = half4(DecodeHDR(reflData, unity_SpecCube0_HDR),1);
+	fixed3 col = DecodeHDR(UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6), unity_SpecCube0_HDR);
 	//return col;
 	//col += smoothstep(0.85,1.01,dot(dir, light2))*float4(light2_col,1);
 	//col += smoothstep(0.98,1.02,dot(dir, light2))*float4(light2_col,1);
@@ -369,10 +358,6 @@ fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 	//col += 0.5*smoothstep(0.9995,0.999958816,dot(dir, light2))*float4(1,1,1,1);
 	//col += smoothstep(-0.0,-0.8,dir.y)*fixed4(1,0,1,1)*0.4;
 	return col;
-	//half4 skyData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, dir);
-	//return half4(DecodeHDR(skyData, unity_SpecCube0_HDR), 1);
-	
-
 	//fixed4 light1_col = fixed4(0.3,0.7,0.9,1);
 	//float fac=0.3;
 	//fixed4 col = light1_col * min(1,dir.y+0.2);
@@ -384,19 +369,24 @@ fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 light getMainLight(float3 pos)
 {	
 	light l;
+	#ifdef USE_UNITY_LIGHTS
 	l.dir = _WorldSpaceLightPos0;
+	l.col = _LightColor0;
+	#else
+	l.dir = float3(0,1,0);
+	l.col = fixed3(1,1,1);
+	#endif
 	#ifndef USE_WORLD_SPACE
 	l.dir = mul(unity_WorldToObject,_WorldSpaceLightPos0);
 	#endif
 	//int i = 0;
 	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
-	l.col = _LightColor0;
 	return l;
 }
 
 
 // calc the direct light a point recives (including shadows)
-fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float AOfactor = 1)
+fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float AOfactor = 1)
 {
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
@@ -428,7 +418,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 #if 1
 	float k = 1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
-	col += light2_col * lightSoftShadow2(newStartPoint, light2, k)*0.5;// * max(0, dot(light2, nor));
+	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
 	//col +=0.1* 3.0*light2_col * max(0, dot(light2, nor)+0.3);// * max(0, dot(pos, float3(0,1,0)));
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
 	//col += worldGetBackground(reflected);
@@ -469,7 +459,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//ray = castRay(pos + nor*stepBack, light2);
 	//if (ray.bMissed) col += light2_col;
 	
-	return fixed4(col*AOfactor,1);
+	return col*AOfactor;
 }
 
 //TODO: emmision, reflections
@@ -480,122 +470,122 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 
 fixed4 lightPoint(rayData ray)
 {
-
-	fixed4 col;
-	fixed4 skyColor = fixed4(worldGetBackground(ray.vRayDir),1);
-	fixed4 fogColor = skyColor;//, unity_FogColor);
-
-	// TODO: MAKE PROPER RECURSIVE REFLECTION MODEL!!!
-	if (ray.bMissed)
-	{
-		col = skyColor;
-	}
-	else
-	{
-		float3 normal = getNormFull(ray.vHit);//+snoise(ray.vHit*50)*0.2;
-		col = ray.mat.col*0.2;
-
-		fixed4 directLighting = worldApplyLighting(ray.vHit, normal, ray.vRayDir);
-		float3 reflected = reflect(ray.vRayDir, normal);
-
-		//float3 reflected2 = normalize(reflected+rand3dTo1d(ray.vHit*100)*0.01);
-		float3 reflected2 = reflected;
-
-		rayData ray2 = castRay(ray.vHit+normal*0.001,reflect(ray.vRayDir, normal));
-
-		float3 normal2 = getNormFull(ray.vHit);
-		//if (!ray2.bMissed)
-		//{
-		//	normal2 = getNormFull(ray.vHit);
-		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
-		//}
-
-		//if (!ray2.bMissed)
-		//{
-		//	normal2 = getNormFull(ray.vHit);
-		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
-		//}
-
-		fixed4 indirectLighting = ray2.bMissed ? fixed4(worldGetBackground(ray2.vRayDir),1) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
-		
-		float fac = .5;//1-ray.mat.fSmoothness;//0.3;
-		fixed4 lighting = 1*directLighting*fac + indirectLighting*(1-fac);
-
-		//lighting *= 0.6+lightSSAO(ray, 5);
-		//lighting += 0*0.1*lightAO(ray.vHit, normal, 0.01);
-		//lighting = fixed4(1,1,1,1)*0.3;
-		// Hack to make bottom darker
-		//lighting = lightFog(lighting, skyColor, ray.vHit.y+positiveOffset, 0.4+positiveOffset, -0.4+positiveOffset);
-
-
-		col *= lighting*4;
-		
-
-		//col.xyz *= lightAO(ray.vHit, normal, 0.01);
-		//col.xyz*=lightSSAO(ray, 30)*5;
-		//col = fixed4(1,1,1,1);
-		//col *= dot(light1,normal);
-		
-		//col.g = (ray.vHit.y+0.5);
-
-		//col = pow(col, 1.0/2.2);//gamma
-		//col = lightFog(col, skyColor, ray.dist, MAX_DIST*0.0, MAX_DIST);
-	}
-
-		//lighting = lightFog(lighting, fixed4(0,0,0,0), -ray.vHit.y, 0.5, 1);
-	//col = lightFog(col, skyColor, ray.vHit.y+10, 0.4+10, -0.4+10);
-	return col;
-
-	//float fGlow;
-	//if(ray.bMissed)
-	//{
-	//	return skyColor;
-	//	//col = fixed4(0,0,0,1); // black
-	//	//fGlow = 0.1/ray.minDist;
-	//	//col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
-	//}
-	//else
-	//{
-	//	//col = fixed4(ray.vNorm,1);
-	//	//return col;
-	//	//fGlow=0;
-	//	float3 reflected = reflect(ray.vRayDir, ray.vNorm);
-	//	rayData ray2 = castRay(ray.vHit/*+ ray.vNorm*/, reflected);
-	//	
-
-	//	col = simpleLightPoint(ray);
-	//	fixed4 col2 = simpleLightPoint(ray2);
-	//	float fac = 0.5;
-	//	col=(col*(1-fac)+col2*fac);
-	//	//col = col*col2*2;
-
-	//	//float3 vSunDir = normalize(float3(8,4,2));
-	//	float3 vSunDir = ObjSpaceLightDir(float4(ray.vHit,1));
-	//	float4 vLightColor = _LightColor0;
-
-	//	// AO based on normal
-	//	//col.xyz *= -dot(ray.vNorm, ray.vRayDir);	
-	//	//col.xyz*=lightSSAO(ray, 4);
-	//	//col.xyz*=lightSun(ray.vNorm, float3(8,4,2), vLightColor);
-	//	//col.xyz*=lightSky(reflected);
-
-	//	col.xyz*=0.9;
-	//	//col.xyz*= lightShadow(ray.vHit+ray.vNorm*0.01, vSunDir, 50);
-
-	//	//rayData ray2 = castRay(ray.vHit, vSunDir, 0);
-	//	//float fSunLight = max(dot(ray.vNorm, vSunDir), 0);
-	//	//col*=fSunLight;
-	//	//col*=lightAO(ray.vHit, ray.vNorm);
-	//	col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
-	//}
-	////fogColor.xyz *= fGlow;
-
-
-
-	//// Base on "sunlight" direction
-	////col.xyz *= dot(ray.vNorm, vSunDir);	
-
-	//return col;
+	return fixed4(1,1,1,1);
+//	fixed4 col;
+//	fixed4 skyColor = fixed4(worldGetBackground(ray.vRayDir),1);
+//	fixed4 fogColor = skyColor;//, unity_FogColor);
+//
+//	// TODO: MAKE PROPER RECURSIVE REFLECTION MODEL!!!
+//	if (ray.bMissed)
+//	{
+//		col = skyColor;
+//	}
+//	else
+//	{
+//		float3 normal = getNormFull(ray.vHit);//+snoise(ray.vHit*50)*0.2;
+//		col = ray.mat.col*0.2;
+//
+//		fixed3 directLighting = worldApplyLighting(ray.vHit, normal, ray.vRayDir);
+//		float3 reflected = reflect(ray.vRayDir, normal);
+//
+//		//float3 reflected2 = normalize(reflected+rand3dTo1d(ray.vHit*100)*0.01);
+//		float3 reflected2 = reflected;
+//
+//		rayData ray2 = castRay(ray.vHit+normal*0.001,reflect(ray.vRayDir, normal));
+//
+//		float3 normal2 = getNormFull(ray.vHit);
+//		//if (!ray2.bMissed)
+//		//{
+//		//	normal2 = getNormFull(ray.vHit);
+//		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
+//		//}
+//
+//		//if (!ray2.bMissed)
+//		//{
+//		//	normal2 = getNormFull(ray.vHit);
+//		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
+//		//}
+//
+//		fixed4 indirectLighting = ray2.bMissed ? fixed4(worldGetBackground(ray2.vRayDir),1) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
+//		
+//		float fac = .5;//1-ray.mat.fSmoothness;//0.3;
+//		fixed4 lighting = 1*directLighting*fac + indirectLighting*(1-fac);
+//
+//		//lighting *= 0.6+lightSSAO(ray, 5);
+//		//lighting += 0*0.1*lightAO(ray.vHit, normal, 0.01);
+//		//lighting = fixed4(1,1,1,1)*0.3;
+//		// Hack to make bottom darker
+//		//lighting = lightFog(lighting, skyColor, ray.vHit.y+positiveOffset, 0.4+positiveOffset, -0.4+positiveOffset);
+//
+//
+//		col *= lighting*4;
+//		
+//
+//		//col.xyz *= lightAO(ray.vHit, normal, 0.01);
+//		//col.xyz*=lightSSAO(ray, 30)*5;
+//		//col = fixed4(1,1,1,1);
+//		//col *= dot(light1,normal);
+//		
+//		//col.g = (ray.vHit.y+0.5);
+//
+//		//col = pow(col, 1.0/2.2);//gamma
+//		//col = lightFog(col, skyColor, ray.dist, MAX_DIST*0.0, MAX_DIST);
+//	}
+//
+//		//lighting = lightFog(lighting, fixed4(0,0,0,0), -ray.vHit.y, 0.5, 1);
+//	//col = lightFog(col, skyColor, ray.vHit.y+10, 0.4+10, -0.4+10);
+//	return col;
+//
+//	//float fGlow;
+//	//if(ray.bMissed)
+//	//{
+//	//	return skyColor;
+//	//	//col = fixed4(0,0,0,1); // black
+//	//	//fGlow = 0.1/ray.minDist;
+//	//	//col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
+//	//}
+//	//else
+//	//{
+//	//	//col = fixed4(ray.vNorm,1);
+//	//	//return col;
+//	//	//fGlow=0;
+//	//	float3 reflected = reflect(ray.vRayDir, ray.vNorm);
+//	//	rayData ray2 = castRay(ray.vHit/*+ ray.vNorm*/, reflected);
+//	//	
+//
+//	//	col = simpleLightPoint(ray);
+//	//	fixed4 col2 = simpleLightPoint(ray2);
+//	//	float fac = 0.5;
+//	//	col=(col*(1-fac)+col2*fac);
+//	//	//col = col*col2*2;
+//
+//	//	//float3 vSunDir = normalize(float3(8,4,2));
+//	//	float3 vSunDir = ObjSpaceLightDir(float4(ray.vHit,1));
+//	//	float4 vLightColor = _LightColor0;
+//
+//	//	// AO based on normal
+//	//	//col.xyz *= -dot(ray.vNorm, ray.vRayDir);	
+//	//	//col.xyz*=lightSSAO(ray, 4);
+//	//	//col.xyz*=lightSun(ray.vNorm, float3(8,4,2), vLightColor);
+//	//	//col.xyz*=lightSky(reflected);
+//
+//	//	col.xyz*=0.9;
+//	//	//col.xyz*= lightShadow(ray.vHit+ray.vNorm*0.01, vSunDir, 50);
+//
+//	//	//rayData ray2 = castRay(ray.vHit, vSunDir, 0);
+//	//	//float fSunLight = max(dot(ray.vNorm, vSunDir), 0);
+//	//	//col*=fSunLight;
+//	//	//col*=lightAO(ray.vHit, ray.vNorm);
+//	//	col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
+//	//}
+//	////fogColor.xyz *= fGlow;
+//
+//
+//
+//	//// Base on "sunlight" direction
+//	////col.xyz *= dot(ray.vNorm, vSunDir);	
+//
+//	//return col;
 }
 
 
@@ -615,8 +605,8 @@ fixed4 lightPoint(rayData ray)
 fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLevels)
 {
 	numLevels = 1;
-	fixed4 sumCol = fixed4(0,0,0,0); // Running sum of light*color for the final color output.
-	fixed4 prodCol = fixed4(1,1,1,1); // Product of all colors (without light)
+	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
+	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
 
 	for (int i=0; i<numLevels; i++)	
@@ -628,7 +618,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		float3 pos = ro + ray.dist*rd;
 		currentDist += ray.dist;
 		
-		fixed4 dcol = fixed4(1,1,1,1) * 0.1; // direct lighting color
+		fixed3 dcol;// = fixed3(1,1,1) * 0.0; // direct lighting color
 
 		material mat = calcMaterial(pos); // surface material
 		
@@ -651,12 +641,12 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 
 		float3 nor = getNormFull(pos);
 
-		float fAOfactor = 1;//lightSSAO(ray.iSteps, MAX_STEPS, 5);
+		float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 5);
 
 		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
-		fixed4 surfCol = calcMaterial(pos).col; // surface color
+		fixed3 surfCol = calcMaterial(pos).col.rgb; // surface color
 
 		prodCol*=surfCol;
 
@@ -744,7 +734,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		//return mat.col*lighting;
 
 	}
-	return sumCol;
+	return fixed4(sumCol,1);
 }
 
 #endif
