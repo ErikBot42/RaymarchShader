@@ -512,10 +512,10 @@ float mengerSponge(float3 p, float slider=0)
 	//d = max(d,-sdfCross(p*3)/3);return d;
 
 	float s = 1.0;
-	int iterations = 3;
+	const int iterations = 3;
+	const float fac = pow(4,iterations);
 	for (int m=0; m<iterations; m++)
 	{
-		float fac = pow(4,iterations);
 		float3 a = fmod(p*s+fac, 2.0)-1.0;
 		s *= 3.0;
 		float3 r = abs(1-3.0*abs(a));

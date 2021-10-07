@@ -385,6 +385,9 @@ light getMainLight(float3 pos)
 {	
 	light l;
 	l.dir = _WorldSpaceLightPos0;
+	#ifndef USE_WORLD_SPACE
+	l.dir = mul(unity_WorldToObject,_WorldSpaceLightPos0);
+	#endif
 	//int i = 0;
 	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
 	l.col = _LightColor0;
@@ -410,7 +413,7 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 
 	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
 
-	fixed3 col = ambientColor*.2;// "ambient"
+	fixed3 col = ambientColor*.0;//.2;// "ambient"
 	rayData ray;
 	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 	float stepBack = 0.01;
@@ -425,7 +428,8 @@ fixed4 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 #if 1
 	float k = 1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
-	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
+	col += light2_col * lightSoftShadow2(newStartPoint, light2, k)*0.5;// * max(0, dot(light2, nor));
+	//col +=0.1* 3.0*light2_col * max(0, dot(light2, nor)+0.3);// * max(0, dot(pos, float3(0,1,0)));
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
