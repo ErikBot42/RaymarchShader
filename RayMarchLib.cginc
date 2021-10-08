@@ -390,6 +390,15 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 {
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
+
+	fixed3 specular;
+	fixed3 diffuse = BlinnPhongLighting(l, dir, nor, specular);
+
+	return specular*2 + diffuse*0 + fixed3(1,1,1)*0.03;
+
+
+
+
 	float3 light2 = l.dir; 
 	//_WorldSpaceLightPos0;//normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
 	fixed3 light2_col = l.col;//fixed3(1,0.8,0.4);
@@ -403,7 +412,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 
 	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
 
-	fixed3 col = ambientColor*.0;//.2;// "ambient"
+	fixed3 col = ambientColor*.1;// "ambient"
 	rayData ray;
 	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 	float stepBack = 0.01;
@@ -419,7 +428,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	float k = 1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
 	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
-	//col +=0.1* 3.0*light2_col * max(0, dot(light2, nor)+0.3);// * max(0, dot(pos, float3(0,1,0)));
+	//col += 3.0*light2_col * max(0, dot(light2, nor)+0.6) * max(0, dot(pos, float3(0,1,0)));
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
@@ -432,7 +441,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	
 	float refFactor = 1;//dot(dir, -nor)*2;
 
-	col += worldGetBackground(reflected)*refFactor;
+	col += worldGetBackground(reflected, 1)*refFactor;
 	//col += worldGetBackground(nor)*refFactor;
 	float fac = 0.0;
 	//col += max(dot(normalize(pos),light1),0)*light1_col*fac;
