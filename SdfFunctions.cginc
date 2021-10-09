@@ -508,7 +508,9 @@ float sierpinski3 (in float3 z) {
 float mengerSponge(float3 p, float slider=0)
 {
 	//float d = sdfBox(p,float3(1,1,1)*(2+slider));
-	float d = sdfSphere(p,(2+slider));
+	float scale = 2+slider;
+
+	float d = sdfSphere(p,2);
 	//d = max(d,-sdfCross(p*3)/3);return d;
 
 	float s = 1.0;

@@ -24,11 +24,11 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
-        [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
-        [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
-        [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
-        [KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
+        //[KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        //[KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
+        //[KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
+        //[KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
+        //[KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
 
         [Header(general live sliders and toggles)]
         _Slider_SDF ("SDF slider", Range(-1,1)) = 0
@@ -71,12 +71,19 @@
 			#pragma vertex vert
             #pragma fragment frag
 			
-            
+           	#if 0 
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
+			#else
+			//#define _SDF_JULIABULB 
+			#define _MTRANS_COLORHSV_SPHERE
+			#define _PTRANS_NONE
+			#define _SPACE_OBJECT
+			#define _ANIMATE_OFF
+			#endif
 
             #ifdef _SPACE_WORLD
                 #define USE_WORLD_SPACE
@@ -95,13 +102,9 @@
 			//#define SURF_DIST 0.0001
 			#define SURF_DIST 0.0001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
-				//#define EXTREME_AO
-                //#define MAX_STEPS 14
-                #define MAX_STEPS 228
+                //#define MAX_STEPS 228
+                #define MAX_STEPS 100
                 //#define MAX_STEPS 200
-                //#define MAX_STEPS 200
-                //#define FUNGE_FACTOR 1.4
-                //#define FUNGE_FACTOR 1
 
                 //This DOUBLES the framerate:
                 #define CONSTRAIN_TO_MESH
@@ -129,7 +132,7 @@
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.9
 			#elif defined(_SDF_TESTING) || defined(_SDF_MENGER)
-				#define MAX_STEPS 200
+				#define MAX_STEPS 100
                 //#define CONSTRAIN_TO_MESH
             #endif
 
@@ -317,7 +320,7 @@
 				#elif _SDF_JULIABULB
                 float scale = 0.35;
                 p/=scale;
-                dist = fracJuliabulb2(p, vSdfConfig.xyz*1.5);//, vSdfConfig.w*3+6);
+                dist = fracJuliabulb2(p, vSdfConfig.xyz*1.3);//, vSdfConfig.w*3+6);
                 dist*=scale;
 
                 //////////////////////////////////////////////////////////////////////
@@ -375,9 +378,10 @@
                 //
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_NONE
-                dist = sdfSphere(p+float3(-0.25,0,0), 0.2);
+				dist = sdfSphere(p, 0.25);
+                //dist = sdfSphere(p+float3(-0.25,0,0), 0.2);
 				//dist = min(dist, sdfSphere(p+float3(.25,0,0), 0.2));
-				dist = min(dist, sdfBox(p+float3(0,0.25,0), float3(1,1,1)*0.3));
+				//dist = min(dist, sdfBox(p+float3(0,0.25,0), float3(1,1,1)*0.3));
 
 
 				//if(dist<0.001)

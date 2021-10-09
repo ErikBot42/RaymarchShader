@@ -53,7 +53,7 @@ v2f vert (appdata v)
     
 	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
 	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
-	o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST*0.9, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
+	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST*0.9, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
 
 	return o;
 }
@@ -377,7 +377,7 @@ light getMainLight(float3 pos)
 	l.col = fixed3(1,1,1);
 	#endif
 	#ifndef USE_WORLD_SPACE
-	l.dir = mul(unity_WorldToObject,_WorldSpaceLightPos0);
+	l.dir = mul(unity_WorldToObject,l.dir);
 	#endif
 	//int i = 0;
 	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
@@ -391,10 +391,11 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
 
-	fixed3 specular;
-	fixed3 diffuse = BlinnPhongLighting(l, dir, nor, specular);
-
-	return specular*2 + diffuse*0 + fixed3(1,1,1)*0.03;
+	//fixed3 specular;
+	//fixed3 diffuse = BlinnPhongLighting(l, dir, nor, specular);
+	//fixed3 reflectedCol = worldGetBackground(reflect(dir,nor));
+	//fixed3 refractedCol = worldGetBackground(refract(dir,nor,0.6));
+	//return (specular*3*AOfactor  + (3*diffuse + 0.6*fixed3(1,1,1))*(reflectedCol*AOfactor+refractedCol));
 
 
 
@@ -412,7 +413,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 
 	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
 
-	fixed3 col = ambientColor*.1;// "ambient"
+	fixed3 col = ambientColor*.2;// "ambient"
 	rayData ray;
 	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 	float stepBack = 0.01;
@@ -427,8 +428,12 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 #if 1
 	float k = 1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
-	col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
-	//col += 3.0*light2_col * max(0, dot(light2, nor)+0.6) * max(0, dot(pos, float3(0,1,0)));
+	//col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
+
+	//#ifndef USE_WORLD_SPACE
+	//l.dir = mul(unity_WorldToObject,l.dir);
+	//#endif
+	col += 3.0*light2_col * max(0, dot(light2, nor)+0.6)* 1 * max(dot(pos, light2)+0.3-0.3,0);
 	//col += light3_col * lightSoftShadow2(newStartPoint, light3, k);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
@@ -613,16 +618,22 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLevels)
 {
-	numLevels = 1;
+	numLevels = 2;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
 
-	for (int i=0; i<numLevels; i++)	
+	[unroll] for (int i=0; i<numLevels; i++)	
 	{
 		//rayData ray = castRay(ro, rd);
-
-		rayDataMinimal ray = castRayMinimal(ro, rd, startDist);//, float startDist=0, float startDistToleranceOffset=0)
+		rayDataMinimal ray;
+		if (true || i==0)
+			ray = castRayMinimal(ro, rd, startDist);//, float startDist=0, float startDistToleranceOffset=0)
+		else
+		{
+			ray.dist=0;
+			ray.bMissed=true;
+		}
 		startDist = 0; // next startdist is zero
 		float3 pos = ro + ray.dist*rd;
 		currentDist += ray.dist;
@@ -633,6 +644,9 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		
 		if (ray.bMissed) // missed -> loop should exit.
 		{
+			#ifndef USE_WORLD_SPACE
+			rd = mul(unity_ObjectToWorld,rd);
+			#endif
 			if (i==0) // never interacted with object
 			{
 				dcol = fixed4(worldGetBackground(rd),1); 
@@ -665,6 +679,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 		// get new ray dir for next iteration
 		rd = reflect(rd, nor);
 		ro = pos + rd*0.0001; // margin to prevent hitting object again
+
+		//col += worldGetBackground(rd)*
 		//if (1)
 		//else
 		//rd = refract(rd, nor, 1.0/1.3);

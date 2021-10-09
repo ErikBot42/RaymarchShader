@@ -90,7 +90,7 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k)
 {
 	float res = 1.0;
     float ph = 1e20;
-	float mint = 0.001; float maxt = .02;
+	float mint = 0.001; float maxt = 1;
     for( float t=mint; t<maxt; )
     {
 		float TOL = mint;//0.001;
@@ -209,7 +209,6 @@ half3 ray_DiffuseAndSpecularFromMetallic (half3 albedo, half metallic, out half3
 // https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_reflection_model
 fixed3 BlinnPhongLighting(light l, float3 rd, float3 normal, out fixed3 specular)
 {
-	
 	// TODO: separate diffuse/specular color
 	float intensity = saturate(dot(normal, l.dir));
 	fixed3 diffuse = intensity*l.col;
