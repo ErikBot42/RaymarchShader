@@ -57,11 +57,6 @@
         Pass
         {
 
-			/*TODO:
-			[ ] calc things on demand.
-			[ ] first step should use simpler sdf.
-
-			*/	
             CGPROGRAM
 			//#define DEBUG_COLOR_MODE
 			//#define VERTEX_DEBUG_COLORS
@@ -71,19 +66,16 @@
 			#pragma vertex vert
             #pragma fragment frag
 			
-           	#if 0 
-            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
-            #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
-            #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
-            #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
-			#else
-			//#define _SDF_JULIABULB 
+            //#pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            //#pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            //#pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
+            //#pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
+            //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
+			#define _SDF_JULIABULB 1
 			#define _MTRANS_COLORHSV_SPHERE
 			#define _PTRANS_NONE
 			#define _SPACE_OBJECT
 			#define _ANIMATE_OFF
-			#endif
 
             #ifdef _SPACE_WORLD
                 #define USE_WORLD_SPACE
@@ -98,12 +90,12 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_DIST 10
+			#define MAX_DIST 5
 			//#define SURF_DIST 0.0001
 			#define SURF_DIST 0.0001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
                 //#define MAX_STEPS 228
-                #define MAX_STEPS 100
+                #define MAX_STEPS 60
                 //#define MAX_STEPS 200
 
                 //This DOUBLES the framerate:

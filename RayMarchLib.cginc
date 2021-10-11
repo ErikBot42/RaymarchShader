@@ -151,7 +151,8 @@ fragOut frag (v2f i)
     #endif
     fragOut o;
     //o.col = lightPoint(ray);
-	o.col = rendererCalculateColor(vRayStart, vRayDir, startDist, 2);
+	float3 vHitPos;
+	o.col = rendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
 
 	#ifdef VERTEX_DEBUG_COLORS
 	o.col.b = 1;
@@ -166,12 +167,12 @@ fragOut frag (v2f i)
 
 	// writing to depth buffer costs about 1-2 frames at 4k -> very cheap
 	//#ifndef DISABLE_Z_WRITE
-	//float4 zPoint = float4(ray.vHit,1);
-	//#ifdef USE_WORLD_SPACE
-	//	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
-	//#else
-	//	float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, zPoint));
-	//#endif
+	float4 zPoint = float4(vHitPos,1);
+	#ifdef USE_WORLD_SPACE
+		float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	#else
+		float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, zPoint));
+	#endif
 	//	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
 	//#endif
 
@@ -616,7 +617,7 @@ fixed4 lightPoint(rayData ray)
 // ro - ray origin
 // rd - ray direction
 // this is a recursive algorithm in an iterative form.
-fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLevels)
+fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
 	numLevels = 2;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
@@ -627,15 +628,17 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, float startDist, int numLeve
 	{
 		//rayData ray = castRay(ro, rd);
 		rayDataMinimal ray;
-		if (true || i==0)
+		if (false || i==0)
 			ray = castRayMinimal(ro, rd, startDist);//, float startDist=0, float startDistToleranceOffset=0)
 		else
 		{
 			ray.dist=0;
 			ray.bMissed=true;
 		}
+
 		startDist = 0; // next startdist is zero
 		float3 pos = ro + ray.dist*rd;
+		if (i==0) vHitPos = pos;
 		currentDist += ray.dist;
 		
 		fixed3 dcol;// = fixed3(1,1,1) * 0.0; // direct lighting color
