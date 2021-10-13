@@ -375,22 +375,32 @@ float fracMandelbox4(float3 p, float scaleFactor)
     float3 offset3 = p;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
-    int iterations = 15;//5;//10;
+    int iterations = 10;//10;
     //float fixedRadius = 1.0;
     //float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
+    //sphereFold2(pdr, minRadius*minRadius, fixedRadius*fixedRadius);
     float minRadius = 1;
-    for(int i=0; i<iterations; i++)
+    for(int i=0; i<iterations/2; i++)
     {
         boxFold2(pdr, 1);
-    	//sphereFold2(pdr, minRadius*minRadius, fixedRadius*fixedRadius);
-    	sphereFold2(pdr, minRadius);
+    	sphereFold2(pdr, minRadius*(1+.5*0));
 
         pdr.xyz = scaleFactor*pdr.xyz + offset3;
         pdr.w = pdr.w*abs(scaleFactor)+1;
     }
+	float dist = length(pdr.xyz)/abs(pdr.w);
+	if (dist>0.02) return dist;
+    for(int i=0; i<iterations/2; i++)
+    {
+        boxFold2(pdr, 1);
+    	sphereFold2(pdr, minRadius*(1+.5*0));
 
-    float r = length(pdr.xyz);
-    return r/abs(pdr.w);
+        pdr.xyz = scaleFactor*pdr.xyz + offset3;
+        pdr.w = pdr.w*abs(scaleFactor)+1;
+    }
+    
+	float r = length(pdr.xyz);
+    return r/abs(pdr.w)-0.0001*1;
 }
 
 // Mandelbox alternate implementation, possibly faster

@@ -25,10 +25,10 @@
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
         [KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
-        //[KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
-        //[KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
-        //[KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
-        //[KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
+        [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
+        [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
+        [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
+        [KeywordEnum(On, Off)] _ANIMATE("Animate", Float) = 0
 
         [Header(general live sliders and toggles)]
         _Slider_SDF ("SDF slider", Range(-1,1)) = 0
@@ -67,14 +67,14 @@
             #pragma fragment frag
 			
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
-            //#pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            //#pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
-            //#pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
-            //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
-			#define _MTRANS_COLORHSV_SPHERE
-			#define _PTRANS_NONE
-			#define _SPACE_OBJECT
-			#define _ANIMATE_OFF
+            #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
+            #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
+            #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
+			//#define _MTRANS_COLORHSV_SPHERE
+			//#define _PTRANS_NONE
+			//#define _SPACE_OBJECT
+			//#define _ANIMATE_OFF
 
             #ifdef _SPACE_WORLD
                 #define USE_WORLD_SPACE
@@ -91,7 +91,8 @@
             // precompile performance options
 			#define MAX_DIST 5
 			//#define SURF_DIST 0.0001
-			#define SURF_DIST 0.001
+			//#define SURF_DIST 0.001
+			#define SURF_DIST 0.0005
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
                 //#define MAX_STEPS 228
                 #define MAX_STEPS 60
@@ -324,7 +325,7 @@
 
                 #define COLTRANS_DONE
 
-                float scaleFactor = vSdfConfig.w*3;//sdfSlider*3;
+                float scaleFactor = sdfSlider*3;//vSdfConfig.w*3;
                 //float scaleFactor = _SinTime.y*3;
 
                 //float scale = 0.5;
@@ -347,7 +348,7 @@
 
 
 
-                //o.dist = fracMandelbox(p, scaleFactor);
+                //dist = fracMandelbox(p, scaleFactor);
                 //o.dist = fracMandelbox3(p, scaleFactor);
                 dist = fracMandelbox4(p, scaleFactor);
                 //o.dist = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
