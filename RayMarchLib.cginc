@@ -38,18 +38,18 @@ v2f vert (appdata v)
 	// Random vector calc
     //o.vSdfConfig = sin(float4(0.143346,0.1876434,0.12437,0.08867)*_Time.z+5);
 	o.vSdfConfig = getNoise4(_Time.x*1);
-    
+   	o.distEstimate.x = dot(o.normal, o.vDir)>0 ? 0 : length(o.vHitPos-o.vCamPos);
 	// Dist estimate calc
-	float3 vDeltaPos = o.vHitPos - o.vCamPos; // constrain to mesh
-	float fDeltaDist = length(vDeltaPos); // dist from camera to vertex
+	//float3 vDeltaPos = o.vHitPos - o.vCamPos; // constrain to mesh
+	//float fDeltaDist = length(vDeltaPos); // dist from camera to vertex
 
-	float cosHeightVertex = abs(dot(normal, viewDir)); // assuming mesh is sphere with relatively equally spaced points.
+	//float cosHeightVertex = abs(dot(normal, viewDir)); // assuming mesh is sphere with relatively equally spaced points.
 
-	float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
+	//float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
 	//float fEdgeLength = cosHeightVertex*0.02;// ICOSPHERE7: estimated distance between vertices from the perspective of an orthographic camera
 	//float fEdgeLength = cosHeightVertex*0.13;// ICOSPHERE: estimated distance between vertices from the perspective of an orthographic camera
 	//float fEdgeLength = 0.02; // estimated distance between vertices from the perspective of an orthographic camera
-	float fSurfDistPerMeter = fEdgeLength/fDeltaDist;
+	//float fSurfDistPerMeter = fEdgeLength/fDeltaDist;
     
 	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
 	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
@@ -130,13 +130,26 @@ fragOut frag (v2f i)
 #else
 fragOut frag (v2f i)
 {
+    fragOut o;
 	vSdfConfig = i.vSdfConfig;
 
+
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
+	//bool useStartDist = i.distEstimate.x>0;//dot(i.normal, vRayDir)<0;
 	float3 vRayStart = i.vCamPos;	
-	//float3 vRayStart = i.vHitPos;	
-	float startDist = 0;
-	if(dot(i.normal, vRayDir)<0) startDist = length(i.vHitPos-i.vCamPos);
+	//float3 vRayStart = i.vHitPos;
+	//float3 vRayStart = useStartDist ? i.vHitPos : i.vCamPos;	
+
+	float distEstimate;
+	bool estimateHit = RayTraceSphere(distEstimate, vRayStart, vRayDir, .5, 0);
+	if (!estimateHit) discard;
+	bool useStartDist = estimateHit;
+
+	float startDist = distEstimate;
+	//if(useStartDist) startDist = length(i.vHitPos-i.vCamPos);
+
+	//o.col = fixed4(distEstimate, 0,0,1);
+	//return o;
 
     //#ifdef CONSTRAIN_TO_MESH
 	//float len = i.distEstimate.x*1; //length(i.vHitPos-i.vCamPos); 
@@ -149,7 +162,6 @@ fragOut frag (v2f i)
     #ifdef DISCARD_ON_MISS
     //if (ray.bMissed) discard;
     #endif
-    fragOut o;
     //o.col = lightPoint(ray);
 	float3 vHitPos;
 	o.col = rendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
@@ -164,25 +176,26 @@ fragOut frag (v2f i)
 	#ifdef USE_VERTEX_COLOR
 	o.col = i.color;
 	#endif
+	//o.col.rgb = useStartDist? fixed3(1,0,0) : fixed3(0,0,1);
 
 	// writing to depth buffer costs about 1-2 frames at 4k -> very cheap
-	//#ifndef DISABLE_Z_WRITE
-	float4 zPoint = float4(vHitPos,1);
-	#ifdef USE_WORLD_SPACE
-		float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
-	#else
-		float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, zPoint));
-	#endif
-	//	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	//float4 zPoint = float4(i.vHitPos,1);
+	//#ifndef USE_WORLD_SPACE
+	//zPoint = mul(unity_ObjectToWorld, zPoint);
+	//#endif 
+	//float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	//o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	//o.depth = 0.5;
+
+	
+	//o.col.b = o.depth/2.0;
+	//o.col.r = 1-o.depth/2.0;
+
+	//#ifndef ENABLE_TRANSPARENCY
+	//o.col *= o.col.w;
+	//o.col.w = 1;
 	//#endif
-
-	#ifndef ENABLE_TRANSPARENCY
-	o.col *= o.col.w;
-	o.col.w = 1;
-	#endif
    	
-	//if (dot(i.normal,vRayDir)>0) o.col.r = 1;
-
     return o;
 }
 #endif
@@ -606,6 +619,7 @@ fixed4 lightPoint(rayData ray)
 
 // TODO: Subpixel ray split could be done.
 // TODO: Fix tolerance based on dist (should be based on total dist)
+// TODO: Dynamic max dist to force all bounces to be inside area.
 // Given that there is no stack/recursion, both reflection and refraction 
 // cannot both be done at one time. Solution might be to not do recursive 
 // refraction
@@ -624,21 +638,29 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
 
-	[unroll] for (int i=0; i<numLevels; i++)	
+	bool fakeLastReflection = false;
+	if (fakeLastReflection) numLevels += 1;
+
+	for (int i=0; i<numLevels; i++)	
 	{
 		//rayData ray = castRay(ro, rd);
 		rayDataMinimal ray;
-		if (false || i==0)
-			ray = castRayMinimal(ro, rd, startDist);//, float startDist=0, float startDistToleranceOffset=0)
+		if (i!=(numLevels-1) || i == 0 || (!fakeLastReflection))
+			ray = castRayMinimal(ro, rd, startDist, currentDist-startDist);//, float startDist=0, float startDistToleranceOffset=0)
 		else
 		{
+			//ray.iSteps = MAX_STEPS;
+			prodCol*=0.5;
 			ray.dist=0;
 			ray.bMissed=true;
 		}
 
-		startDist = 0; // next startdist is zero
 		float3 pos = ro + ray.dist*rd;
-		if (i==0) vHitPos = pos;
+		if (i==0) 
+		{
+			vHitPos = pos; 
+			startDist = 0;
+		}
 		currentDist += ray.dist;
 		
 		fixed3 dcol;// = fixed3(1,1,1) * 0.0; // direct lighting color
@@ -678,10 +700,10 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 		sumCol += prodCol*dcol;
 
-		
 		// get new ray dir for next iteration
 		rd = reflect(rd, nor);
-		ro = pos + rd*0.0001; // margin to prevent hitting object again
+		//TODO: rd>>nor fix linear algebra and stuff.
+		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
 
 		//col += worldGetBackground(rd)*
 		//if (1)

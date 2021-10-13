@@ -24,7 +24,7 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        //[KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         //[KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         //[KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
         //[KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
@@ -66,12 +66,11 @@
 			#pragma vertex vert
             #pragma fragment frag
 			
-            //#pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             //#pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             //#pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
             //#pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
-			#define _SDF_JULIABULB 1
 			#define _MTRANS_COLORHSV_SPHERE
 			#define _PTRANS_NONE
 			#define _SPACE_OBJECT
@@ -92,7 +91,7 @@
             // precompile performance options
 			#define MAX_DIST 5
 			//#define SURF_DIST 0.0001
-			#define SURF_DIST 0.0001
+			#define SURF_DIST 0.001
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
                 //#define MAX_STEPS 228
                 #define MAX_STEPS 60
@@ -274,7 +273,7 @@
 
                 float scale = 0.2;
 				p/=scale;
-				dist = mengerSponge(p, _Slider_SDF);//-0.01*(1+_SinTime.z);
+				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
 				//dist = sdfBox(p,float3(1,1,1));
 				//int iterations = 3+int(_SinTime.z*1.9);
 

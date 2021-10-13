@@ -505,27 +505,43 @@ float sierpinski3 (in float3 z) {
 }
 
 // https://iquilezles.org/www/articles/menger/menger.htm
-float mengerSponge(float3 p, float slider=0)
+float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 {
-	//float d = sdfBox(p,float3(1,1,1)*(2+slider));
-	float scale = 2+slider;
+	slider = 0;
+	float d;
+	//d = sdfBox(p,float3(1,1,1)*(2+slider));
+	float scale = max(0.1,1+scaleSlider);
 
-	float d = sdfSphere(p,2);
+	p/=scale;
+
+	d = sdfSphere(p,2/scale);
+
+	//d = max(d, sdfCylinder(p, 1.5/scale));
+	//float time = _Time.x;
+	//d = sdfTorus(rotZ(p.xyz,time), 1.5/scale, 0.5/scale);
+	//d = min(d, sdfTorus(rotZ(p.yzx,time), 1.5/scale, 0.5/scale));
+	//d = min(d, sdfTorus(rotZ(p.zxy, time), 1.5/scale, 0.5/scale));
+	//d = min(d, sdfSphere(p, 0.8/scale));
 	//d = max(d,-sdfCross(p*3)/3);return d;
+	
 
 	float s = 1.0;
-	const int iterations = 3;
+	const int iterations = 4;
 	const float fac = pow(4,iterations);
 	for (int m=0; m<iterations; m++)
 	{
+		//p = rotX(p,slider.x*0.3);
+		//p = rotY(p,slider.y*0.3);
+		//p = rotZ(p,slider.z*0.3);
 		float3 a = fmod(p*s+fac, 2.0)-1.0;
 		s *= 3.0;
 		float3 r = abs(1-3.0*abs(a));
 
-		float c = sdfCross(r)/(s);
+		//float c = sdfCross(r)/(s);
+		float c = sdfCross(r*(1+0.3*slider))/(s);
 		d = max(d,c);
 	}
 	
-	return d;
+	return d*scale;
 }
 #endif
