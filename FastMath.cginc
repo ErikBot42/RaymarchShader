@@ -75,7 +75,7 @@ inline float pingPong(float curr, float speed = 1, float magnitude = 1)
 // d - dir
 // c - centre
 // r - radius
-bool RayTraceSphere(out float dist, float3 s, float3 d, float r = 1, float3 c = 0)
+bool RayTraceSphere(out float dist, out float maxDist, float3 s, float3 d, float r = 1, float3 c = 0)
 {
 	dist = 0;
 	float3 v = s-c;
@@ -88,6 +88,7 @@ bool RayTraceSphere(out float dist, float3 s, float3 d, float r = 1, float3 c = 
 	float t1 = max(-VD - plusMinus,0);
 
 	dist = min(t1,t0);
+	maxDist = max(t1, t0);
 	return true;
 }
 

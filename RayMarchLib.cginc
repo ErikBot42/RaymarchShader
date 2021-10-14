@@ -140,12 +140,12 @@ fragOut frag (v2f i)
 	//float3 vRayStart = i.vHitPos;
 	//float3 vRayStart = useStartDist ? i.vHitPos : i.vCamPos;	
 
-	float distEstimate;
-	bool estimateHit = RayTraceSphere(distEstimate, vRayStart, vRayDir, .5, 0);
-	if (!estimateHit) discard;
-	bool useStartDist = estimateHit;
+	//float distEstimate;
+	//bool estimateHit = RayTraceSphere(distEstimate, vRayStart, vRayDir, .5, 0);
+	//if (!estimateHit) discard;
+	//bool useStartDist = estimateHit;
 
-	float startDist = distEstimate;
+	float startDist = 0;//distEstimate;
 	//if(useStartDist) startDist = length(i.vHitPos-i.vCamPos);
 
 	//o.col = fixed4(distEstimate, 0,0,1);
@@ -179,12 +179,12 @@ fragOut frag (v2f i)
 	//o.col.rgb = useStartDist? fixed3(1,0,0) : fixed3(0,0,1);
 
 	// writing to depth buffer costs about 1-2 frames at 4k -> very cheap
-	//float4 zPoint = float4(i.vHitPos,1);
-	//#ifndef USE_WORLD_SPACE
-	//zPoint = mul(unity_ObjectToWorld, zPoint);
-	//#endif 
-	//float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
-	//o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	float4 zPoint = float4(vHitPos,1);
+	#ifndef USE_WORLD_SPACE
+	zPoint = mul(unity_ObjectToWorld, zPoint);
+	#endif 
+	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
 	//o.depth = 0.5;
 
 	
@@ -286,7 +286,7 @@ float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, co
 }
 
 // simplified and optimized raycast
-rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float startDistToleranceOffset=0)
+rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float startDistToleranceOffset=0, float maxDist = MAX_DIST)
 {
 	rayDataMinimal data;
 	int i;
@@ -297,10 +297,10 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 		float distToObject = sdf(pos);
 		dist+=distToObject;
 
-		if (dist>MAX_DIST || 
+		if (dist>(maxDist) || 
 		    distToObject<TOLERANCE((dist+startDistToleranceOffset))) break;
 	}
-	data.bMissed = dist>MAX_DIST;
+	data.bMissed = dist>maxDist;
 	data.iSteps = i;
 	data.dist = dist;
 	return data;
@@ -633,7 +633,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 1;
+	numLevels = 1;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -643,15 +643,27 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 	for (int i=0; i<numLevels; i++)	
 	{
-		//rayData ray = castRay(ro, rd);
 		rayDataMinimal ray;
-		if (i!=(numLevels-1) || i == 0 || (!fakeLastReflection))
-			ray = castRayMinimal(ro, rd, startDist, currentDist-startDist);//, float startDist=0, float startDistToleranceOffset=0)
+		
+		// Raycast prediction to get start dist and max dist
+		float maxDist;
+		bool estimateHit = RayTraceSphere(startDist, maxDist, ro, rd, .5, 0);
+		if (estimateHit)
+		{
+			// Actual raymarch
+			if (i!=(numLevels-1) || i == 0 || (!fakeLastReflection))
+				ray = castRayMinimal(ro, rd, startDist, currentDist-startDist, maxDist);//, float startDist=0, float startDistToleranceOffset=0)
+			else
+			{
+				//ray.iSteps = MAX_STEPS;
+				prodCol*=0.5;
+				ray.dist=0;
+				ray.bMissed=true;
+			}
+		}
 		else
 		{
-			//ray.iSteps = MAX_STEPS;
-			prodCol*=0.5;
-			ray.dist=0;
+			ray.dist = 0;
 			ray.bMissed=true;
 		}
 

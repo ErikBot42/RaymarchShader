@@ -89,13 +89,14 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_DIST 5
+			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
-			//#define SURF_DIST 0.001
-			#define SURF_DIST 0.0005
+			#define SURF_DIST 0.001
+			//#define SURF_DIST 0.0005
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
+				#define FUNGE_FACTOR 1
                 //#define MAX_STEPS 228
-                #define MAX_STEPS 60
+                #define MAX_STEPS 100
                 //#define MAX_STEPS 200
 
                 //This DOUBLES the framerate:
@@ -107,13 +108,13 @@
             #elif _SDF_MANDELBOX
                 //#define MAX_STEPS 50
                 //#define MAX_STEPS 30
-                #define MAX_STEPS 200
-                #define FUNGE_FACTOR 0.9
+                #define MAX_STEPS 140
+                //#define FUNGE_FACTOR 1
 				//#define SURF_DIST 0.0001
 				//#define SURF_DIST 0.00005
 				//#define SURF_DIST 0.0002
 				//#define SURF_DIST 0.0002
-				#define MAX_DIST 2000
+				//#define MAX_DIST 2000
 
                 #define CONSTRAIN_TO_MESH
                 //#define STEP_FACTOR 1
