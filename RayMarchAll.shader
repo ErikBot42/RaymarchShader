@@ -154,7 +154,7 @@
                 #ifdef _MTRANS_COLORHSV_SPHERE  
                     mat.col = HSV(frac(length(p)*8 + _Time.x), 0.5, 1);
                 #elif _MTRANS_COLORHSV_CUBE
-                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), 1, 1);
+                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), .5, 1);
                 #elif _MTRANS_COLORXYZ
                     float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
@@ -180,7 +180,14 @@
                     //p = repXYZ(p,8);
                 #endif
                 #ifdef _PTRANS_TWIST 
-                    p = rotZ(p, p.z*_Slider_Transform*2);
+                    //p = rotZ(p, p.z*_Slider_Transform*2);
+					float3 n = normalize(vSdfConfig.xyz);
+					float d = -0.2*length(n);
+					tripplePlaneFold(p, n, d);
+					tripplePlaneFold(p, -n, d*.5);
+					//n = normalize(float3(_SinTime.z,_CosTime.z,_SinTime.y));
+					//d = -0.1*length(n);
+					//tripplePlaneFold(p, n, d);
                 #elif _PTRANS_ROTATE
                     //o = fmod(abs(p + r/2.0), r) - r/2.0;
                     //p.z = fmod(p.z,8);
@@ -323,47 +330,16 @@
                 //////////////////////////////////////////////////////////////////////
                 #elif _SDF_MANDELBOX
                 
-
                 #define COLTRANS_DONE
+				vSdfConfig.w = _SinTime.z;
 
-                float scaleFactor = sdfSlider*3;//vSdfConfig.w*3;
-                //float scaleFactor = _SinTime.y*3;
+                float scaleFactor = smoothstep(-1,1,vSdfConfig.w)*6-3;
+				//float scale = 0.5;
+				float scale = 0.15;
+				//_SurfDist = 0.0001;
 
-                //float scale = 0.5;
-                float scale = 0.15;
-                //_SurfDist = 0.0001;
-                if (scaleFactor>0) 
-                {
-                    //scaleFactor+=1;
-                    scaleFactor+=2;
-                    scale/=1*(scaleFactor+1)/(scaleFactor-1);
-                    //_SurfDist=scale*0.0001;
-                }
-                else
-                {
-                    scaleFactor-=1;
-                }
-
-                //o.mat = applyColorTransform(p, o.mat); 
-                p/=scale;
-
-
-
-                //dist = fracMandelbox(p, scaleFactor);
-                //o.dist = fracMandelbox3(p, scaleFactor);
-                dist = fracMandelbox4(p, scaleFactor);
-                //o.dist = fracMandelbox2(rotZ(p/scale, 0), _FoldingLimit, _MinRadius, _FixedRadius, _ScaleFactor);
-                //o.dist = fracMandelbox2(rotZ(p/scale, 0), 20, 0.5, 1, scaleFactor).dist;
-                //p.x +=_SinTime.z*4;
-
-                float3 dim = float3(2,2,2)/scale;
-
-
-
-                //o = sdfInter(p, sdfBox(p,dim,0), o);
-
-                dist*=scale;
-
+				p/=scale;
+				dist = fracMandelbox4(p, vSdfConfig.w, vSdfConfig.xyz)*scale;
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -405,7 +381,7 @@
 				//boxFold(p,0,1);
                 dist = fracFeather(p);
                 float3 dim = float3(1,1,1);
-                dist = max(sdfBox(p,dim,0), o.dist);
+                dist = max(sdfBox(p,dim,0), dist);
 
                 //////////////////////////////////////////////////////////////////////
                 //
@@ -449,9 +425,9 @@
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
-				applyPositionTransform(p);
 				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
+				//applyPositionTransform(p);
 				return applyColorTransform(p, mat);
 			}
 

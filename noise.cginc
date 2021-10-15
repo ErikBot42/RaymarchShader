@@ -105,7 +105,7 @@ float4 getNoise4(float time)
 		noise3(time,3,4),
 		noise3(time,112,10),
 		noise3(time,223,210),
-		noise3(time,323,1456)
+		noise3(time*0.25,323,1456)
 	);
 }
 

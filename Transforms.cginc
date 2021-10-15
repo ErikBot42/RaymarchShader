@@ -173,9 +173,16 @@ void absFold(inout float3 p, const float3 c)
 	p = abs(p-c)+c;
 }
 
-void planeFold(inout float3 p, const float3 n, const float d)
+void planeFold(inout float3 p, const float3 n, const float d=0)
 {
 	p -= 2.0 * min(0.0,dot(p,n)-d)*n;
+}
+
+void tripplePlaneFold(inout float3 p, const float3 n, const float d=0)
+{
+	planeFold(p, n.xyz, d);
+	planeFold(p, n.yzx, d);
+	planeFold(p, n.zxy, d);
 }
 
 void scaleTranslate(inout float3 p, const float scale, const float3 delta)

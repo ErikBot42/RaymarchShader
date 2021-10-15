@@ -633,7 +633,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 1;//3;
+	numLevels = 2;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;

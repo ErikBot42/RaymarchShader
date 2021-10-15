@@ -369,10 +369,16 @@ float fracMandelbox3(float3 p, float scaleFactor)
 
 // Testing, definetly has things wrong about it.
 // Looks similar, significantly cheaper.
-float fracMandelbox4(float3 p, float scaleFactor)
+// Breaks in the middle to save a few cycles
+float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
 {
+	
+	float scale = 1;
+	if (scaleFactor>0) {scaleFactor+=2; scale/=(scaleFactor+1)/(scaleFactor-1);}
+	else {scaleFactor-=1;}
+	p/=scale;
 
-    float3 offset3 = p;
+    float3 offset3 = p+sdfConfig;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
     int iterations = 10;//10;
@@ -384,23 +390,23 @@ float fracMandelbox4(float3 p, float scaleFactor)
     for(int i=0; i<iterationsPre; i++)
     {
         boxFold2(pdr, 1);
-    	sphereFold2(pdr, minRadius*(1+.5*0));
+    	sphereFold2(pdr, minRadius*(1+.5*sdfConfig.x));
 
         pdr.xyz = scaleFactor*pdr.xyz + offset3;
         pdr.w = pdr.w*abs(scaleFactor)+1;
     }
 	float dist = length(pdr.xyz)/abs(pdr.w);
-	if (dist>0.019) return dist;//0.02
+	[branch] if (dist>0.019) return dist*scale;//0.02
     for(int i=0; i<iterations-iterationsPre; i++)
     {
         boxFold2(pdr, 1);
-    	//sphereFold2(pdr, minRadius*(1+.5*0));
+    	//sphereFold2(pdr, minRadius*(1+.5*sdfConfig.y));
 
         pdr.xyz = scaleFactor*pdr.xyz + offset3;
         pdr.w = pdr.w*abs(scaleFactor)+1;
     }
     
-    return length(pdr.xyz)/abs(pdr.w)-0.0001*1;
+    return (length(pdr.xyz)/abs(pdr.w)-0.0001*1)*scale;
 }
 
 // Mandelbox alternate implementation, possibly faster
