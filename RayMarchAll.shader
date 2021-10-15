@@ -93,6 +93,7 @@
             // precompile performance options
 			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
+			//#define SURF_DIST 0.001
 			#define SURF_DIST 0.001
 			//#define SURF_DIST 0.0005
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
@@ -183,8 +184,9 @@
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
 					float3 n = normalize(vSdfConfig.xyz);
-					float d = -0.2*length(n);
+					float d = 0;// -0.2*(length(vSdfConfig.xyz));
 					tripplePlaneFold(p, n, d);
+					tripplePlaneFold(p, -n, d);
 					//tripplePlaneFold(p, -n, d*.5);
 					//float dz = 0;
 					//float t = 2;

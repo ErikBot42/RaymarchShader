@@ -360,6 +360,7 @@ float3 rand3dTo3d(float3 value){
 	);
 }
 
+
 // get background light from dir.
 fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 {
@@ -378,6 +379,15 @@ fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 	//col += fixed4(0.9,0.7,0.2,1)*max(0,dir.y-0.8)*3;
 	//return col;
 	//return lightSky2(dir);//*(1-fac+fac*snoise(dir*10));
+}
+
+// get background light, transformed
+fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
+{
+	#ifndef USE_WORLD_SPACE
+	rd = mul(unity_ObjectToWorld, rd);
+	#endif
+	return worldGetBackground(rd, rough);
 }
 
 light getMainLight(float3 pos)
@@ -448,7 +458,8 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//#endif
 	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
 
-	col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance) * (pow(saturate(dot(normalize(light2 - dir),nor)),100) + float3(.4,1,.8)*saturate(dot(nor,light2)));
+	//col += 1*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance) * (pow(saturate(dot(normalize(light2 - dir),nor)),50)*2 + saturate(dot(nor,light2)));
+	//col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
 #else
@@ -633,7 +644,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 1;//3;
+	numLevels = 2;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;

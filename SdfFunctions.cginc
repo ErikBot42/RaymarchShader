@@ -542,7 +542,7 @@ float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 	
 
 	float s = 1.0;
-	const int iterations = 4;
+	const int iterations = 3;//4;
 	const float fac = pow(4,iterations);
 	for (int m=0; m<iterations; m++)
 	{
