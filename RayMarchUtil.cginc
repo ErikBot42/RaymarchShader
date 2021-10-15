@@ -86,23 +86,25 @@ float lightSoftShadow(float3 vStart, float3 vDir, float k)
 }
 
 
-float lightSoftShadow2(float3 vStart, float3 vDir, float k)
+float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.001)
 {
 	float res = 1.0;
     float ph = 1e20;
 	float mint = 0.001; float maxt = 1;
-    for( float t=mint; t<maxt; )
+	int steps = 0;
+	const int maxSteps = 40;
+    for( float t=mint; t<maxt && steps<maxSteps; steps++)
     {
 		float TOL = mint;//0.001;
-        float h = max(sdf(vStart + vDir*t),TOL);// TOL prevents infinite loop in some cases
-        if( h<TOL )
-            return 0.0;
+        float h = sdf(vStart + vDir*t);
+        if( h<TOL ) return 0.0;
         float y = h*h/(2.0*ph);
         float d = sqrt(h*h-y*y);
         res = min( res, k*d/max(0.0,t-y) );
         ph = h;
         t += h;
     }
+	//if (steps==maxSteps) return res;
     return res;
 }
 

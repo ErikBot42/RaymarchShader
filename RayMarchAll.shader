@@ -68,7 +68,7 @@
 			
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_MENGERFOLD
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 			//#define _MTRANS_COLORHSV_SPHERE
@@ -80,6 +80,8 @@
                 #define USE_WORLD_SPACE
                 #define REPEAT_SPACE
             #endif
+
+				
 
 
             //#define USE_DYNAMIC_QUALITY
@@ -170,21 +172,24 @@
             inline void applyPositionTransform(inout float3 p)
             {
 				//return;
-                #ifdef REPEAT_SPACE
-                    float r=2;
-                    /*p.y = fmod(abs(p.y + 4), 8) - 4;
-                    p.x = fmod(abs(p.x + 4), 8) - 4;
-                    p.z = fmod(abs(p.z + 4), 8) - 4;*/
+                #if defined(REPEAT_SPACE) || defined(_PTRANS_REPEAT)
+                    //p.y = fmod(abs(p.y + 4), 8) - 4;
+                    //p.x = fmod(abs(p.x + 4), 8) - 4;
+                    //p.z = fmod(abs(p.z + 4), 8) - 4;
 
-                    p = repXYZUnsigned(p,r);
-                    //p = repXYZ(p,8);
+                    //p = repXYZUnsigned(p,r);
+                    p = repXYZ(p,2);
                 #endif
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
 					float3 n = normalize(vSdfConfig.xyz);
 					float d = -0.2*length(n);
 					tripplePlaneFold(p, n, d);
-					tripplePlaneFold(p, -n, d*.5);
+					//tripplePlaneFold(p, -n, d*.5);
+					//float dz = 0;
+					//float t = 2;
+					//boxFold(p, dz,1*t);
+					//boxFold(p, dz,.5*t);
 					//n = normalize(float3(_SinTime.z,_CosTime.z,_SinTime.y));
 					//d = -0.1*length(n);
 					//tripplePlaneFold(p, n, d);
