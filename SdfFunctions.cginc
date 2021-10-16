@@ -241,6 +241,39 @@ float fracMandelbulb(float3 p)
     return 0.5*log(r)*r/dr;
 }
 
+// Mandelbulb + orbit trap
+float4 fracMandelbulb2(float3 p)
+{
+    // http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/
+    float3 c = p;
+    float dr = 1.0;
+    float r;
+
+    const int iterations = 5;//8
+
+    const float maxRThreshold = 2; //"infinity"
+
+    float Power = 8; // Z_(n+1) = Z(n)^? + c
+
+	float minDist = 1e20;
+	float3 origin = p;
+	float3 closest = p;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        r = length(p);
+        if (r>maxRThreshold) break;
+
+		dr = pow( r, Power-1.0)*Power*dr + 1.0;
+		
+		pow3D(p, Power, r);
+        p += c;
+
+		if (length(p)<minDist) {minDist = length(p); closest = p;}
+    }
+    return float4(0.5*log(r)*r/dr, closest);
+}
+
 // Juliabulb
 float fracJuliabulb(float3 p, float3 c = float3(1,1,1), float Power = 8)
 {
@@ -379,6 +412,8 @@ float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
 	p/=scale;
 
     float3 offset3 = p+sdfConfig;
+	
+
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
     int iterations = 10;//10;

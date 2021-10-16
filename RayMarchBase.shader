@@ -31,7 +31,7 @@
             
             float3 _SunPos;
 
-			float sdf(float3 p) {return sdfSphere(p,0.1);}
+			float4 sdf(float3 p) {return float4(sdfSphere(p,0.1),1,1,1);}
 			material calcMaterial(float3 p) {
 				material mat; 
 				mat.col = fixed4 (1,1,1,1);

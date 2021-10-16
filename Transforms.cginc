@@ -3,6 +3,8 @@
 #ifndef TRANSFORMS_CGINC
 #define TRANSFORMS_CGINC
 
+#include "SdfMath.cginc"
+
 // rotate point p around origin, a radians
 float3 rotX(float3 p, float a)
 {
@@ -178,11 +180,20 @@ void planeFold(inout float3 p, const float3 n, const float d=0)
 	p -= 2.0 * min(0.0,dot(p,n)-d)*n;
 }
 
+
+void planeFoldSmooth(inout float3 p, const float3 n, const float d=0)
+{
+	p -= 2.0 * smin(0.0,dot(p,n)-d,.5)*n;
+}
+
 void tripplePlaneFold(inout float3 p, const float3 n, const float d=0)
 {
-	planeFold(p, n.xyz, d);
-	planeFold(p, n.yzx, d);
-	planeFold(p, n.zxy, d);
+	planeFoldSmooth(p, n.xyz, d);
+	planeFoldSmooth(p, n.yzx, d);
+	planeFoldSmooth(p, n.zxy, d);
+	//planeFold(p, n.xyz, d);
+	//planeFold(p, n.yzx, d);
+	//planeFold(p, n.zxy, d);
 }
 
 void scaleTranslate(inout float3 p, const float scale, const float3 delta)

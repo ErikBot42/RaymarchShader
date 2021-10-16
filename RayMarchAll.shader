@@ -185,9 +185,9 @@
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
 					float3 n = normalize(vSdfConfig.xyz);
-					float d = 0;// -0.2*(length(vSdfConfig.xyz));
+					float d = -.2;// -0.2*(length(vSdfConfig.xyz));
 					tripplePlaneFold(p, n, d);
-					tripplePlaneFold(p, -n, d);
+					//tripplePlaneFold(p, -n, d);
 					//tripplePlaneFold(p, -n, d*.5);
 					//float dz = 0;
 					//float t = 2;
@@ -212,7 +212,8 @@
             //#define FUNGE_FACTOR 1
 
 
-            float sdf(float3 p)
+
+            float4 sdf(float3 p)
             {
 
                 #ifdef _ANIMATE_OFF
@@ -226,12 +227,10 @@
 
 				float dist;
 
-
-
-
                 p/=_Scale;
 
                 applyPositionTransform(p); 
+				float3 t = p;
 
                 //////////////////////////////////////////////////////////////////////
                 // all of these should fit in a 1x1x1 cube or sphere 
@@ -241,7 +240,6 @@
                 // (in world space)
                 //////////////////////////////////////////////////////////////////////
 
-                // TODO: precompile quality settings, add color transform option, add pre transform
                 // Color time, transform time, sdf time
 
 
@@ -255,7 +253,9 @@
 
                 float scale = 0.4;
                 p/=scale;
-                dist = fracMandelbulb(p);
+				float4 v = fracMandelbulb2(p);
+                dist = v.x;
+				t = v.yzw/4;
                 dist*=scale;
 
 				#elif _SDF_MANDELBOLB
@@ -425,18 +425,19 @@
                 dist*=_Scale;
 
 
-                return dist;
+                return float4(dist,t);
             }
 
-			material calcMaterial(float3 p)
+			material calcMaterial(float3 p, float3 t)
 			{
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
 				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
+				//p*=0.4;
 				//applyPositionTransform(p);
-				return applyColorTransform(p, mat);
+				return applyColorTransform(t, mat);
 			}
 
             //fixed4 lightPoint(rayData ray)

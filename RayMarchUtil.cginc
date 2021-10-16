@@ -139,7 +139,7 @@ float lightSSAO(int iSteps, int iMaxSteps, float fDarkenFactor)
 // SSAO that tries to smoothly change between steps.
 float smoothSSAO(float steps, float maxSteps, float lastDist, float tolerance, float darkenFactor)
 {
-	steps += lastDist/tolerance;
+	steps += (lastDist/tolerance);
 	return pow(saturate(1.0 - steps/maxSteps), darkenFactor);
 }
 

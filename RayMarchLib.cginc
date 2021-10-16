@@ -189,9 +189,9 @@ inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
     //if epsilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = sdf(vPos) - float3(
-            sdf(vPos - e.xyy),
-            sdf(vPos - e.yxy),
-            sdf(vPos - e.yyx));
+            sdf(vPos - e.xyy).x,
+            sdf(vPos - e.yxy).x,
+            sdf(vPos - e.yyx).x);
     return normalize(n);
 }
 //gets normal, provided you have the distance for pos (1 less call to sdf())
@@ -200,9 +200,9 @@ inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
     //if epilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
     float3 n = fPointDist - float3(
-            sdf(vPos - e.xyy),
-            sdf(vPos - e.yxy),
-            sdf(vPos - e.yyx));
+            sdf(vPos - e.xyy).x,
+            sdf(vPos - e.yxy).x,
+            sdf(vPos - e.yyx).x);
     return normalize(n);
 }
 
@@ -677,17 +677,17 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 			break;
 		}
 
-		float tol = TOLERANCE(currentDist-startDist);
+		float tol = ray.fLastTolerance;
 
 		float3 nor = getNormFull(pos, tol);
 
 		//float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 3);
-		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 3);
+		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 4);
 
 		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
-		fixed3 surfCol = calcMaterial(pos).col.rgb; // surface color
+		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
 
 		prodCol*=surfCol;
 
