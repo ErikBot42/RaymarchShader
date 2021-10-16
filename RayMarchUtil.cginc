@@ -129,11 +129,20 @@ float lightSSAO(rayData ray_data, float fDarkenFactor = 2)
     #endif
 }
 
+
 //ambient occlusion (screen space) based on steps
 float lightSSAO(int iSteps, int iMaxSteps, float fDarkenFactor)
 {
 	return pow(1.0 - float(iSteps) / float(iMaxSteps), fDarkenFactor);
 }
+
+// SSAO that tries to smoothly change between steps.
+float smoothSSAO(float steps, float maxSteps, float lastDist, float tolerance, float darkenFactor)
+{
+	steps += lastDist/tolerance;
+	return pow(saturate(1.0 - steps/maxSteps), darkenFactor);
+}
+
 
 //ambient occlusion
 float lightAO(float3 vPos, float3 vNorm, float fEpsilon = 0.05)

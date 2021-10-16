@@ -36,24 +36,7 @@ v2f vert (appdata v)
 	o.vCamPos *=1;
 
 	// Random vector calc
-    //o.vSdfConfig = sin(float4(0.143346,0.1876434,0.12437,0.08867)*_Time.z+5);
 	o.vSdfConfig = getNoise4(_Time.x*1);
-   	o.distEstimate.x = dot(o.normal, o.vDir)>0 ? 0 : length(o.vHitPos-o.vCamPos);
-	// Dist estimate calc
-	//float3 vDeltaPos = o.vHitPos - o.vCamPos; // constrain to mesh
-	//float fDeltaDist = length(vDeltaPos); // dist from camera to vertex
-
-	//float cosHeightVertex = abs(dot(normal, viewDir)); // assuming mesh is sphere with relatively equally spaced points.
-
-	//float fEdgeLength = cosHeightVertex*0.2;// DEFAULT_SPHERE: estimated distance between vertices from the perspective of an orthographic camera
-	//float fEdgeLength = cosHeightVertex*0.02;// ICOSPHERE7: estimated distance between vertices from the perspective of an orthographic camera
-	//float fEdgeLength = cosHeightVertex*0.13;// ICOSPHERE: estimated distance between vertices from the perspective of an orthographic camera
-	//float fEdgeLength = 0.02; // estimated distance between vertices from the perspective of an orthographic camera
-	//float fSurfDistPerMeter = fEdgeLength/fDeltaDist;
-    
-	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, 0.02, fDeltaDist);
-	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
-	//o.distEstimate.x = vertexCastRay(o.vCamPos, o.vDir, MAX_STEPS, MAX_DIST*0.9, SURF_DIST, fDeltaDist, fSurfDistPerMeter);
 
 	return o;
 }
@@ -286,6 +269,7 @@ float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, co
 }
 
 // simplified and optimized raycast
+// should not contain any branching that isn't absolutely nessesary
 rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float startDistToleranceOffset=0, float maxDist = MAX_DIST)
 {
 	rayDataMinimal data;
@@ -297,8 +281,12 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 		float distToObject = sdf(pos);
 		dist+=distToObject;
 
-		if (dist>(maxDist) || 
-		    distToObject<TOLERANCE((dist+startDistToleranceOffset))) break;
+		float tolerance = TOLERANCE((dist+startDistToleranceOffset));
+
+		data.fLastDist = distToObject;
+		data.fLastTolerance = tolerance;
+
+		if (dist>(maxDist) || distToObject<tolerance) break;
 	}
 	data.bMissed = dist>maxDist;
 	data.iSteps = i;
@@ -428,7 +416,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	
 	float3 reflected = reflect(dir, nor);
 #if 1
-	float k = 1.2;//100;
+	float k = 20;//1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
 	//col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
 
@@ -437,7 +425,8 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//#endif
 	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
 
-	col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
+	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
+	col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
 	//col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
@@ -692,7 +681,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 		float3 nor = getNormFull(pos, tol);
 
-		float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 5);
+		//float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 3);
+		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 3);
 
 		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);

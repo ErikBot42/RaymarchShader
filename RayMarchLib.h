@@ -62,7 +62,7 @@ struct v2f
 	float3 vDir : TEXCOORD0;
     float3 vCamPos : TEXCOORD1;
     float3 vHitPos : TEXCOORD2;
-	float3 distEstimate : TEXCOORD3;
+	//float3 distEstimate : TEXCOORD3;
 	float4 vSdfConfig : TANGENT;
     fixed4 color : COLOR;
 	float3 normal : NORMAL;
@@ -106,6 +106,8 @@ struct rayDataMinimal // minimal data for rayMarch
 	float dist;
 	bool bMissed;
 	int iSteps;
+	float fLastTolerance;
+	float fLastDist;
 };
 
 struct sdfData // returned from distance functions, including main scene

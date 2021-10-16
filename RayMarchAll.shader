@@ -91,6 +91,7 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
+			#define MAX_STEPS 50
 			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
 			//#define SURF_DIST 0.001
@@ -128,7 +129,7 @@
 				#define CONSTRAIN_TO_MESH
 				#define FUNGE_FACTOR 0.9
 			#elif defined(_SDF_TESTING) || defined(_SDF_MENGER)
-				#define MAX_STEPS 100
+				//#define MAX_STEPS 100
                 //#define CONSTRAIN_TO_MESH
             #endif
 
