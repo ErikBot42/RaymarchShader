@@ -398,7 +398,7 @@ light getMainLight(float3 pos)
 	l.col = _LightColor0;
 	#else
 	l.dir = float3(0,1,0);
-	l.col = fixed3(1,1,1);
+	l.col = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
 	#endif
 	#ifndef USE_WORLD_SPACE
 	l.dir = mul(unity_WorldToObject,l.dir);
@@ -415,31 +415,10 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
 
-	//fixed3 specular;
-	//fixed3 diffuse = BlinnPhongLighting(l, dir, nor, specular);
-	//fixed3 reflectedCol = worldGetBackground(reflect(dir,nor));
-	//fixed3 refractedCol = worldGetBackground(refract(dir,nor,0.6));
-	//return (specular*3*AOfactor  + (3*diffuse + 0.6*fixed3(1,1,1))*(reflectedCol*AOfactor+refractedCol));
+	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
 
-
-
-
-	float3 light2 = l.dir; 
-	//_WorldSpaceLightPos0;//normalize(float3(0,1,2));//normalize(float3(-0.577, 0.577, 0.577)); // sun
-	fixed3 light2_col = l.col;//fixed3(1,0.8,0.4);
-	//float light2_angle = 0.01;
-
-	float3 light3 = light2; light3.x*=-1; light3.z*=-1; // sun, other dir
-	fixed3 light3_col = light2_col*0.4;
-	//light3_col.r = 0;
-	//light3_col.g = 2;
-	//light3_col.b = 2;
-
-	fixed3 ambientColor = light2_col;//fixed3(1,1,1);
-
-	fixed3 col = ambientColor*.2;// "ambient"
+	fixed3 col = ambientColor*.4*AOfactor;// "ambient"
 	rayData ray;
-	//col += light1_col*lightShadow(pos+nor*0.001, light1,20);
 
 	float3 newStartPoint = pos + nor*stepBack;
 	
@@ -458,7 +437,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//#endif
 	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
 
-	//col += 1*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance) * (pow(saturate(dot(normalize(light2 - dir),nor)),50)*2 + saturate(dot(nor,light2)));
+	col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
 	//col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
@@ -498,7 +477,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//ray = castRay(pos + nor*stepBack, light2);
 	//if (ray.bMissed) col += light2_col;
 	
-	return col*AOfactor;
+	return col;
 }
 
 //TODO: emmision, reflections
@@ -644,7 +623,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 2;//3;
+	numLevels = 1;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -659,6 +638,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		// Raycast prediction to get start dist and max dist
 		float maxDist;
 		bool estimateHit = RayTraceSphere(startDist, maxDist, ro, rd, .5, 0);
+
 		if (estimateHit)
 		{
 			// Actual raymarch
@@ -707,8 +687,6 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 			sumCol += prodCol*dcol;
 			break;
 		}
-
-		//return fixed4(smoothstep(0,2,ray.dist),0,1,1);
 
 		float tol = TOLERANCE(currentDist-startDist);
 

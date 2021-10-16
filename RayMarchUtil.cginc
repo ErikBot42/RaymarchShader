@@ -105,7 +105,7 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.00
         t += h;
     }
 	//if (steps==maxSteps) return res;
-    return res;
+    return 1;//res;
 }
 
 //calculate sky light
