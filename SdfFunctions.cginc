@@ -560,11 +560,11 @@ float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 {
 	slider = 0;
 	float d;
-	//d = sdfBox(p,float3(1,1,1)*(2+slider));
 	float scale = max(0.1,1+scaleSlider);
 
 	p/=scale;
 
+	//d = sdfBox(p,float3(2,2,2)/scale);
 	d = sdfSphere(p,2/scale);
 
 	//d = max(d, sdfCylinder(p, 1.5/scale));

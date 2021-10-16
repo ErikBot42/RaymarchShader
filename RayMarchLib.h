@@ -99,6 +99,7 @@ struct light
 {
 	fixed3 col;
 	float3 dir; // in local space.
+	float dist; // dist to light
 };
 
 struct rayDataMinimal // minimal data for rayMarch

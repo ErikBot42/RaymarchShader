@@ -86,17 +86,17 @@ float lightSoftShadow(float3 vStart, float3 vDir, float k)
 }
 
 
-float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.001)
+float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.001, float maxt = .3)
 {
 	float res = 1.0;
     float ph = 1e20;
-	float mint = 0.001; float maxt = 1;
+	float mint = 0.001; 
 	int steps = 0;
-	const int maxSteps = 40;
+	const int maxSteps = 200;
     for( float t=mint; t<maxt && steps<maxSteps; steps++)
     {
 		float TOL = mint;//0.001;
-        float h = sdf(vStart + vDir*t);
+        float h = 1*sdf(vStart + vDir*t);
         if( h<TOL ) return 0.0;
         float y = h*h/(2.0*ph);
         float d = sqrt(h*h-y*y);
@@ -191,7 +191,7 @@ float calcReflectance(const float cosAngle, const float n1 = 1, const float n2 =
 	float R0 = (n1-n2)/(n1+n2);
 	R0 = R0*R0;
 	float oneMinusCos = 1-cosAngle;
-	return R0 + (1-R0)*(oneMinusCos*oneMinusCos*oneMinusCos*oneMinusCos*oneMinusCos);
+	return R0 + (1-R0)*(oneMinusCos*oneMinusCos*oneMinusCos);
 }
 
 

@@ -155,16 +155,18 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
+				const float saturation = .5;
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = HSV(frac(length(p)*8 + _Time.x), 0.5, 1);
+                    mat.col = HSV(frac(length(p)*8 + _Time.x), saturation, 1);
                 #elif _MTRANS_COLORHSV_CUBE
-                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), .5, 1);
+                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), saturation, 1);
                 #elif _MTRANS_COLORXYZ
                     float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
                     mat.col.y = p.y*factor+factor;
                     mat.col.z = p.z*factor+factor;
                 #else 
+					mat.col = 1;
                     // do nothing
                 #endif
                 return mat;    
@@ -185,7 +187,7 @@
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
 					float3 n = normalize(vSdfConfig.xyz);
-					float d = -.2;// -0.2*(length(vSdfConfig.xyz));
+					float d = -0.2*(length(vSdfConfig.xyz));
 					tripplePlaneFold(p, n, d);
 					//tripplePlaneFold(p, -n, d);
 					//tripplePlaneFold(p, -n, d*.5);

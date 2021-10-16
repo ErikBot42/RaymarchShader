@@ -183,7 +183,7 @@ void planeFold(inout float3 p, const float3 n, const float d=0)
 
 void planeFoldSmooth(inout float3 p, const float3 n, const float d=0)
 {
-	p -= 2.0 * smin(0.0,dot(p,n)-d,.5)*n;
+	p -= 2.0 * smin(0.0,dot(p,n)-d,.2)*n;
 }
 
 void tripplePlaneFold(inout float3 p, const float3 n, const float d=0)

@@ -188,7 +188,7 @@ inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
 {
     //if epsilon is smaller than 0.001, there are often artifacts
     const float2 e = float2(fEpsilon, 0);
-    float3 n = sdf(vPos) - float3(
+    float3 n = sdf(vPos).x - float3(
             sdf(vPos - e.xyy).x,
             sdf(vPos - e.yxy).x,
             sdf(vPos - e.yyx).x);
@@ -381,6 +381,7 @@ fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
 light getMainLight(float3 pos)
 {	
 	light l;
+	l.dist = 2;
 	#ifdef USE_UNITY_LIGHTS
 	l.dir = _WorldSpaceLightPos0;
 	l.col = _LightColor0;
@@ -391,6 +392,18 @@ light getMainLight(float3 pos)
 	#ifndef USE_WORLD_SPACE
 	l.dir = mul(unity_WorldToObject,l.dir);
 	#endif
+	
+	#if 1
+	//centered point light
+	float t = _Time.z*1;
+	float3 p = float3(sin(t), 0, cos(t))*.0;
+	float radius = 0.05;
+	l.dir = normalize(p-pos);
+	l.dist = max(0,length(pos-p)-radius);
+	l.col*=0.02/pow(l.dist+radius,2);
+	#endif
+
+	
 	//int i = 0;
 	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
 	return l;
@@ -402,6 +415,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 {
 	//float light1_angle = 0.1;
 	light l = getMainLight(pos);
+
 
 	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
 
@@ -426,7 +440,21 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
 
 	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
-	col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
+	float3 diffuse = 0;
+	float3 specular = 0;
+	float lightAmount = 1;
+	if (l.dist>0)
+	{
+	 	lightAmount = lightSoftShadow2(newStartPoint, l.dir, k, tolerance, l.dist);
+	}
+
+	diffuse = l.col*2*lightAmount*saturate(dot(nor,l.dir));
+	specular = l.col*lightAmount*pow(saturate(dot(normalize(l.dir - dir),nor)),200)*2;
+
+	//col += (l.col * diffuse + fixed3(1,1,1)*specular);
+	col += (diffuse + specular);
+	
+	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance,l.dist) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
 	//col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance);
 	//col += worldGetBackground(reflected);
 	//col += worldGetBackground(nor);
@@ -688,15 +716,29 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
+		
+		const float nIndex = 1.5;//1.5;
+
+		fixed3 refracted = refract(rd, nor, 1/nIndex);
+		//dcol = worldGetBackgroundLocalSpace(refracted,.0);//*fAOfactor*2;//*surfCol;
+		//return fixed4(dcol,1);
+
 
 		prodCol*=surfCol;
 
 		sumCol += prodCol*dcol;
 
+
+
+
+		
 		// get new ray dir for next iteration
 		rd = reflect(rd, nor);
+		
 		//TODO: rd>>nor fix linear algebra and stuff.
 		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
+
+
 
 		//col += worldGetBackground(rd)*
 		//if (1)
