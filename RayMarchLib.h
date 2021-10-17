@@ -95,11 +95,14 @@ struct rayData // used for lighting a point
     float distToMinDist;  // Smallest recorded distance to surface
 };
 
+// light data for a specific point.
 struct light
 {
 	fixed3 col;
 	float3 dir; // in local space.
 	float dist; // dist to light
+	float k; // "angle" for soft shadows
+	float intensity; // light strength
 };
 
 struct rayDataMinimal // minimal data for rayMarch

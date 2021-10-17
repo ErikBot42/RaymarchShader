@@ -274,23 +274,23 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 {
 	rayDataMinimal data;
 	int i;
-	float dist = startDist;
-	for (i=0; i<MAX_STEPS; i++)
+	float t = startDist;
+	for (i=0; i<MAX_STEPS && t<maxDist; i++)
 	{
-		float3 pos = ro + rd*dist;
-		float distToObject = sdf(pos);
-		dist+=distToObject;
+		float3 pos = ro + rd*t;
+		float h = sdf(pos);
+		t+=h;
 
-		float tolerance = TOLERANCE((dist+startDistToleranceOffset));
+		float tol = TOLERANCE((t+startDistToleranceOffset));
 
-		data.fLastDist = distToObject;
-		data.fLastTolerance = tolerance;
+		data.fLastDist = h;
+		data.fLastTolerance = tol;
 
-		if (dist>(maxDist) || distToObject<tolerance) break;
+		if (abs(h)<tol) break;
 	}
-	data.bMissed = dist>maxDist;
+	data.bMissed = t>maxDist;
 	data.iSteps = i;
-	data.dist = dist;
+	data.dist = t;
 	return data;
 }
 
@@ -378,29 +378,50 @@ fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
 	return worldGetBackground(rd, rough);
 }
 
-light getMainLight(float3 pos)
-{	
-	light l;
-	l.dist = 2;
-	#ifdef USE_UNITY_LIGHTS
-	l.dir = _WorldSpaceLightPos0;
-	l.col = _LightColor0;
-	#else
-	l.dir = float3(0,1,0);
-	l.col = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
-	#endif
+light createDirectionalLight(float3 pos, float3 dir, fixed3 col, float intensity = 1, float dist = 2, float k=20)
+{
+	light l; l.dir = dir; l.col = col; l.k = k; l.intensity = intensity; l.dist = dist;
+	//l.intensity*=max(0.0,dot(pos, dir));
 	#ifndef USE_WORLD_SPACE
 	l.dir = mul(unity_WorldToObject,l.dir);
 	#endif
+	return l;
+}
+
+light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, float k = 5)
+{
+	light l; l.col = col; l.k = k; l.intensity = intensity;
+	l.dir = normalize(p-pos);
+	#ifndef USE_WORLD_SPACE
+	l.dir = mul(unity_WorldToObject,l.dir);
+	#endif
+	l.dist = max(0,length(pos-p));
+	float maxDist = .4;//.4;
+	l.intensity = .02*(1/(l.dist*l.dist)-1/(maxDist*maxDist));
+	return l;
+}
+
+
+
+light getMainLight(float3 pos)
+{	
+	fixed3 col = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
+	//return createDirectionalLight(pos, float3(0,1,0), col);
+	float3 p = 0;//vSdfConfig.xyz*0.2;
+	return createPointLight(pos, p, col);
 	
-	#if 1
+	light l;
+	#if 0
 	//centered point light
-	float t = _Time.z*1;
-	float3 p = float3(sin(t), 0, cos(t))*.0;
-	float radius = 0.05;
+	l.k = 10;
+	float t = 0;//_Time.z*1;
+	float radius = .0;//0.05;
 	l.dir = normalize(p-pos);
 	l.dist = max(0,length(pos-p)-radius);
-	l.col*=0.02/pow(l.dist+radius,2);
+	//l.col*=0.1/pow(l.dist+radius,1);
+	l.col*=0.03/pow(l.dist+radius,2);
+	#else
+	l.col*=.5;
 	#endif
 
 	
@@ -409,28 +430,56 @@ light getMainLight(float3 pos)
 	return l;
 }
 
+fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor)
+{
+
+	float diffuse;
+	float specular;
+	float lightAmount = 1;
+	if (l.intensity <= 0) return 0;
+	if (false && l.dist>0)
+	{
+		lightAmount = lightSoftShadow3(ro, l.dir, .05, l.dist, l.k);
+	}
+	lightAmount*=l.intensity;
+
+	specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),200)*2;
+	diffuse = 2*lightAmount*saturate(0.3+dot(nor,l.dir));
+
+	return l.col*(diffuse + specular);
+}
 
 // calc the direct light a point recives (including shadows)
 fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float AOfactor = 1, float stepBack = 0.001, float tolerance=0.001)
 {
 	//float light1_angle = 0.1;
-	light l = getMainLight(pos);
+	//light l = getMainLight(pos);
 
+    fixed3 sunCol = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
+	
+	fixed3 ambientColor = sunCol;//fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
 
-	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
+	fixed3 col = .5*ambientColor*.4*AOfactor;// "ambient"
 
-	fixed3 col = ambientColor*.4*AOfactor;// "ambient"
-	rayData ray;
-
-	float3 newStartPoint = pos + nor*stepBack;
 	
 	//col += light1_col * lightSoftShadow(newStartPoint, light1);
 	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
 	//col += light2_col * lightSoftShadow(newStartPoint, light2, 20);
 	
 	float3 reflected = reflect(dir, nor);
+	float time = _Time.z*.4;
+	float3 p = float3(sin(time), 0, cos(time))*0.5;
+	float innerfac = .2;
+	light l;
+
+
+	//l = createDirectionalLight(pos, float3(0,1,0), sunCol); col += lightToColor(l, pos, dir, nor);
+	l = createPointLight(pos, p*innerfac, HSV(0,1,1)); col += lightToColor(l, pos, dir, nor);
+	l = createPointLight(pos, -p*innerfac, HSV(0.25,1,1)); col += lightToColor(l, pos, dir, nor);
+	l = createPointLight(pos, float3(-p.z,p.y,p.x), HSV(0.5,1,1)); col += lightToColor(l, pos, dir, nor);
+	l = createPointLight(pos, -float3(-p.z,p.y,p.x), HSV(0.75,1,1)); col += lightToColor(l, pos, dir, nor);
+	return col;
 #if 1
-	float k = 20;//1.2;//100;
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
 	//col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
 
@@ -440,16 +489,19 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
 
 	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
-	float3 diffuse = 0;
-	float3 specular = 0;
+	float3 diffuse;
+	float3 specular;
 	float lightAmount = 1;
-	if (l.dist>0)
+	if (false && l.dist>0)
 	{
-	 	lightAmount = lightSoftShadow2(newStartPoint, l.dir, k, tolerance, l.dist);
+		//float3 newStartPoint = pos + nor*stepBack;
+	 	//lightAmount = lightSoftShadow2(newStartPoint, l.dir, k, tolerance, l.dist);
+		lightAmount = lightSoftShadow3(pos, l.dir, .001, l.dist, l.k);
 	}
+	lightAmount*=l.intensity;
 
-	diffuse = l.col*2*lightAmount*saturate(dot(nor,l.dir));
 	specular = l.col*lightAmount*pow(saturate(dot(normalize(l.dir - dir),nor)),200)*2;
+	diffuse = l.col*2*lightAmount*saturate(dot(nor,l.dir));
 
 	//col += (l.col * diffuse + fixed3(1,1,1)*specular);
 	col += (diffuse + specular);
@@ -719,7 +771,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		
 		const float nIndex = 1.5;//1.5;
 
-		fixed3 refracted = refract(rd, nor, 1/nIndex);
+		//fixed3 refracted = refract(rd, nor, 1/nIndex);
 		//dcol = worldGetBackgroundLocalSpace(refracted,.0);//*fAOfactor*2;//*surfCol;
 		//return fixed4(dcol,1);
 

@@ -105,6 +105,21 @@ float sdfTriPrism(float3 p, float fSide, float fDepth)
     return max(q.z - fDepth, max(q.x * 0.866025 + p.y * 0.5, -p.y) - fSide * 0.5);
 }
 
+// Octahedron (EXACT)
+float sdfOctahedron(float3 p, float s)
+{
+  p = abs(p);
+  float m = p.x+p.y+p.z-s;
+  float3 q;
+       if( 3.0*p.x < m ) q = p.xyz;
+  else if( 3.0*p.y < m ) q = p.yzx;
+  else if( 3.0*p.z < m ) q = p.zxy;
+  else return m*0.57735027;
+    
+  float k = clamp(0.5*(q.z-q.y+s),0.0,s); 
+  return length(float3(q.x,q.y-s+k,q.z-k)); 
+}
+
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -318,19 +333,21 @@ float fracJuliabulb2(float3 p, float3 c = float3(1,1,1), float Power = 8)
         
         // dz = 8*z^7*dz
 		//dz = 8.0*pow(m,3.5)*dz + 1.0;
-		dz = 8.0*pow(m,3.5)*dz;
+		const float pwr = 4.0;
+		dz = pwr*pow(m,(pwr-1)/2)*dz;
       	//dz = 8.0*pow(sqrt(m),7.0)*dz + 1.0;
       
         // z = z^8+z
 		// xyz->polar->xyz
         float r = length(w);
-        float b = 8.0*acos( w.y/r);
-        float a = 8.0*atan2( w.x, w.z );
-        w = c + pow(r,8.0) * float3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
+        float b = pwr*acos( w.y/r);
+        float a = pwr*atan2( w.x, w.z );
+        w = c + pow(r,pwr) * float3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
 
         m = dot(w,w);
-		if( m > 256.0 )
-            break;
+		if( m > 1024.0 ) break;
+		//if( m > 256.0 ) break;
+		//if( m > 16.0 ) break;
     }
 
     //resColor = vec4(m,trap.yzw);
@@ -411,7 +428,7 @@ float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
 	else {scaleFactor-=1;}
 	p/=scale;
 
-    float3 offset3 = p+sdfConfig;
+    float3 offset3 = p;//+sdfConfig;
 	
 
     //float dr = 1.0;
@@ -595,4 +612,27 @@ float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 	
 	return d*scale;
 }
+
+float fracFlake(float3 p)
+{	
+	float r = .7;
+	float4 q = vSdfConfig*0.7*r*(.5+.5*_SinTime.z);
+	float r2 = r*.7;
+	float scaleDiff = .4;
+	float scale = 1*scaleDiff;
+	for (int i = 0; i<3; i++)
+	{
+		p/=scaleDiff;
+		p.y-=r*1.5;
+		scale*=scaleDiff;
+		planeFold(p, normalize(float3(1,  1+q.x,0)), -r);
+		planeFold(p, normalize(float3(0,  1+q.x,1)), -r);
+		planeFold(p, normalize(float3(-1, 1+q.x,0)), -r);
+		planeFold(p, normalize(float3(0,  1+q.x,-1)),-r);
+	}
+	p = rotZ(p,_Time.z);
+	return sdfOctahedron(p, r2)*scale;
+	//return sdfSphere(p, r)*scale;
+}
+
 #endif

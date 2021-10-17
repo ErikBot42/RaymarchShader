@@ -91,24 +91,18 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_STEPS 50
+			#define MAX_STEPS 100
 			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
 			//#define SURF_DIST 0.001
-			#define SURF_DIST 0.001
+			#define SURF_DIST 0.004
 			//#define SURF_DIST 0.0005
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
-				#define FUNGE_FACTOR 1
-                //#define MAX_STEPS 228
+				#define FUNGE_FACTOR 0.8
                 #define MAX_STEPS 100
-                //#define MAX_STEPS 200
+                #define MAX_STEPS 200
 
-                //This DOUBLES the framerate:
-                #define CONSTRAIN_TO_MESH
-			//#elif _SDF_JULIABULB
-				//#define MAX_STEPS 30
-				//#define MAX_STEPS 50
-                //#define CONSTRAIN_TO_MESH
+
             #elif _SDF_MANDELBOX
                 //#define MAX_STEPS 50
                 //#define MAX_STEPS 30
@@ -187,7 +181,7 @@
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
 					float3 n = normalize(vSdfConfig.xyz);
-					float d = -0.2*(length(vSdfConfig.xyz));
+					float d = 0;//-0.2*(length(vSdfConfig.xyz));
 					tripplePlaneFold(p, n, d);
 					//tripplePlaneFold(p, -n, d);
 					//tripplePlaneFold(p, -n, d*.5);
@@ -269,20 +263,20 @@
 
 				#elif _SDF_TESTING
 
+				return fracFlake(p);
+				//float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
 
-				float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
+				//float x1 = length(float2(p.x,p.z));
+				//float y1 = p.y;
 
-				float x1 = length(float2(p.x,p.z));
-				float y1 = p.y;
-
-				d1 = abs(y1 - x1*x1)/sqrt(2*x1*2*x1+1)-0.0;
-				d1 = y1>(x1*x1) ? d1 : 0;
+				//d1 = abs(y1 - x1*x1)/sqrt(2*x1*2*x1+1)-0.0;
+				//d1 = y1>(x1*x1) ? d1 : 0;
 
 
-				float d2 = sdfSphere(p,0.3);
+				//float d2 = sdfSphere(p,0.3);
 
-				dist = max(d1,d2)-0.01;
-				dist = min(dist, sdfSphere(p+float3(0,-0.25,0),0.1));
+				//dist = max(d1,d2)-0.01;
+				//dist = min(dist, sdfSphere(p+float3(0,-0.25,0),0.1));
 
 				#elif _SDF_MENGER
 

@@ -181,19 +181,17 @@ void planeFold(inout float3 p, const float3 n, const float d=0)
 }
 
 
-void planeFoldSmooth(inout float3 p, const float3 n, const float d=0)
+void planeFoldSmooth(inout float3 p, const float3 n, const float d=0, float fac = 0.05)
 {
-	p -= 2.0 * smin(0.0,dot(p,n)-d,.2)*n;
+	p -= 2.0 * smin(0.0,dot(p,n)-d, fac)*n;
 }
 
 void tripplePlaneFold(inout float3 p, const float3 n, const float d=0)
 {
-	planeFoldSmooth(p, n.xyz, d);
-	planeFoldSmooth(p, n.yzx, d);
-	planeFoldSmooth(p, n.zxy, d);
-	//planeFold(p, n.xyz, d);
-	//planeFold(p, n.yzx, d);
-	//planeFold(p, n.zxy, d);
+	float fac = 0.05;
+	planeFoldSmooth(p, n.xyz, d, fac);
+	planeFoldSmooth(p, n.yzx, d, fac);
+	planeFoldSmooth(p, n.zxy, d, fac);
 }
 
 void scaleTranslate(inout float3 p, const float scale, const float3 delta)

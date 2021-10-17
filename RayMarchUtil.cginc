@@ -92,7 +92,7 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.00
     float ph = 1e20;
 	float mint = 0.001; 
 	int steps = 0;
-	const int maxSteps = 200;
+	const int maxSteps = 30;
     for( float t=mint; t<maxt && steps<maxSteps; steps++)
     {
 		float TOL = mint;//0.001;
@@ -105,8 +105,41 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.00
         t += h;
     }
 	//if (steps==maxSteps) return res;
-    return 1;//res;
+    return saturate(res);
 }
+
+float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, float k = 10)
+{
+	k = 4;
+
+	float res = 1;
+	float t = startDist;
+	float ph = 1e10;
+
+	float cutoff = 0.01;
+
+	for (int i = 0; i<20 && t<maxDist; i++)
+	{
+		float h = sdf(ro + rd*t).x;
+		float y = (h*h)/(2.0*ph);
+		float d = sqrt(h*h-y*y);
+		float r1 = min(res, k*d/max(0,t-y));
+		//float r2 = min(res, k*h/t);
+		res = r1;
+
+		ph = h;
+		if(res<cutoff) return 0;
+		t += h; 
+	}
+	res = saturate(res-cutoff)/(1-cutoff);
+	//res = smoothstep(0,1,res);
+	return res;
+	//res*=.5;
+	//return saturate((res*res*(2.0-res))*2);
+
+
+}
+
 
 //calculate sky light
 inline fixed4 lightSky(float3 vNorm, fixed4 cSkyCol = fixed4(0.5, 0.8, 0.9, 1))
