@@ -392,14 +392,15 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 {
 	light l; l.col = col; l.k = k; l.intensity = intensity;
 	l.dir = normalize(p-pos);
-	#ifndef USE_WORLD_SPACE
-	l.dir = mul(unity_WorldToObject,l.dir);
-	#endif
+	//#ifndef USE_WORLD_SPACE
+	//l.dir = mul(unity_WorldToObject,l.dir);
+	//#endif
 	l.dist = max(0,length(pos-p));
 	float maxDist = .4;//.4;
 	l.intensity = .02*(1/(l.dist*l.dist)-1/(maxDist*maxDist));
 	return l;
 }
+
 
 
 
@@ -432,21 +433,24 @@ light getMainLight(float3 pos)
 
 fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor)
 {
+	bool realLight = false;
 
-	float diffuse;
-	float specular;
+	float diffuse = 0;
+	float specular = 0;
 	float lightAmount = 1;
 	if (l.intensity <= 0) return 0;
-	if (false && l.dist>0)
+
+	if (realLight && l.dist>0)
 	{
 		lightAmount = lightSoftShadow3(ro, l.dir, .05, l.dist, l.k);
 	}
-	lightAmount*=l.intensity;
+	lightAmount*=l.intensity*2;
 
-	specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),200)*2;
-	diffuse = 2*lightAmount*saturate(0.3+dot(nor,l.dir));
+	//return l.col*lightAmount*0.2;
 
-	return l.col*(diffuse + specular);
+	//specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),41);
+	diffuse = lightAmount*saturate(dot(nor,l.dir));
+	return l.col * (specular + diffuse);
 }
 
 // calc the direct light a point recives (including shadows)
@@ -455,29 +459,72 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	//float light1_angle = 0.1;
 	//light l = getMainLight(pos);
 
+	light l;
     fixed3 sunCol = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
-	
-	fixed3 ambientColor = sunCol;//fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
+	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
+	fixed3 glowColor = HSV(length(pos)*2,1,1);
+	fixed3 col = 0;
 
-	fixed3 col = .5*ambientColor*.4*AOfactor;// "ambient"
+	col += .1*ambientColor*.4*AOfactor;// "ambient"
+	//col += 3*(1-AOfactor)*glowColor;
 
+	//l = createDirectionalLight(pos, float3(0,1,0), sunCol); 
+	//l = createPointLight(pos, float3(0,0,0), float3(1,1,1));
 	
 	//col += light1_col * lightSoftShadow(newStartPoint, light1);
 	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
 	//col += light2_col * lightSoftShadow(newStartPoint, light2, 20);
 	
 	float3 reflected = reflect(dir, nor);
-	float time = _Time.z*.4;
-	float3 p = float3(sin(time), 0, cos(time))*0.5;
-	float innerfac = .2;
-	light l;
+	float time = _Time.z*.05;//123.543254626;
+	float3 p = float3(sin(time), 0, cos(time))*0.25;
+
+	float pi = 3.1415*2;
+	float amplitude = .4;
+	float innerAmplitude = .2*amplitude;
+
+	float brightness = 1;
 
 
-	//l = createDirectionalLight(pos, float3(0,1,0), sunCol); col += lightToColor(l, pos, dir, nor);
-	l = createPointLight(pos, p*innerfac, HSV(0,1,1)); col += lightToColor(l, pos, dir, nor);
-	l = createPointLight(pos, -p*innerfac, HSV(0.25,1,1)); col += lightToColor(l, pos, dir, nor);
-	l = createPointLight(pos, float3(-p.z,p.y,p.x), HSV(0.5,1,1)); col += lightToColor(l, pos, dir, nor);
-	l = createPointLight(pos, -float3(-p.z,p.y,p.x), HSV(0.75,1,1)); col += lightToColor(l, pos, dir, nor);
+	
+	const int maxJ = 2;
+	const int numlights = 4;
+	brightness/=float(numlights);
+	
+	//for (int j = 0; j<numlights; j++)
+	float3 lightsCol = 0;
+	for (int i = 0; i<numlights; i++)
+	{
+		if (true || sin(2*time*i+numlights)>0) 
+		{
+			float prop = float(i)/float(numlights);
+			for (int j = 0; j<maxJ; j++)
+			{	
+				float intensity = j==0 ? 1 : .3;
+				float t = time*4 + pi*prop;
+				float jProp = (float(j)+.5)/float(maxJ);
+				float totalProp = prop + jProp/float(numlights);
+				float jHeight = .8*sin(jProp*pi);
+				float propID = 2+sin(30*(prop + jProp + 1));
+				float a = amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
+				l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
+				lightsCol += lightToColor(l, pos, dir, nor);
+			}
+		}
+	}
+	col += lightsCol;
+	
+	//glowColor = lightsCol;
+
+
+	//if (sin(time*1)>0) {l = createPointLight(pos, float3(sin(time+pi*0.00),  1, cos(time+pi*0.00))*amplitude, HSV(0,     1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*2)>0) {l = createPointLight(pos, float3(sin(time+pi*0.25),  1, cos(time+pi*0.25))*amplitude, HSV(0.25,  1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*3)>0) {l = createPointLight(pos, float3(sin(time+pi*0.5 ),  1, cos(time+pi*0.5 ))*amplitude, HSV(0.5,   1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*4)>0) {l = createPointLight(pos, float3(sin(time+pi*0.75),  1, cos(time+pi*0.75))*amplitude, HSV(0.75,  1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*5)>0) {l = createPointLight(pos, float3(sin(time+pi*0.00), -1, cos(time+pi*0.00))*amplitude, HSV(0.125, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*6)>0) {l = createPointLight(pos, float3(sin(time+pi*0.25), -1, cos(time+pi*0.25))*amplitude, HSV(0.375, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*7)>0) {l = createPointLight(pos, float3(sin(time+pi*0.5 ), -1, cos(time+pi*0.5 ))*amplitude, HSV(0.625, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
+	//if (sin(time*8)>0) {l = createPointLight(pos, float3(sin(time+pi*0.75), -1, cos(time+pi*0.75))*amplitude, HSV(0.875, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
 	return col;
 #if 1
 	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
@@ -871,6 +918,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		//return mat.col*lighting;
 
 	}
+
 	return fixed4(sumCol,1);
 }
 

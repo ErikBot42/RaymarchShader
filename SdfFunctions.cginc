@@ -333,16 +333,15 @@ float fracJuliabulb2(float3 p, float3 c = float3(1,1,1), float Power = 8)
         
         // dz = 8*z^7*dz
 		//dz = 8.0*pow(m,3.5)*dz + 1.0;
-		const float pwr = 4.0;
-		dz = pwr*pow(m,(pwr-1)/2)*dz;
+		dz = Power*pow(m,(Power-1)/2)*dz;
       	//dz = 8.0*pow(sqrt(m),7.0)*dz + 1.0;
       
         // z = z^8+z
 		// xyz->polar->xyz
         float r = length(w);
-        float b = pwr*acos( w.y/r);
-        float a = pwr*atan2( w.x, w.z );
-        w = c + pow(r,pwr) * float3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
+        float b = Power*acos( w.y/r);
+        float a = Power*atan2( w.x, w.z );
+        w = c + pow(r,Power) * float3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
 
         m = dot(w,w);
 		if( m > 1024.0 ) break;
@@ -594,7 +593,7 @@ float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 	
 
 	float s = 1.0;
-	const int iterations = 3;//4;
+	const int iterations = 5;//4;
 	const float fac = pow(4,iterations);
 	for (int m=0; m<iterations; m++)
 	{
@@ -616,23 +615,42 @@ float mengerSponge(float3 p, float3 slider=0, float scaleSlider=0)
 float fracFlake(float3 p)
 {	
 	float r = .7;
-	float4 q = vSdfConfig*0.7*r*(.5+.5*_SinTime.z);
+	float4 q = vSdfConfig;//0;//vSdfConfig*0.7*r*(.5+.5*_SinTime.z);
 	float r2 = r*.7;
 	float scaleDiff = .4;
 	float scale = 1*scaleDiff;
-	for (int i = 0; i<3; i++)
+	for (int i = 0; i<4; i++)
 	{
 		p/=scaleDiff;
 		p.y-=r*1.5;
 		scale*=scaleDiff;
-		planeFold(p, normalize(float3(1,  1+q.x,0)), -r);
-		planeFold(p, normalize(float3(0,  1+q.x,1)), -r);
-		planeFold(p, normalize(float3(-1, 1+q.x,0)), -r);
-		planeFold(p, normalize(float3(0,  1+q.x,-1)),-r);
+		planeFold(p, normalize(float3(1,  1,  0)), -r);
+		planeFold(p, normalize(float3(0,  1,  1)), -r);
+		planeFold(p, normalize(float3(-1, 1,  0)), -r);
+		planeFold(p, normalize(float3(0,  1, -1)), -r);
+		//planeFoldSmooth(p, normalize(float3(1,  1,  0)), -r, abs(q.w));
+		//planeFoldSmooth(p, normalize(float3(0,  1,  1)), -r, abs(q.w));
+		//planeFoldSmooth(p, normalize(float3(-1, 1,  0)), -r, abs(q.w));
+		//planeFoldSmooth(p, normalize(float3(0,  1, -1)), -r, abs(q.w));
 	}
-	p = rotZ(p,_Time.z);
+	//p = rotX(p,q.x*20);
+	//p = rotY(p,q.y*20);
+	//p = rotZ(p,q.z*20);
 	return sdfOctahedron(p, r2)*scale;
 	//return sdfSphere(p, r)*scale;
+}
+
+//////////////////////////////////////////////////////////////////////
+//
+// closest point functions (cpt prefix)
+//
+//////////////////////////////////////////////////////////////////////
+
+float3 cptLine(float3 p, float3 start, float3 end)
+{
+    float h = min(1, max(0, dot(p-start, end-start) / dot(end-start, end-start)));
+    //return p-start-(end-start)*h;
+    return start+(end-start)*h;
 }
 
 #endif
