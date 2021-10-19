@@ -52,6 +52,12 @@
 		//Blend SrcAlpha OneMinusSrcAlpha // enable transparency
 
         Cull Off
+
+		// Force enable z-write
+		ZWrite On 
+
+		// Draw geometry that is in front.
+		//ZTest LEqual
         LOD 100
 
         Pass
@@ -67,10 +73,10 @@
             #pragma fragment frag
 			
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
-            #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
+            //#pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            //#pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
-            #pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
+            //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 			//#define _MTRANS_COLORHSV_SPHERE
 			//#define _PTRANS_NONE
 			//#define _SPACE_OBJECT

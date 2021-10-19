@@ -148,6 +148,7 @@ fragOut frag (v2f i)
     //o.col = lightPoint(ray);
 	float3 vHitPos;
 	o.col = rendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
+	o.col.w = 1;
 
 	#ifdef VERTEX_DEBUG_COLORS
 	o.col.b = 1;
