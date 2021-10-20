@@ -97,12 +97,20 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_STEPS 200
 			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
 			//#define SURF_DIST 0.001
-			#define SURF_DIST 0.004
 			//#define SURF_DIST 0.0005
+
+
+			// for typical resolution:
+			//#define SURF_DIST 0.004
+			//#define MAX_STEPS 200
+
+			// for absurd resolution:
+			#define SURF_DIST 0.0004
+			#define MAX_STEPS 2000
+
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
 				#define FUNGE_FACTOR 0.8
                 #define MAX_STEPS 100
@@ -155,11 +163,12 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
-				const float saturation = .3;
+				const float saturation = .2;
+				const float len = 0.2/0.3333; // |col|
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = fixed4(normalize(HSV(frac(length(p)*8 + _Time.x), saturation, 1).rgb),1);
+                    mat.col = fixed4(len*normalize(HSV(frac(length(p)*8 + _Time.x), saturation, 1).rgb),1);
                 #elif _MTRANS_COLORHSV_CUBE
-                    mat.col = fixed4(normalize(HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), saturation, 1).rgb),1);
+                    mat.col = fixed4(len*normalize(HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), saturation, 1).rgb),1);
                 #elif _MTRANS_COLORXYZ
                     float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
@@ -276,7 +285,8 @@
 				//d = smax(d,p.y,sfac);
 				p=rotY(p, _Time.x*5);
 				d = sdfTorus(p, .25,.1);
-				d = min(d, max(-p.y,sdfTorus(p.xzy, .25,.1)));
+				d = min(d, sdfTorus(p.xzy, .25,.1));
+				d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
 				t = d;
 				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
 				//float d = sdfBox(p,float3(1,1,1));
@@ -286,7 +296,7 @@
 				int u = int(_Time.y*.3);
 
 				p.xy+=u;
-				dist = sdfFbmAdd(p, d, 0.15, 8, tol);
+				dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
 				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
 				//dist = max(dist, length(p)-0.45);
 

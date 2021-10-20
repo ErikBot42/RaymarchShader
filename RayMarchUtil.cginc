@@ -117,8 +117,9 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 	float ph = 1e10;
 
 	float cutoff = 0.01;
-
-	for (int i = 0; i<20 && t<maxDist; i++)
+	
+	// orig: 20
+	for (int i = 0; i<2000 && t<maxDist; i++)
 	{
 		float h = sdf(ro + rd*t).x;
 		float y = (h*h)/(2.0*ph);
@@ -265,6 +266,32 @@ fixed3 BlinnPhongLighting(light l, float3 rd, float3 normal, out fixed3 specular
 	
 	specular = intensity*l.col;
 	return diffuse;
+}
+
+int seed = 321;
+void srand(int s ) { seed = s; }
+int  rand() { seed = seed*0x343fd+0x269ec3; return (seed>>16)&32767; }
+float frand() { return float(rand())/32767.0; }
+
+int hash( int n )
+{
+	n = (n << 13) ^ n;
+    return n * (n * n * 15731 + 789221) + 1376312589;
+}
+
+float3 cosineDirection(float3 nor)
+{
+	float u = frand();
+	float v = frand();
+
+	float a = 6.2831853 * v;
+	u = 2.0*u - 1.0;
+	return normalize( nor + float3(sqrt(1.0-u*u) * float2(cos(a), sin(a)), u) );
+}
+
+float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
+{
+	return cosineDirection(nor);	
 }
 
 #endif

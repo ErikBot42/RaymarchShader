@@ -147,7 +147,7 @@ fragOut frag (v2f i)
     #endif
     //o.col = lightPoint(ray);
 	float3 vHitPos;
-	o.col = rendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
+	o.col = multiSampledRendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
 	o.col.w = 1;
 
 	#ifdef VERTEX_DEBUG_COLORS
@@ -399,7 +399,7 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	//#endif
 	// TODO: Radius of 100% light to prevent flashing when intersecting object
 	l.dist = max(0,length(pos-p));
-	float maxDist = .2;//.4;
+	float maxDist = .8;//.4;
 	l.intensity = .02*(1/(l.dist*l.dist)-1/(maxDist*maxDist));
 	return l;
 }
@@ -443,7 +443,7 @@ fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = 
 
 	if (realLight && l.dist>0)
 	{
-		lightAmount = lightSoftShadow3(ro, l.dir, .01, l.dist, l.k);
+		lightAmount = lightSoftShadow3(ro, l.dir, /*.01*/ 0.001, l.dist, l.k);
 	}
 	lightAmount*=l.intensity*2;
 
@@ -466,13 +466,13 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	fixed3 glowColor = HSV(length(pos)*2,1,1);
 	fixed3 col = 0;
 
-	col += .5*ambientColor*.4*AOfactor;// "ambient"
+	col += .0*.5*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	//l = createPointLight(pos, float3(0,0,0), sunCol);
-	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), .4*sunCol); 
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 10); 
 	col += lightToColor(l, pos, dir, nor, true);
-	
+	return col;
+
 	//col += light1_col * lightSoftShadow(newStartPoint, light1);
 	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
 	//col += light2_col * lightSoftShadow(newStartPoint, light2, 20);
@@ -489,7 +489,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 
 	return col;
 	
-	const int maxJ = 5;
+	const int maxJ = 2;
 	const int numlights = 5;
 	brightness/=float(numlights);
 	
@@ -510,7 +510,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 				float propID = 2+sin(30*(prop + jProp + 1));
 				float a = amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
 				l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
-				lightsCol += lightToColor(l, pos, dir, nor);
+				lightsCol += lightToColor(l, pos, dir, nor, true);
 			}
 		}
 	}
@@ -741,7 +741,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 1;//3;
+	numLevels = 4;//4;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -795,7 +795,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 			#endif
 			if (i==0) // never interacted with object
 			{
-				dcol = fixed4(worldGetBackground(rd),1); 
+				dcol = pow(fixed4(worldGetBackground(rd),1),2.2/1.0); 
 				discard; // optional
 			}
 			else
@@ -807,11 +807,13 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		}
 
 		float tol = ray.fLastTolerance;
-
+		
+		//TODO: cheaper norm with last dist.
 		float3 nor = getNormFull(pos, tol);
 
-		//float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 3);
-		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 4);
+
+		//float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 4);
+		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100); // agressive AO
 
 		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
@@ -828,18 +830,12 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		prodCol*=surfCol;
 
 		sumCol += prodCol*dcol;
-
-
-
-
 		
 		// get new ray dir for next iteration
-		rd = reflect(rd, nor);
+		rd = worldGetBRDFRay(ro, rd, nor);//reflect(rd, nor);
 		
 		//TODO: rd>>nor fix linear algebra and stuff.
 		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
-
-
 
 		//col += worldGetBackground(rd)*
 		//if (1)
@@ -924,6 +920,22 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 
 	return fixed4(sumCol,1);
+}
+
+fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
+{
+	int3 q = rd*324789.789345;
+	srand(hash(q.x + hash(q.y + hash(q.x))));
+
+	int numSamples = 2;
+	fixed4 col = 0;
+	[loop] for (int i = 0; i<numSamples; i++)
+	{
+		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(2));
+		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
+	}
+	return pow(col, 1.0/2.2);//gamma correction
+	       
 }
 
 #endif
