@@ -121,6 +121,88 @@ float sdfOctahedron(float3 p, float s)
 }
 
 
+// https://iquilezles.org/www/articles/fbmsdf/fbmsdf.htm
+float sph(int3 i, float3 f, int3 c)
+{
+	// random radius at grid vertex i+c
+	float r = 0.5*shitHash(i+c);
+	return length(f-c)-r;
+}
+
+float sdfRandBase (float3 p)
+{
+	float scale = 1;
+	p/=scale;
+    float3 i = floor(p);
+    float3 f = frac(p);
+
+	#define RAD(r) ((r)*(r)*0.7)
+    #define SPH(i,f,c) length(f-c)-RAD(shitHash(i+c))
+    //#define SPH(i,f,c) length(f-c)-scale*3
+    
+    return scale*min(min(min(sph(i,f,int3(0,0,0)),
+                             sph(i,f,int3(0,0,1))),
+                         min(sph(i,f,int3(0,1,0)),
+                             sph(i,f,int3(0,1,1)))),
+                     min(min(sph(i,f,int3(1,0,0)),
+                             sph(i,f,int3(1,0,1))),
+                         min(sph(i,f,int3(1,1,0)),
+                             sph(i,f,int3(1,1,1)))));
+}
+
+// use wrapper functions instead of this when making your sdf
+float sdfFbm(float3 p, float d, int iterations = 7, float tol = 0, bool add = true)
+{
+	//p+=vSdfConfig.xyz;//.xz+=5*float2(_SinTime.x,_CosTime.x);
+	float t = .2*_Time.y;
+	//float q = frac(t);
+	//q = smoothstep(0,1,q);
+	//q = smoothstep(0,1,q);
+	//p.y+=3*(int(t)+q);
+	//p = rotY(p,q*3.141592*2);
+
+	float s = 1.0;
+	float smoothFactor = .3;
+	for (int i = 0; i<iterations; i++)
+	{
+		float n = s*sdfRandBase(p); // eval octave
+
+		if (add)
+		{ // add
+			n = smax(n, d-0.1*s, smoothFactor*s);
+			d = smin(n, d      , smoothFactor*s);
+		}
+		else
+		{ // subtract
+			d = smax(d, -n     , smoothFactor*s);
+		}
+
+		s *= .5;//.45;//.5;
+		if (d>s) break; // doubles framerate, but makes the df slightly discontious
+		//if (tol*0.001>abs(d)) break;
+		// transform to make subgrids not aligned.
+		p = mul(float3x3( 0.00, 1.60, 1.20,
+                -1.60, 0.72,-0.96,
+                -1.20,-0.96, 1.28 ),p);
+		
+	}
+	return d;
+}
+
+// Additive roughness to sdf. 
+// High iterations are expensive.
+// Low scale is faster, and sometimes even looks more high fidelity 
+// The more "bumpy" a surface is, the more steps a raymarch has to take
+// if a high scale is needed, consider using a (filtered) normal texture instead.
+// p - point
+// d - original sdf distance at point
+// scale - scale of noise
+// tol - how much to care about small details
+float sdfFbmAdd(float3 p, float d, float scale = 1, int iterations = 7, float tol = 0.001)
+{
+	return sdfFbm(p/scale, d/scale, iterations, (tol*1.0)/scale, false)*scale;
+}
+
 //////////////////////////////////////////////////////////////////////
 //
 // Fractals, complex shapes and scenes  (frac prefix)

@@ -142,4 +142,18 @@ fixed4 HSV (fixed h, fixed s, fixed v)
     return colors[int(h)];
 }
 
+
+//////////////////////////////////////////////////////////////////////
+//
+// other stuff
+//
+//////////////////////////////////////////////////////////////////////
+
+float shitHash(float3 p)
+{
+    p  = 17.0*frac( p*0.3183099+float3(.11,.17,.13) );
+    return frac( p.x*p.y*p.z*(p.x+p.y+p.z) );
+}
+
+
 #endif

@@ -92,5 +92,6 @@ bool RayTraceSphere(out float dist, out float maxDist, float3 s, float3 d, float
 	return true;
 }
 
+
 #endif
 

@@ -276,13 +276,14 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 	rayDataMinimal data;
 	int i;
 	float t = startDist;
+	float tol = 0;
 	for (i=0; i<MAX_STEPS && t<maxDist; i++)
 	{
 		float3 pos = ro + rd*t;
-		float h = sdf(pos);
+		float h = sdf(pos, tol);
 		t+=h;
 
-		float tol = TOLERANCE((t+startDistToleranceOffset));
+		tol = TOLERANCE((t+startDistToleranceOffset));
 
 		data.fLastDist = h;
 		data.fLastTolerance = tol;
@@ -382,10 +383,10 @@ fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
 light createDirectionalLight(float3 pos, float3 dir, fixed3 col, float intensity = 1, float dist = 2, float k=20)
 {
 	light l; l.dir = dir; l.col = col; l.k = k; l.intensity = intensity; l.dist = dist;
-	//l.intensity*=max(0.0,dot(pos, dir));
 	#ifndef USE_WORLD_SPACE
 	l.dir = mul(unity_WorldToObject,l.dir);
 	#endif
+	//l.intensity*=max(0.0,dot(pos, l.dir));
 	return l;
 }
 
@@ -396,8 +397,9 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	//#ifndef USE_WORLD_SPACE
 	//l.dir = mul(unity_WorldToObject,l.dir);
 	//#endif
+	// TODO: Radius of 100% light to prevent flashing when intersecting object
 	l.dist = max(0,length(pos-p));
-	float maxDist = .4;//.4;
+	float maxDist = .2;//.4;
 	l.intensity = .02*(1/(l.dist*l.dist)-1/(maxDist*maxDist));
 	return l;
 }
@@ -432,10 +434,8 @@ light getMainLight(float3 pos)
 	return l;
 }
 
-fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor)
+fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = false)
 {
-	bool realLight = false;
-
 	float diffuse = 0;
 	float specular = 0;
 	float lightAmount = 1;
@@ -443,19 +443,19 @@ fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor)
 
 	if (realLight && l.dist>0)
 	{
-		lightAmount = lightSoftShadow3(ro, l.dir, .05, l.dist, l.k);
+		lightAmount = lightSoftShadow3(ro, l.dir, .01, l.dist, l.k);
 	}
 	lightAmount*=l.intensity*2;
 
 	//return l.col*lightAmount*0.2;
 
-	//specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),41);
+	specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),50);
 	diffuse = lightAmount*saturate(dot(nor,l.dir));
-	return l.col * (specular + diffuse);
+	return l.col * (specular*2 + diffuse);
 }
 
 // calc the direct light a point recives (including shadows)
-fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float AOfactor = 1, float stepBack = 0.001, float tolerance=0.001)
+fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float AOfactor = 1, float stepBack = 0.001, float tolerance=0.001)
 {
 	//float light1_angle = 0.1;
 	//light l = getMainLight(pos);
@@ -466,11 +466,12 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	fixed3 glowColor = HSV(length(pos)*2,1,1);
 	fixed3 col = 0;
 
-	col += .1*ambientColor*.4*AOfactor;// "ambient"
+	col += .5*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	//l = createDirectionalLight(pos, float3(0,1,0), sunCol); 
-	//l = createPointLight(pos, float3(0,0,0), float3(1,1,1));
+	//l = createPointLight(pos, float3(0,0,0), sunCol);
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), .4*sunCol); 
+	col += lightToColor(l, pos, dir, nor, true);
 	
 	//col += light1_col * lightSoftShadow(newStartPoint, light1);
 	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
@@ -481,15 +482,15 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	float3 p = float3(sin(time), 0, cos(time))*0.25;
 
 	float pi = 3.1415*2;
-	float amplitude = .4;
+	float amplitude = .5;//.4;
 	float innerAmplitude = .2*amplitude;
 
 	float brightness = 1;
 
-
+	return col;
 	
-	const int maxJ = 2;
-	const int numlights = 4;
+	const int maxJ = 5;
+	const int numlights = 5;
 	brightness/=float(numlights);
 	
 	//for (int j = 0; j<numlights; j++)
@@ -540,7 +541,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 nor, in float3 dir, in float 
 	float3 diffuse;
 	float3 specular;
 	float lightAmount = 1;
-	if (false && l.dist>0)
+	if (l.dist>0)
 	{
 		//float3 newStartPoint = pos + nor*stepBack;
 	 	//lightAmount = lightSoftShadow2(newStartPoint, l.dir, k, tolerance, l.dist);
@@ -812,7 +813,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		//float fAOfactor = lightSSAO(ray.iSteps, MAX_STEPS, 3);
 		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 4);
 
-		dcol = 1*worldApplyLighting(pos, nor, rd, fAOfactor);
+		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
 		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
@@ -919,6 +920,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		//return mat.col*lighting;
 
 	}
+	//sumCol = pow(sumCol, 1.0/2.2); // gamma
+	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 
 	return fixed4(sumCol,1);
 }

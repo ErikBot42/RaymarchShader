@@ -73,8 +73,8 @@
             #pragma fragment frag
 			
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
-            //#pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
-            //#pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
+            #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
             //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 			//#define _MTRANS_COLORHSV_SPHERE
@@ -97,7 +97,7 @@
             //#define MAX_REFLECTIONS 3
 
             // precompile performance options
-			#define MAX_STEPS 100
+			#define MAX_STEPS 200
 			#define MAX_DIST 3
 			//#define SURF_DIST 0.0001
 			//#define SURF_DIST 0.001
@@ -155,11 +155,11 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
-				const float saturation = .5;
+				const float saturation = .3;
                 #ifdef _MTRANS_COLORHSV_SPHERE  
-                    mat.col = HSV(frac(length(p)*8 + _Time.x), saturation, 1);
+                    mat.col = fixed4(normalize(HSV(frac(length(p)*8 + _Time.x), saturation, 1).rgb),1);
                 #elif _MTRANS_COLORHSV_CUBE
-                    mat.col = HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), saturation, 1);
+                    mat.col = fixed4(normalize(HSV(frac(max(abs(p.x),max(abs(p.y),abs(p.z)))*8 + _Time.x), saturation, 1).rgb),1);
                 #elif _MTRANS_COLORXYZ
                     float factor = 0.5;
                     mat.col.x = p.x*factor+factor;
@@ -203,6 +203,8 @@
                     //p.z = fmod(p.z,8);
                     //p = rotZ(p, _Slider_Transform);
                     p = rotZ(p, _Time.x);
+				#elif _PTRANS_MENGERFOLD
+					//mengerFold(p);
                 #else
                     // do nothing
                 #endif
@@ -215,7 +217,7 @@
 
 
 
-            float4 sdf(float3 p)
+            float4 sdf(float3 p, float tol)
             {
 
                 #ifdef _ANIMATE_OFF
@@ -268,8 +270,28 @@
                 dist*=scale;
 
 				#elif _SDF_TESTING
+				//p = rotY(p,_Time.x);
+				float sfac = .3;
+				float d = p.y;//sdfSphere(p,.5*.35);
+				//d = smax(d,p.y,sfac);
+				p=rotY(p, _Time.x*5);
+				d = sdfTorus(p, .25,.1);
+				d = min(d, max(-p.y,sdfTorus(p.xzy, .25,.1)));
+				t = d;
+				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
+				//float d = sdfBox(p,float3(1,1,1));
+				//float dt = sdfFbm(p,d);
+				//dist = max(d, sdfRandBase(p));
+				int m = 7;
+				int u = int(_Time.y*.3);
 
-				return fracFlake(p);
+				p.xy+=u;
+				dist = sdfFbmAdd(p, d, 0.15, 8, tol);
+				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
+				//dist = max(dist, length(p)-0.45);
+
+				//return max(sdfSphere(p,.5),sdfRandBase(p));
+				//return fracFlake(p);
 				//float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
 
 				//float x1 = length(float2(p.x,p.z));
@@ -290,8 +312,14 @@
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
 
-                float scale = 0.2;
+                float scale = 0.24;
 				p/=scale;
+
+				//mengerFold(p);
+				//scale*=3.0;
+				//scaleTranslate(p,3.0,float3(-2,-2,0));
+				//planeFold(p,float3(0,0,-1),-1);
+
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
 				//dist = sdfBox(p,float3(1,1,1));
 				//int iterations = 3+int(_SinTime.z*1.9);
@@ -328,7 +356,7 @@
                 //
                 //////////////////////////////////////////////////////////////////////
 				#elif _SDF_JULIABULB
-                float scale = 0.35;
+                float scale = 0.44;
                 p/=scale;
                 dist = fracJuliabulb2(p, vSdfConfig.xyz*1.3);//, vSdfConfig.w*3+6);
                 dist*=scale;
