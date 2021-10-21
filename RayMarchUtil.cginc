@@ -294,4 +294,6 @@ float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
 	return cosineDirection(nor);	
 }
 
+
+
 #endif

@@ -71,6 +71,7 @@ inline float pingPong(float curr, float speed = 1, float magnitude = 1)
 
 // Fast direct raytrace sphere estimate O(1)
 // Handles case where camera is inside sphere.
+// Takes the max of this and dist for the dist.
 // s - start
 // d - dir
 // c - centre
@@ -87,7 +88,7 @@ bool RayTraceSphere(out float dist, out float maxDist, float3 s, float3 d, float
 	float t0 = max(-VD + plusMinus,0);
 	float t1 = max(-VD - plusMinus,0);
 
-	dist = min(t1,t0);
+	dist = max(dist, min(t1,t0));
 	maxDist = max(t1, t0);
 	return true;
 }

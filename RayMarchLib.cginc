@@ -1,6 +1,9 @@
 #ifndef RAYMARCHLIB_CGINC
 #define RAYMARCHLIB_CGINC
 
+//TODO: file reorganize
+
+
 
 #include "UnityCG.cginc"
 #include "RayMarchLib.h"
@@ -12,6 +15,8 @@
 #include "noise.cginc"
 
 #include "Lighting.cginc"
+
+#define RENDER_WITH_GI
 
 
 v2f vert (appdata v)
@@ -726,9 +731,6 @@ fixed4 lightPoint(rayData ray)
 }
 
 
-// TODO: Subpixel ray split could be done.
-// TODO: Fix tolerance based on dist (should be based on total dist)
-// TODO: Dynamic max dist to force all bounces to be inside area.
 // Given that there is no stack/recursion, both reflection and refraction 
 // cannot both be done at one time. Solution might be to not do recursive 
 // refraction
@@ -833,7 +835,11 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		sumCol += prodCol*dcol;
 		
 		// get new ray dir for next iteration
-		rd = worldGetBRDFRay(ro, rd, nor);//reflect(rd, nor);
+#ifdef RENDER_WITH_GI
+		rd = worldGetBRDFRay(ro, rd, nor);
+#else
+		rd = reflect(rd, nor);
+#endif
 		
 		//TODO: rd>>nor fix linear algebra and stuff.
 		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
@@ -925,21 +931,24 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
+#ifndef RENDER_WITH_GI
+	fixed4 col = rendererCalculateColor(ro, rd, vHitPos, startDist, numLevels);
+#else
 	int3 q = rd*324789.789345;
 	srand(hash(q.x + hash(q.y + hash(q.x))));
 
-	int numSamples = 2;
+	int numSamples = 5;
 	fixed4 col = 0;
-	//[loop] for (int i = 0; i<numSamples; i++)
-	//{
-		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(2));
+	[loop] for (int i = 0; i<numSamples; i++)
+	{
+		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(1));
 		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
 
-		//startDist = length(ro-vHitPos);
-		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
-	//}
+		startDist = length(ro-vHitPos);
+		startDist -= TOLERANCE(startDist);
+	}
+#endif
 	return pow(col, 1.0/2.2);//gamma correction
-	       
 }
 
 #endif
