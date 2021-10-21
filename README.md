@@ -5,7 +5,7 @@ Ray marching shader in cg
 I am working on making the rendering more changeable/fixing materials etc, and cleaning up the codebase.
 
 \- Erik
-
+| file                      | description                                   |
 | -------------------       | ---------------------                         |
 | `FastMath.cginc`          | faster math functions                         |
 | `RayMarchLib.cginc`       | contains the core renderer + extra stuff      |
