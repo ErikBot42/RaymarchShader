@@ -1,8 +1,8 @@
 #ifndef RAYMARCHLIB_CGINC
 #define RAYMARCHLIB_CGINC
 
-//TODO: file reorganize
-
+// TODO: file reorganize
+// split into renderer + api
 
 
 #include "UnityCG.cginc"
@@ -13,7 +13,7 @@
 #include "FastMath.cginc"
 #include "RayMarchUtil.cginc"
 #include "noise.cginc"
-
+#include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
 
 #define RENDER_WITH_GI

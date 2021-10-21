@@ -27,7 +27,7 @@
             #define DYNAMIC_QUALITY
             #define USE_REFLECTIONS
             #define MAX_REFLECTIONS 3
-            #include "RayMarchLib.cginc"
+            #include "../RayMarchLib.cginc"
             
             float3 _SunPos;
 
