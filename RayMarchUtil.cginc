@@ -121,7 +121,7 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 	float funge = 2.0;
 	
 	// orig: 20 <-> 2000
-	for (int i = 0; i<40 && t<maxDist; i++)
+	for (int i = 0; i<200 && t<maxDist; i++)
 	{
 		float cutoff = TOLERANCE(startDist)*3;
 		float h = sdf(ro + rd*t).x;

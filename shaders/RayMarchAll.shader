@@ -103,7 +103,7 @@
 			//#define SURF_DIST 0.0005
 
 
-			#if 1
+			#if 0
 			// for typical resolution:			
 			#define SURF_DIST 0.004
 			#define MAX_STEPS 200
@@ -288,7 +288,7 @@
 				//d = smax(d,p.y,sfac);
 				p=rotY(p, _Time.x*5);
 				d = sdfTorus(p, .25,.1);
-				d = min(d, sdfTorus(p.xzy, .25,.1));
+				//d = min(d, sdfTorus(p.xzy, .25,.1));
 				d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
 				t = d;
 				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
@@ -299,6 +299,8 @@
 				//int u = int(_Time.y*.3);
 				//p.xy+=u;
 				//dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
+				d = min(d,p.y+.1*.5);
+				p.y+=_Time.x;
 				dist = sdfFbmAdd(p, d, 0.15, 10, tol);
 				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
 				//dist = max(dist, length(p)-0.45);

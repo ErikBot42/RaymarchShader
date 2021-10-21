@@ -16,7 +16,7 @@
 #include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
 
-#define RENDER_WITH_GI
+//#define RENDER_WITH_GI
 
 
 v2f vert (appdata v)
@@ -402,7 +402,7 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	l.dir = normalize(p-pos);
 	// TODO: Radius of 100% light to prevent flashing when intersecting object
 
-	float maxDist = .3;//.8;//.4;
+	float maxDist = .2;//.8;//.4;
 	float innerRadius = maxDist/10.0;
 
 
@@ -491,9 +491,9 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	//col += .01*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	//col += lightToColor(l, pos, dir, nor, false);
-	//return col;
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
+	col += lightToColor(l, pos, dir, nor, true);
+	return col;
 
 	//col += light1_col * lightSoftShadow(newStartPoint, light1);
 	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
@@ -507,11 +507,11 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	float amplitude = .5;//.4;
 	float innerAmplitude = .2*amplitude;
 
-	float brightness = 1;
+	float brightness = 1*7;
 
 	
-	const int maxJ = 2;
-	const int numlights = 5;
+	const int maxJ = 1;
+	const int numlights = 7;
 	brightness/=float(numlights);
 	
 	//for (int j = 0; j<numlights; j++)
@@ -529,9 +529,9 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 				float totalProp = prop + jProp/float(numlights);
 				float jHeight = .8*sin(jProp*pi);
 				float propID = 2+sin(30*(prop + jProp + 1));
-				float a = amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
+				float a = .25;//amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
 				l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
-				lightsCol += lightToColor(l, pos, dir, nor, true);
+				lightsCol += lightToColor(l, pos, dir, nor, false);
 			}
 		}
 	}
@@ -760,7 +760,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 3;//4;//3;
+	numLevels = 4;//4;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -953,11 +953,11 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	int3 q = rd*324789.789345;
 	srand(hash(q.x + hash(q.y + hash(q.x))));
 
-	int numSamples = 10;
+	int numSamples = 32;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{
-		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(.3));
+		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(.2));
 		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
 
 		startDist = length(ro-vHitPos);
