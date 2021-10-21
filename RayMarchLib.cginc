@@ -1,8 +1,23 @@
 #ifndef RAYMARCHLIB_CGINC
 #define RAYMARCHLIB_CGINC
 
-// TODO: file reorganize
-// split into renderer + api
+// TODO: file reorganize, split into 
+//       renderer + api to allow for raytrace &
+//       more importantly force a split of the 
+//       code into more logical parts.
+// TODO: gamma apply/revert functions.
+// TODO: refraction
+// TODO: SS glow
+// TODO: fix norm to make it slightly cheaper, tetrahedron?
+// TODO: step back fix: reflect + light
+// TODO: fog based glow / foggy objects with refraction?
+// TODO: emmision
+// glow?
+// soft shadows logic with k
+// TODO: make potentially compatible with any game engine
+// TODO: make psudo-compatible with other shading languages
+//       or port to another more general shading language
+// TODO: figure out how to calculate fragment tolerance
 
 
 #include "UnityCG.cginc"
@@ -116,42 +131,17 @@ fragOut frag (v2f i)
 	o.col = fixed4(1,1,1,1);
 	return o;
 }
-#else
+#endif
 fragOut frag (v2f i)
 {
     fragOut o;
 	vSdfConfig = i.vSdfConfig;
 
-
     float3 vRayDir = normalize(i.vHitPos - i.vCamPos);
-	//bool useStartDist = i.distEstimate.x>0;//dot(i.normal, vRayDir)<0;
 	float3 vRayStart = i.vCamPos;	
-	//float3 vRayStart = i.vHitPos;
-	//float3 vRayStart = useStartDist ? i.vHitPos : i.vCamPos;	
 
-	//float distEstimate;
-	//bool estimateHit = RayTraceSphere(distEstimate, vRayStart, vRayDir, .5, 0);
-	//if (!estimateHit) discard;
-	//bool useStartDist = estimateHit;
+	float startDist = 0;
 
-	float startDist = 0;//distEstimate;
-	//if(useStartDist) startDist = length(i.vHitPos-i.vCamPos);
-
-	//o.col = fixed4(distEstimate, 0,0,1);
-	//return o;
-
-    //#ifdef CONSTRAIN_TO_MESH
-	//float len = i.distEstimate.x*1; //length(i.vHitPos-i.vCamPos); 
-	//rayData ray;
-	//ray = castRay(i.vCamPos, vRayDir, len);
-    //#else
-    //rayData ray = castRay(i.vCamPos, vRayDir);
-    //#endif
-
-    #ifdef DISCARD_ON_MISS
-    //if (ray.bMissed) discard;
-    #endif
-    //o.col = lightPoint(ray);
 	float3 vHitPos;
 	o.col = multiSampledRendererCalculateColor(vRayStart, vRayDir, vHitPos, startDist, 2);
 	o.col.w = 1;
@@ -166,29 +156,17 @@ fragOut frag (v2f i)
 	#ifdef USE_VERTEX_COLOR
 	o.col = i.color;
 	#endif
-	//o.col.rgb = useStartDist? fixed3(1,0,0) : fixed3(0,0,1);
 
-	// writing to depth buffer costs about 1-2 frames at 4k -> very cheap
+	// writing to depth buffer is very cheap but not free
 	float4 zPoint = float4(vHitPos,1);
 	#ifndef USE_WORLD_SPACE
 	zPoint = mul(unity_ObjectToWorld, zPoint);
 	#endif 
 	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
 	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
-	//o.depth = 0.5;
-
-	
-	//o.col.b = o.depth/2.0;
-	//o.col.r = 1-o.depth/2.0;
-
-	//#ifndef ENABLE_TRANSPARENCY
-	//o.col *= o.col.w;
-	//o.col.w = 1;
-	//#endif
    	
     return o;
 }
-#endif
 
 //gets normal of a point
 inline float3 getNormFull(float3 vPos, float fEpsilon = 0.001)
@@ -494,10 +472,6 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
 	col += lightToColor(l, pos, dir, nor, true);
 	return col;
-
-	//col += light1_col * lightSoftShadow(newStartPoint, light1);
-	//col += light1_col * lightSoftShadow(newStartPoint, light1, 20);
-	//col += light2_col * lightSoftShadow(newStartPoint, light2, 20);
 	
 	float3 reflected = reflect(dir, nor);
 	float time = _Time.z*.05;//123.543254626;
@@ -514,8 +488,6 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	const int numlights = 7;
 	brightness/=float(numlights);
 	
-	//for (int j = 0; j<numlights; j++)
-	float3 lightsCol = 0;
 	for (int i = 0; i<numlights; i++)
 	{
 		if (true || sin(2*time*i+numlights)>0) 
@@ -531,220 +503,15 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 				float propID = 2+sin(30*(prop + jProp + 1));
 				float a = .25;//amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
 				l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
-				lightsCol += lightToColor(l, pos, dir, nor, false);
+				col += lightToColor(l, pos, dir, nor, false);
 			}
 		}
 	}
-	col += lightsCol;
-	return col;
-	
-	//glowColor = lightsCol;
-
-
-	//if (sin(time*1)>0) {l = createPointLight(pos, float3(sin(time+pi*0.00),  1, cos(time+pi*0.00))*amplitude, HSV(0,     1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*2)>0) {l = createPointLight(pos, float3(sin(time+pi*0.25),  1, cos(time+pi*0.25))*amplitude, HSV(0.25,  1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*3)>0) {l = createPointLight(pos, float3(sin(time+pi*0.5 ),  1, cos(time+pi*0.5 ))*amplitude, HSV(0.5,   1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*4)>0) {l = createPointLight(pos, float3(sin(time+pi*0.75),  1, cos(time+pi*0.75))*amplitude, HSV(0.75,  1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*5)>0) {l = createPointLight(pos, float3(sin(time+pi*0.00), -1, cos(time+pi*0.00))*amplitude, HSV(0.125, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*6)>0) {l = createPointLight(pos, float3(sin(time+pi*0.25), -1, cos(time+pi*0.25))*amplitude, HSV(0.375, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*7)>0) {l = createPointLight(pos, float3(sin(time+pi*0.5 ), -1, cos(time+pi*0.5 ))*amplitude, HSV(0.625, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	//if (sin(time*8)>0) {l = createPointLight(pos, float3(sin(time+pi*0.75), -1, cos(time+pi*0.75))*amplitude, HSV(0.875, 1, brightness)); col += lightToColor(l, pos, dir, nor);}
-	return col;
-#if 1
-	//col += light1_col * lightSoftShadow2(newStartPoint, light1, k);
-	//col += light2_col * lightSoftShadow2(newStartPoint, light2, k) * max(0, dot(light2, nor));
-
-	//#ifndef USE_WORLD_SPACE
-	//l.dir = mul(unity_WorldToObject,l.dir);
-	//#endif
-	//col += 1.0*light2_col * max(0, dot(light2, nor)+0.6);//* 1 * max(dot(pos, light2)+0.3-0.3,0);
-
-	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
-	float3 diffuse;
-	float3 specular;
-	float lightAmount = 1;
-	if (l.dist>0)
-	{
-		//float3 newStartPoint = pos + nor*stepBack;
-	 	//lightAmount = lightSoftShadow2(newStartPoint, l.dir, k, tolerance, l.dist);
-		lightAmount = lightSoftShadow3(pos, l.dir, .001, l.dist, l.k);
-	}
-	lightAmount*=l.intensity;
-
-	specular = l.col*lightAmount*pow(saturate(dot(normalize(l.dir - dir),nor)),200)*2;
-	diffuse = l.col*2*lightAmount*saturate(dot(nor,l.dir));
-
-	//col += (l.col * diffuse + fixed3(1,1,1)*specular);
-	col += (diffuse + specular);
-	
-	//col += 1*l.col * lightSoftShadow2(newStartPoint, l.dir, k, tolerance,l.dist) * (pow(saturate(dot(normalize(l.dir - dir),nor)),50)*2 + saturate(dot(nor,l.dir)));
-	//col += 2*light2_col * lightSoftShadow2(newStartPoint, light2, k, tolerance);
-	//col += worldGetBackground(reflected);
-	//col += worldGetBackground(nor);
-#else
-
-	float minLight = 0.0;
-	//col += (max(minLight,dot(nor, light1))-minLight)*light1_col*10;
-	//col += (max(minLight,dot(nor, light2))-minLight)*light2_col*10;
-	//col += (max(minLight,dot(nor, light3))-minLight)*light3_col*10;
-	
-	float refFactor = 1;//dot(dir, -nor)*2;
-
-	col += worldGetBackground(reflected, 1)*refFactor;
-	//col += worldGetBackground(nor)*refFactor;
-	float fac = 0.0;
-	//col += max(dot(normalize(pos),light1),0)*light1_col*fac;
-	//col += max(dot(normalize(pos),light2),0)*light2_col*fac;
-	//col += max(dot(normalize(pos),light3),0)*light3_col*fac;
-
-	//col += light2_col * max(0,dot(reflected, light2));
-#endif
-
-	//col = fixed3(1,1,1)*0.1;
-
-	//col += worldGetBackground(reflected)*2;
-	
-
-
-	//float3 normal2 = getNormFull(ray.vHit);
-	//fixed3 col2 = worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir).xyz;
-	//col += col2;
-	//col=ray2.bMissed?worldGetBackground(reflected) : ray2.mat.col;
-
-	//ray = castRay(pos + nor*stepBack, light1);
-	//if (ray.bMissed) col += light1_col;
-
-	//ray = castRay(pos + nor*stepBack, light2);
-	//if (ray.bMissed) col += light2_col;
 	
 	return col;
 }
 
-//TODO: emmision, reflections
-// glow?
-// soft shadows
 
-
-
-fixed4 lightPoint(rayData ray)
-{
-	return fixed4(1,1,1,1);
-//	fixed4 col;
-//	fixed4 skyColor = fixed4(worldGetBackground(ray.vRayDir),1);
-//	fixed4 fogColor = skyColor;//, unity_FogColor);
-//
-//	// TODO: MAKE PROPER RECURSIVE REFLECTION MODEL!!!
-//	if (ray.bMissed)
-//	{
-//		col = skyColor;
-//	}
-//	else
-//	{
-//		float3 normal = getNormFull(ray.vHit);//+snoise(ray.vHit*50)*0.2;
-//		col = ray.mat.col*0.2;
-//
-//		fixed3 directLighting = worldApplyLighting(ray.vHit, normal, ray.vRayDir);
-//		float3 reflected = reflect(ray.vRayDir, normal);
-//
-//		//float3 reflected2 = normalize(reflected+rand3dTo1d(ray.vHit*100)*0.01);
-//		float3 reflected2 = reflected;
-//
-//		rayData ray2 = castRay(ray.vHit+normal*0.001,reflect(ray.vRayDir, normal));
-//
-//		float3 normal2 = getNormFull(ray.vHit);
-//		//if (!ray2.bMissed)
-//		//{
-//		//	normal2 = getNormFull(ray.vHit);
-//		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
-//		//}
-//
-//		//if (!ray2.bMissed)
-//		//{
-//		//	normal2 = getNormFull(ray.vHit);
-//		//	ray2 = castRay(ray2.vHit+normal2*0.001,reflect(ray2.vRayDir, normal));
-//		//}
-//
-//		fixed4 indirectLighting = ray2.bMissed ? fixed4(worldGetBackground(ray2.vRayDir),1) : ray2.mat.col*worldApplyLighting(ray2.vHit, normal2, ray2.vRayDir);
-//		
-//		float fac = .5;//1-ray.mat.fSmoothness;//0.3;
-//		fixed4 lighting = 1*directLighting*fac + indirectLighting*(1-fac);
-//
-//		//lighting *= 0.6+lightSSAO(ray, 5);
-//		//lighting += 0*0.1*lightAO(ray.vHit, normal, 0.01);
-//		//lighting = fixed4(1,1,1,1)*0.3;
-//		// Hack to make bottom darker
-//		//lighting = lightFog(lighting, skyColor, ray.vHit.y+positiveOffset, 0.4+positiveOffset, -0.4+positiveOffset);
-//
-//
-//		col *= lighting*4;
-//		
-//
-//		//col.xyz *= lightAO(ray.vHit, normal, 0.01);
-//		//col.xyz*=lightSSAO(ray, 30)*5;
-//		//col = fixed4(1,1,1,1);
-//		//col *= dot(light1,normal);
-//		
-//		//col.g = (ray.vHit.y+0.5);
-//
-//		//col = pow(col, 1.0/2.2);//gamma
-//		//col = lightFog(col, skyColor, ray.dist, MAX_DIST*0.0, MAX_DIST);
-//	}
-//
-//		//lighting = lightFog(lighting, fixed4(0,0,0,0), -ray.vHit.y, 0.5, 1);
-//	//col = lightFog(col, skyColor, ray.vHit.y+10, 0.4+10, -0.4+10);
-//	return col;
-//
-//	//float fGlow;
-//	//if(ray.bMissed)
-//	//{
-//	//	return skyColor;
-//	//	//col = fixed4(0,0,0,1); // black
-//	//	//fGlow = 0.1/ray.minDist;
-//	//	//col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
-//	//}
-//	//else
-//	//{
-//	//	//col = fixed4(ray.vNorm,1);
-//	//	//return col;
-//	//	//fGlow=0;
-//	//	float3 reflected = reflect(ray.vRayDir, ray.vNorm);
-//	//	rayData ray2 = castRay(ray.vHit/*+ ray.vNorm*/, reflected);
-//	//	
-//
-//	//	col = simpleLightPoint(ray);
-//	//	fixed4 col2 = simpleLightPoint(ray2);
-//	//	float fac = 0.5;
-//	//	col=(col*(1-fac)+col2*fac);
-//	//	//col = col*col2*2;
-//
-//	//	//float3 vSunDir = normalize(float3(8,4,2));
-//	//	float3 vSunDir = ObjSpaceLightDir(float4(ray.vHit,1));
-//	//	float4 vLightColor = _LightColor0;
-//
-//	//	// AO based on normal
-//	//	//col.xyz *= -dot(ray.vNorm, ray.vRayDir);	
-//	//	//col.xyz*=lightSSAO(ray, 4);
-//	//	//col.xyz*=lightSun(ray.vNorm, float3(8,4,2), vLightColor);
-//	//	//col.xyz*=lightSky(reflected);
-//
-//	//	col.xyz*=0.9;
-//	//	//col.xyz*= lightShadow(ray.vHit+ray.vNorm*0.01, vSunDir, 50);
-//
-//	//	//rayData ray2 = castRay(ray.vHit, vSunDir, 0);
-//	//	//float fSunLight = max(dot(ray.vNorm, vSunDir), 0);
-//	//	//col*=fSunLight;
-//	//	//col*=lightAO(ray.vHit, ray.vNorm);
-//	//	col = lightFog(col, fogColor, ray.dist, MAX_DIST*0.5, MAX_DIST);
-//	//}
-//	////fogColor.xyz *= fGlow;
-//
-//
-//
-//	//// Base on "sunlight" direction
-//	////col.xyz *= dot(ray.vNorm, vSunDir);	
-//
-//	//return col;
-}
 
 
 // Given that there is no stack/recursion, both reflection and refraction 
@@ -760,7 +527,7 @@ fixed4 lightPoint(rayData ray)
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 4;//4;//3;
+	numLevels = 1;//4;//3;
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -830,21 +597,16 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		//TODO: cheaper norm with last dist.
 		float3 nor = getNormFull(pos, tol);
 
-
-		//float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 4);
 		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100); // agressive AO
 
 		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
-		//dcol = 1*worldApplyLighting(pos, nor, rd, .5);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
 		
-		const float nIndex = 1.5;//1.5;
-
+		//const float nIndex = 1.5;//1.5;
 		//fixed3 refracted = refract(rd, nor, 1/nIndex);
 		//dcol = worldGetBackgroundLocalSpace(refracted,.0);//*fAOfactor*2;//*surfCol;
 		//return fixed4(dcol,1);
-
 
 		prodCol*=surfCol;
 
@@ -859,89 +621,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		
 		//TODO: rd>>nor fix linear algebra and stuff.
 		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
-
-		//col += worldGetBackground(rd)*
-		//if (1)
-		//else
-		//rd = refract(rd, nor, 1.0/1.3);
-		 
-		/*float fac = 0.5*_SinTime.z;
-		float fac2 = 1;
-		float n_r = fac2*(1.520-fac);
-		float n_g = 1.2;//2.4168;//fac2*(1.526);
-		float n_b = fac2*(1.531+fac);
-
-		float fakeDist;
-
-		float3 rd_r = refractLightFakeSphere(rd, nor, fakeDist, n_r);
-		float3 rd_g = refractLightFakeSphere(rd, nor, fakeDist, n_g);
-		float3 rd_b = refractLightFakeSphere(rd, nor, fakeDist, n_b);
-
-		#if 0
-		fixed4 refracted = fixed4(
-			worldGetBackground(rd_r, 1-mat.fSmoothness).r,
-			worldGetBackground(rd_g, 1-mat.fSmoothness).g,
-			worldGetBackground(rd_b, 1-mat.fSmoothness).b,
-			1
-		);
-		#else
-		fixed4 refracted = worldGetBackground(rd_g, 1-mat.fSmoothness);
-		#endif
-
-		float3 rd_reflected = reflect(rd, nor);
-
-		fixed4 reflected = worldGetBackground(rd_reflected, 1-mat.fSmoothness)*fixed4(1,1,1,1);
-
-		//float reflectance_r = calcReflectance(dot(rd_reflected, nor), 1, n_r);
-		float reflectance_g = calcReflectance(dot(rd_reflected, nor), 1, n_g);
-		//float reflectance_b = calcReflectance(dot(rd_reflected, nor), 1, n_b);
-		
-		#if 0
-		fixed4 col = fixed4(
-			reflected.r*reflectance_r + refracted.r*(1-reflectance_r),
-			reflected.g*reflectance_g + refracted.g*(1-reflectance_g),
-			reflected.b*reflectance_b + refracted.b*(1-reflectance_b),
-			1);
-
-		#else
-		fixed4 col = reflected*reflectance_g + refracted*(1-reflectance_g);
-		#endif
-
-		return col;
-		*/	
-
-		//ro += -nor*0.001;
-		//float insideDist = insideCastRay(ro, rd, 1000, 0.0001, 0);
-		//ro += insideDist*rd*1;
-
-		//fixed4 col = fixed4(1,1,1,1);
-		//float fac = 50;
-		//col.r = max(0,sdf(ro))*fac;
-		//col.b = max(0,-sdf(ro))*fac;
-
-		////return col;
-
-		//nor = getNormFull(ro);
-
-		//rd = refract(rd, nor, 1.0/1.52);
-		//if (length(rd)<0.9) return fixed4(1,0,0,1);
-		//rd = refractionWithTotalReflection(rd, nor, 0.8);
-
-		//return worldGetBackground(rd_r, 1-mat.fSmoothness);
-		//return worldGetBackground(rd, 1-mat.fSmoothness);
-		//float3 thing = pos*40;
-		//float shift = 100;
-		//rd = normalize(rd+0.3*float3(snoise(thing),snoise(pos + shift),snoise(pos + shift*2)));
-
-		//fcol *= scol;
-		//tcol += fcol*dcol;
-		//tcol = fcol*dcol;
-		//return mat.col*lighting;
-
 	}
-	//sumCol = pow(sumCol, 1.0/2.2); // gamma
-	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
-
 	return fixed4(sumCol,1);
 }
 
@@ -965,6 +645,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	}
 #endif
 	return pow(col, 1.0/2.2);//gamma correction
+	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 }
 
 #endif

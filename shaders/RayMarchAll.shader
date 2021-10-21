@@ -103,7 +103,7 @@
 			//#define SURF_DIST 0.0005
 
 
-			#if 0
+			#if 1
 			// for typical resolution:			
 			#define SURF_DIST 0.004
 			#define MAX_STEPS 200
