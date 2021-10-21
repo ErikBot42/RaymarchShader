@@ -13,6 +13,7 @@
 
 #include "Lighting.cginc"
 
+
 v2f vert (appdata v)
 {
     v2f o;
@@ -469,7 +470,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	col += .0*.5*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 10); 
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
 	col += lightToColor(l, pos, dir, nor, true);
 	return col;
 
@@ -929,11 +930,14 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 
 	int numSamples = 2;
 	fixed4 col = 0;
-	[loop] for (int i = 0; i<numSamples; i++)
-	{
+	//[loop] for (int i = 0; i<numSamples; i++)
+	//{
 		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(2));
 		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
-	}
+
+		//startDist = length(ro-vHitPos);
+		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
+	//}
 	return pow(col, 1.0/2.2);//gamma correction
 	       
 }

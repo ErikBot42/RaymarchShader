@@ -163,7 +163,7 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
-				const float saturation = .2;
+				const float saturation = .3;
 				const float len = 0.2/0.3333; // |col|
                 #ifdef _MTRANS_COLORHSV_SPHERE  
                     mat.col = fixed4(len*normalize(HSV(frac(length(p)*8 + _Time.x), saturation, 1).rgb),1);
