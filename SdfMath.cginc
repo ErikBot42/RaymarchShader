@@ -3,6 +3,9 @@
 
 #include "RayMarchLib.h"
 
+#define PI 3.14159265
+#define TAU 6.28318531
+
 //////////////////////////////////////////////////////////////////////
 //
 // Interpolation and Math

@@ -103,13 +103,16 @@
 			//#define SURF_DIST 0.0005
 
 
-			// for typical resolution:
-			//#define SURF_DIST 0.004
-			//#define MAX_STEPS 200
+			#if 1
+			// for typical resolution:			
+			#define SURF_DIST 0.004
+			#define MAX_STEPS 200
 
+			#else 
 			// for absurd resolution:
 			#define SURF_DIST 0.0004
 			#define MAX_STEPS 2000
+			#endif
 
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
 				#define FUNGE_FACTOR 0.8
@@ -292,11 +295,11 @@
 				//float d = sdfBox(p,float3(1,1,1));
 				//float dt = sdfFbm(p,d);
 				//dist = max(d, sdfRandBase(p));
-				int m = 7;
-				int u = int(_Time.y*.3);
-
-				p.xy+=u;
-				dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
+				//int m = 7;
+				//int u = int(_Time.y*.3);
+				//p.xy+=u;
+				//dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
+				dist = sdfFbmAdd(p, d, 0.15, 10, tol);
 				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
 				//dist = max(dist, length(p)-0.45);
 

@@ -117,10 +117,13 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 	float ph = 1e10;
 
 	float cutoff = 0.01;
+
+	float funge = 2.0;
 	
-	// orig: 20
-	for (int i = 0; i<2000 && t<maxDist; i++)
+	// orig: 20 <-> 2000
+	for (int i = 0; i<40 && t<maxDist; i++)
 	{
+		float cutoff = TOLERANCE(startDist)*3;
 		float h = sdf(ro + rd*t).x;
 		float y = (h*h)/(2.0*ph);
 		float d = sqrt(h*h-y*y);
@@ -130,7 +133,7 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 
 		ph = h;
 		if(res<cutoff) return 0;
-		t += h; 
+		t += h*funge; 
 	}
 	res = saturate(res-cutoff)/(1-cutoff);
 	//res = smoothstep(0,1,res);

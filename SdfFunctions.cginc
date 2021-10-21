@@ -178,7 +178,7 @@ float sdfFbm(float3 p, float d, int iterations = 7, float tol = 0, bool add = tr
 		}
 
 		s *= .5;//.45;//.5;
-		if (d>s) break; // doubles framerate, but makes the df slightly discontious
+		if (max(d,tol)>s) break; // doubles framerate, but makes the df slightly discontious
 		//if (tol*0.001>abs(d)) break;
 		// transform to make subgrids not aligned.
 		p = mul(float3x3( 0.00, 1.60, 1.20,
