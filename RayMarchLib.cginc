@@ -18,6 +18,7 @@
 // TODO: make psudo-compatible with other shading languages
 //       or port to another more general shading language
 // TODO: figure out how to calculate fragment tolerance
+// TODO: light max dist
 
 
 #include "UnityCG.cginc"
@@ -62,76 +63,6 @@ v2f vert (appdata v)
 	return o;
 }
 
-#ifdef USE_REFLECTIONS
-#define CALC_NORM
-fragOut frag (v2f i)
-{
-
-    //float fRayLen = 0;//since last bounce
-	//float3 vRayDir = i.vDir;
-    ////float3 vRayDir = normalize(i.vHitPos - i.vCamPos);//current direction
-
-    //#ifdef CONSTRAIN_TO_MESH
-	////float3 posDif = i.vHitPos - i.vCamPos;
-	////if (dot(posDif,
-    ////float3 vLastBounce = i.vHitPos;
-    ////fRayLen += length;
-    //float3 vLastBounce = i.vHitPos;
-    //fRayLen += length(i.vHitPos - i.vCamPos);
-    //#else
-    //float3 vLastBounce = i.vCamPos;
-    //#endif
-    //sdfData point_data;
-    //rayData ray;
-
-    //fixed4 col;
-    //float colUsed = 0;// what amount of the final colour has been calculated
-    //float prevRough = 0;
-
-    //float3 vFirstHit;
-
-    //for (int i = 0; i < MAX_REFLECTIONS+1; i++)
-    //{
-    //    ray = castRay(vLastBounce, vRayDir);
-    //    if (i == 0)
-    //    {//before any bounces
-    //        col = lightPoint(ray);
-    //        vFirstHit = ray.vHit;
-    //    }
-    //    else
-    //    {
-    //        float colAmt = colUsed + (prevRough * (1-colUsed));
-    //        col = lerp(lightPoint(ray), col, colAmt);
-    //        colUsed = colAmt;
-    //    }
-    //    if (ray.bMissed || ray.mat.fRough > 0.99)
-    //    {
-    //        break;
-    //    }
-    //    prevRough = ray.mat.fRough;
-    //    vRayDir = reflect(vRayDir, ray.vNorm);
-    //    vLastBounce = ray.vHit + vRayDir * 0.01;
-    //}
-    //#ifdef DISCARD_ON_MISS
-    //if (ray.bMissed && i == 0) discard;
-    //#endif
-    //fragOut o;
-    //o.col = col;
-    //
-    //#ifdef USE_WORLD_SPACE
-    //    float4 vClipPos = mul(UNITY_MATRIX_VP, float4(vFirstHit, 1));
-    //#else
-    //    float4 vClipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(vFirstHit, 1)));
-    //#endif
-
-    //o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
-    //return o;
-
-	fragOut o;
-	o.col = fixed4(1,1,1,1);
-	return o;
-}
-#endif
 fragOut frag (v2f i)
 {
     fragOut o;
@@ -192,7 +123,7 @@ inline float3 getNorm(float3 vPos, float fPointDist, float fEpsilon = 0.001)
 }
 
 //marches a ray through the scene once
-// TODO: REDUCE
+// TODO: MOVE
 rayData castRay(float3 vRayStart, float3 vRayDir, float startDist)
 {
     float fRayLen = startDist;//startDist;// total distance marched / distance from camera
@@ -378,7 +309,6 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 {
 	light l; l.col = col; l.k = k; l.intensity = intensity;
 	l.dir = normalize(p-pos);
-	// TODO: Radius of 100% light to prevent flashing when intersecting object
 
 	float maxDist = .2;//.8;//.4;
 	float innerRadius = maxDist/10.0;
@@ -398,8 +328,6 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 		float inverseSquaredDist = 1.0/(dist*dist);
 
 		l.intensity*=(inverseSquaredDist-inverseSquaredMaxDist)/(inverseSquaredInnerRadius-inverseSquaredMaxDist);
-		
-		//l.intensity = 0;//.02*(1/(l.dist*l.dist)-1/(maxDist*maxDist));
 	}
 	return l;
 }
@@ -457,8 +385,6 @@ fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = 
 // calc the direct light a point recives (including shadows)
 fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float AOfactor = 1, float stepBack = 0.001, float tolerance=0.001)
 {
-	//float light1_angle = 0.1;
-	//light l = getMainLight(pos);
 
 	light l;
     fixed3 sunCol = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
@@ -469,9 +395,9 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	//col += .01*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	col += lightToColor(l, pos, dir, nor, true);
-	return col;
+	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
+	//col += lightToColor(l, pos, dir, nor, true);
+	//return col;
 	
 	float3 reflected = reflect(dir, nor);
 	float time = _Time.z*.05;//123.543254626;
@@ -490,7 +416,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	
 	for (int i = 0; i<numlights; i++)
 	{
-		if (true || sin(2*time*i+numlights)>0) 
+		if (false || sin(6*time*i+numlights)>0) 
 		{
 			float prop = float(i)/float(numlights);
 			for (int j = 0; j<maxJ; j++)
