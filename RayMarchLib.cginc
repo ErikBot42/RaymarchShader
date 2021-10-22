@@ -398,9 +398,9 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	//col += .01*ambientColor*.4*AOfactor;// "ambient"
 	//col += 3*(1-AOfactor)*glowColor;
 
-	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	//col += lightToColor(l, pos, dir, nor, true);
-	//return col;
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
+	col += lightToColor(l, pos, dir, nor, true);
+	return col;
 	
 	float3 reflected = reflect(dir, nor);
 	float time = _Time.z*.05;//123.543254626;
@@ -554,7 +554,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	fixed4 col = rendererCalculateColor(ro, rd, vHitPos, startDist, numLevels);
 #else
 	int3 q = rd*324789.789345;
-	srand(hash(q.x + hash(q.y + hash(q.x))));
+	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
 
 	int numSamples = 32;
 	fixed4 col = 0;

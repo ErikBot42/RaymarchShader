@@ -3,6 +3,7 @@
 
 #include "Transforms.cginc"
 #include "FastMath.cginc"
+#include "Noise.cginc"
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -158,7 +159,8 @@ float sdfPyramid( float3 p, float h)
 float sph(int3 i, float3 f, int3 c)
 {
 	// random radius at grid vertex i+c
-	float r = 0.5*shitHash(i+c);
+	// max of r is .5 so that spheres do not intersect
+	float r = 0.5*lerp(.7,1,fhash(i+c));
 	return length(f-c)-r;
 }
 
@@ -168,10 +170,6 @@ float sdfRandBase (float3 p)
 	p/=scale;
     float3 i = floor(p);
     float3 f = frac(p);
-
-	#define RAD(r) ((r)*(r)*0.7)
-    #define SPH(i,f,c) length(f-c)-RAD(shitHash(i+c))
-    //#define SPH(i,f,c) length(f-c)-scale*3
     
     return scale*min(min(min(sph(i,f,int3(0,0,0)),
                              sph(i,f,int3(0,0,1))),

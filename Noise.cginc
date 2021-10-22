@@ -130,10 +130,18 @@ int  rand() { seed = seed*0x343fd+0x269ec3; return (seed>>16)&32767; }
 float frand() { return float(rand())/32767.0; }
 
 // int->int hash
-int hash( int n )
+int ihash( int n )
 {
 	n = (n << 13) ^ n;
     return n * (n * n * 15731 + 789221) + 1376312589;
 }
+
+// float3->float hash
+float fhash(float3 p)
+{
+    p  = 17.0*frac( p*0.3183099+float3(.11,.17,.13) );
+    return frac( p.x*p.y*p.z*(p.x+p.y+p.z) );
+}
+
 
 #endif 
