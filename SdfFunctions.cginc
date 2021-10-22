@@ -156,12 +156,15 @@ float sdfPyramid( float3 p, float h)
 
 
 // https://iquilezles.org/www/articles/fbmsdf/fbmsdf.htm
-float sph(int3 i, float3 f, int3 c)
+float sph(int3 i, float3 p, int3 c)
 {
 	// random radius at grid vertex i+c
-	// max of r is .5 so that spheres do not intersect
-	float r = 0.5*lerp(.7,1,fhash(i+c));
-	return length(f-c)-r;
+	// max of r is .5 so that spheres do not intersect->final shape more stable.
+	float h = fhash(i+c);
+	//float val = pow(fhash(i+c),.2);
+	float val = h;//1.6*(h*h);
+	float r = 0.5*val;
+	return length(p-c)-r;
 }
 
 float sdfRandBase (float3 p)

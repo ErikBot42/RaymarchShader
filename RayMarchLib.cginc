@@ -35,8 +35,6 @@
 #include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
 
-//#define RENDER_WITH_GI
-
 
 v2f vert (appdata v)
 {
@@ -394,8 +392,10 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
 	fixed3 glowColor = HSV(length(pos)*2,1,1);
 	fixed3 col = 0;
-
-	//col += .01*ambientColor*.4*AOfactor;// "ambient"
+	
+	#ifndef RENDER_WITH_GI
+	col += .01*ambientColor*.4*AOfactor;// "ambient"
+	#endif
 	//col += 3*(1-AOfactor)*glowColor;
 
 	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
@@ -458,6 +458,11 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
 	numLevels = 1;//4;//3;
+	#ifdef RENDER_WITH_GI
+	numLevels = max(numLevels,4);
+	#endif
+	
+
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
 	fixed3 prodCol = fixed3(1,1,1); // Product of all colors (without light)
 	float currentDist = startDist;
@@ -556,7 +561,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	int3 q = rd*324789.789345;
 	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
 
-	int numSamples = 32;
+	int numSamples = 10;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{

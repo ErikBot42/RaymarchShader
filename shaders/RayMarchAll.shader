@@ -112,6 +112,7 @@
 			// for absurd resolution:
 			#define SURF_DIST 0.0004
 			#define MAX_STEPS 2000
+			#define RENDER_WITH_GI
 			#endif
 
             #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
@@ -289,7 +290,7 @@
 				p=rotY(p, _Time.x*5);
 				d = sdfTorus(p, .25,.1);
 				//d = min(d, sdfTorus(p.xzy, .25,.1));
-				d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
+				//d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
 				t = d;
 				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
 				//float d = sdfBox(p,float3(1,1,1));
@@ -300,12 +301,18 @@
 				//p.xy+=u;
 				//dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
 				d = min(d,p.y+.1*.5);
-				p.y+=_Time.x;
-				dist = sdfFbmAdd(p, d, 0.15, 10, tol);
+				float3 q = p + float3(0,_Time.x,0);
+				dist = d;
+
+
+				dist = sdfFbmAdd(q, d, 0.15*.5, 15, tol);
+				dist = max(dist,sdfSphere(p,.48));
+
+
+
 				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
 				//dist = max(dist, length(p)-0.45);
 
-				//return max(sdfSphere(p,.5),sdfRandBase(p));
 				//return fracFlake(p);
 				//float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
 
@@ -336,6 +343,7 @@
 				//planeFold(p,float3(0,0,-1),-1);
 
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
+				dist = sdfFbmAdd(p, dist, 0.25, 14, tol);
 				//dist = sdfBox(p,float3(1,1,1));
 				//int iterations = 3+int(_SinTime.z*1.9);
 
