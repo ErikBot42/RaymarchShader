@@ -1,6 +1,12 @@
+#ifndef NOISE_CGINC
+#define NOISE_CGINC
 
-// Noise3 function shamelessly stolen from somewhere
 
+///////////////////////////////////////////////////
+//
+// Noise functions
+//
+///////////////////////////////////////////////////
 
 float3 mod289(float3 x) {
     return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -109,3 +115,25 @@ float4 getNoise4(float time)
 	);
 }
 
+///////////////////////////////////////////////////
+//
+// Random + hashes
+//
+///////////////////////////////////////////////////
+
+// a random seed needs to be provided for each fragment
+// in order for the fragments to actually be random
+// hashing the ray dir works well for this.
+int seed = 0;
+void srand(int s ) { seed = s; }
+int  rand() { seed = seed*0x343fd+0x269ec3; return (seed>>16)&32767; }
+float frand() { return float(rand())/32767.0; }
+
+// int->int hash
+int hash( int n )
+{
+	n = (n << 13) ^ n;
+    return n * (n * n * 15731 + 789221) + 1376312589;
+}
+
+#endif 

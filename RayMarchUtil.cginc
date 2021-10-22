@@ -4,6 +4,7 @@
 #define RAYMARCHUTIL_CGINC
 
 #include "RayMarchLib.h"
+#include "Noise.cginc"
 
 
 inline material mat(float r, float g, float b, float fSmoothness=1, float fMetallic=0)
@@ -271,16 +272,6 @@ fixed3 BlinnPhongLighting(light l, float3 rd, float3 normal, out fixed3 specular
 	return diffuse;
 }
 
-int seed = 321;
-void srand(int s ) { seed = s; }
-int  rand() { seed = seed*0x343fd+0x269ec3; return (seed>>16)&32767; }
-float frand() { return float(rand())/32767.0; }
-
-int hash( int n )
-{
-	n = (n << 13) ^ n;
-    return n * (n * n * 15731 + 789221) + 1376312589;
-}
 
 float3 cosineDirection(float3 nor)
 {

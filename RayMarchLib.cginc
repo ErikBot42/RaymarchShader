@@ -1,6 +1,8 @@
 #ifndef RAYMARCHLIB_CGINC
 #define RAYMARCHLIB_CGINC
 
+
+// TODO: noise/random/hash in separate file.
 // TODO: file reorganize, split into 
 //       renderer + api to allow for raytrace &
 //       more importantly force a split of the 
@@ -19,6 +21,7 @@
 //       or port to another more general shading language
 // TODO: figure out how to calculate fragment tolerance
 // TODO: light max dist
+// TODO: procedural textures
 
 
 #include "UnityCG.cginc"
@@ -28,7 +31,7 @@
 #include "Transforms.cginc"
 #include "FastMath.cginc"
 #include "RayMarchUtil.cginc"
-#include "noise.cginc"
+#include "Noise.cginc"
 #include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
 
@@ -411,18 +414,19 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 
 	
 	const int maxJ = 1;
-	const int numlights = 7;
+	const int numlights = 10;
 	brightness/=float(numlights);
 	
 	for (int i = 0; i<numlights; i++)
 	{
-		if (false || sin(6*time*i+numlights)>0) 
+		float prop = float(i)/float(numlights);
+		float t = time*4 + pi*prop;
+		//if (false || sin(6*time*i+numlights)>0) 
+		if (sin(t + 64*time)>0)
 		{
-			float prop = float(i)/float(numlights);
 			for (int j = 0; j<maxJ; j++)
 			{	
 				float intensity = j==0 ? 1 : .3;
-				float t = time*4 + pi*prop;
 				float jProp = (float(j)+.5)/float(maxJ);
 				float totalProp = prop + jProp/float(numlights);
 				float jHeight = .8*sin(jProp*pi);
@@ -520,7 +524,6 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 		float tol = ray.fLastTolerance;
 		
-		//TODO: cheaper norm with last dist.
 		float3 nor = getNormFull(pos, tol);
 
 		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100); // agressive AO
@@ -528,11 +531,6 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
-		
-		//const float nIndex = 1.5;//1.5;
-		//fixed3 refracted = refract(rd, nor, 1/nIndex);
-		//dcol = worldGetBackgroundLocalSpace(refracted,.0);//*fAOfactor*2;//*surfCol;
-		//return fixed4(dcol,1);
 
 		prodCol*=surfCol;
 
@@ -545,7 +543,6 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		rd = reflect(rd, nor);
 #endif
 		
-		//TODO: rd>>nor fix linear algebra and stuff.
 		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
 	}
 	return fixed4(sumCol,1);
