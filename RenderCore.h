@@ -24,15 +24,21 @@ rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float start
 // sumcol, prodcol, currentdist(for tolerance/fog), ro, rd, numlevels
 // sumcol, prodcol, currentdist(for tolerance/fog), ro, rd, numlevels
 
-
-typedef struct rendererIterationOut
+// input and output for render iteration
+typedef struct rendererIterationData
 {
-    col3 sumCol;
-    vec3 hitPos;
-} rendererIterationOut_t;
+    col3 sumCol;     // IO 
+    col3 prodCol;    // IO 
+    float totalDist; // IO
+    vec3 ro;         // IO
+    vec3 rd;         // IO
+    bool missed;     // out
+    int numLevels;   // meta
+    // struct extradata
+} rendererIterationData_t;
 
 
-rendererIterationOut_t rendrerIteration(rendererIterationOut_t i);
+rendererIterationData_t rendrerIteration(rendererIterationOut_t i);
 
 
 #endif
