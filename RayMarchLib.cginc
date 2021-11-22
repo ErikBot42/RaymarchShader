@@ -582,7 +582,6 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 }
 
-#include "RenderCore.h"
 #include "RenderCore.c"
 
 #endif
