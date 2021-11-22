@@ -103,15 +103,23 @@
 			//#define SURF_DIST 0.0005
 
 
+			#if 0
+            // absurd testing
+			#define SURF_DIST 0.004
+			#define MAX_STEPS 200
+            #define RENDER_WITH_GI
+            #endif
 			#if 1
 			// for typical resolution:			
 			#define SURF_DIST 0.004
 			#define MAX_STEPS 200
-
-			#else 
+			//#define RENDER_WITH_GI
+            #endif
+			#if 0 
 			// for absurd resolution:
 			#define SURF_DIST 0.0004
-			#define MAX_STEPS 2000
+			//#define MAX_STEPS 2000
+			#define MAX_STEPS 700
 			#define RENDER_WITH_GI
 			#endif
 
@@ -301,7 +309,7 @@
 				//p.xy+=u;
 				//dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
 				d = min(d,p.y+.1*.5);
-				float3 q = p + float3(0,_Time.x,0);
+				float3 q = p ;//+ float3(0,_Time.x,0);
 				dist = d;
 
 
@@ -341,9 +349,15 @@
 				//scale*=3.0;
 				//scaleTranslate(p,3.0,float3(-2,-2,0));
 				//planeFold(p,float3(0,0,-1),-1);
-
+                
+                //dist = sdfSphere(p, 1);
+                //dist = max(dist, -(length(p.yx)-.4));
+                //dist = smax(dist, -sdfCross(p*3)/3, .5);
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
-				dist = sdfFbmAdd(p, dist, 0.25, 14, tol);
+				//dist = sdfFbmAdd(p, dist, 0.25, 14, tol);
+				//dist = sdfFbmAdd(p, dist, 0.25, 3, tol);
+				//dist = sdfFbmAdd(p, dist, 0.25*5, 15, tol);
+
 				//dist = sdfBox(p,float3(1,1,1));
 				//int iterations = 3+int(_SinTime.z*1.9);
 

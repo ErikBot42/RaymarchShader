@@ -271,6 +271,9 @@ float3 rand3dTo3d(float3 value){
 fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 {
 	// https://stackoverflow.com/questions/53910092/how-can-i-get-the-lighting-information-from-a-skybox
+    //return lightSun(dir, normalize(float3(-8,4,2)));
+    //return sky(dir);
+    //return pow(dot(dir, normalize(float3(1,1,1))),9);
 	fixed3 col = DecodeHDR(UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, dir, rough*6), unity_SpecCube0_HDR);
 	//return col;
 	//col += smoothstep(0.85,1.01,dot(dir, light2))*float4(light2_col,1);
@@ -311,8 +314,8 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	light l; l.col = col; l.k = k; l.intensity = intensity;
 	l.dir = normalize(p-pos);
 
-	float maxDist = .2;//.8;//.4;
-	float innerRadius = maxDist/10.0;
+	float maxDist = .4;//.2;//.8;//.4;
+	float innerRadius = maxDist/8.0;
 
 
 	float dist = max(0,length(pos-p));
@@ -394,12 +397,13 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	fixed3 col = 0;
 	
 	#ifndef RENDER_WITH_GI
-	col += .01*ambientColor*.4*AOfactor;// "ambient"
+	col += .2*ambientColor*.4*AOfactor;// "ambient"
 	#endif
 	//col += 3*(1-AOfactor)*glowColor;
 
-	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	col += lightToColor(l, pos, dir, nor, true);
+	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
+	l = createPointLight(pos, float3(0,0,0), sunCol);
+	col += lightToColor(l, pos, dir, nor, false);
 	return col;
 	
 	float3 reflected = reflect(dir, nor);
@@ -459,6 +463,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 {
 	numLevels = 1;//4;//3;
 	#ifdef RENDER_WITH_GI
+	//numLevels = max(numLevels,4);
 	numLevels = max(numLevels,4);
 	#endif
 	
@@ -559,9 +564,10 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	fixed4 col = rendererCalculateColor(ro, rd, vHitPos, startDist, numLevels);
 #else
 	int3 q = rd*324789.789345;
+    //q.x+=_Time.x*123879;
 	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
 
-	int numSamples = 10;
+	int numSamples = 10;//10;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{
@@ -575,5 +581,8 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	return pow(col, 1.0/2.2);//gamma correction
 	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 }
+
+#include "RenderCore.h"
+#include "RenderCore.c"
 
 #endif

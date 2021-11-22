@@ -169,7 +169,7 @@ float sph(int3 i, float3 p, int3 c)
 
 float sdfRandBase (float3 p)
 {
-	float scale = 1;
+	float scale = 1.5;//1;
 	p/=scale;
     float3 i = floor(p);
     float3 f = frac(p);
