@@ -16,7 +16,7 @@ typedef struct rendererCalculateColorOut
 
 
 
-// wrapper for psudorecursive
+// public: wrapper for psudorecursive
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels);
 
 

@@ -23,8 +23,35 @@ rendererIterationData_t rendrerIteration(rendererIterationOut_t i)
     rayDataMinimal ray;
     if (eh.hit)
     {
-        ray = castRayMinimal(i.ro, i.rd, eh.startDist, i.totalDist-eh.maxDist);
+        //TODO: ray abstraction
+        if (true)
+        {
+            // Actual raymarch
+            ray = castRayMinimal(i.ro, i.rd, eh.startDist, i.totalDist-eh.maxDist);
+        }
+        else
+        {
+            // Fake last reflection
+            prodCol*=.5;
+            ray.dist=0;
+            ray.bMissed=true;
+        }
     }
+    else
+    {
+        ray.dist=0;
+        ray.bMissed=true
+    }
+    vec3 pos = i.ro + ray.dist*i.rd;
+    //TODO: material abstraction
+    material mat = calcMaterial(pos);
+    col3 dcol;
+
+    if (ray.bMissed)
+    {
+        //TODO: FINISH 
+    }
+
     
     // TODO: move these to separate file.
     
