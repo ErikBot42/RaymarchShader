@@ -11,18 +11,14 @@ typedef fixed3 col3;
 typedef struct rendererCalculateColorOut
 {
     col3 col;
-    vec3 hitPos;
+    vec3 hitPos; // for z buffer
 } rendererCalculateColorOut_t;
-
-
 
 // public: wrapper for psudorecursive
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels);
 
 
 // iteration
-// sumcol, prodcol, currentdist(for tolerance/fog), ro, rd, numlevels
-// sumcol, prodcol, currentdist(for tolerance/fog), ro, rd, numlevels
 
 // input and output for render iteration
 typedef struct rendererIterationData
@@ -33,12 +29,12 @@ typedef struct rendererIterationData
     vec3 ro;         // IO
     vec3 rd;         // IO
     bool missed;     // out
-    int numLevels;   // meta
     // struct extradata
 } rendererIterationData_t;
 
 
 rendererIterationData_t rendrerIteration(rendererIterationOut_t i);
 
+vec3 rendererGetBRDFRay(vec3 rd, vec3 nor, material mat);
 
 #endif
