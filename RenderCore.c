@@ -9,6 +9,7 @@
 
 
 // wrapper for psudorecursive (manual tail recursion and virtual stack using registers)
+// This is the public interface to the entire rendering process.
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
 {
     rendererIterationData_t data;
@@ -51,6 +52,7 @@ rendererIterationData_t rendrerIteration(rendererIterationOut_t i)
     if (eh.hit)
     {
         //TODO: ray abstraction
+        //TODO: interpret when the last iteration occurs
         if (true)
         {
             // Actual raymarch
@@ -59,52 +61,55 @@ rendererIterationData_t rendrerIteration(rendererIterationOut_t i)
         else
         {
             // Fake last reflection
-            i.prodCol*=.5;
-            ray.dist=0;
-            ray.bMissed=true;
+            i.prodCol   *= .5;
+            ray.dist     = 0;
+            ray.bMissed  = true;
         }
     }
     else
     {
-        ray.dist=0;
-        ray.bMissed=true
+        ray.dist    = 0;
+        ray.bMissed = true
     }
     i.totalDist += ray.dist + eh.startDist;
+    i.missed     = ray.bMissed;
+
     vec3 pos     = i.ro + ray.dist*i.rd;
-    col3 dcol; // direct light to this point
+    col3 dcol; // direct incoming light for this point
 
     if (ray.bMissed)
     {
-        dcol      = worldGetBackground(rd); // missed = get background light
+        dcol = worldGetBackground(rd); // missed = get background light
         // if <iterations> == 0 then discard; // non portable and optional
-        i.sumCol += prodCol*dcol;
-
     }
     else
     {
 
         //TODO: ray abstraction
-        float tol       = ray.fLastTolerance;
-        vec3 nor        = getNormFull(pos, tol);
-        float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
-        dcol            = worldApplyLighting(pos, rd, nor, fAOfactor);
+        float tol        = ray.fLastTolerance;
+        vec3 nor         = getNormFull(pos, tol);
+        float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
+        dcol             = worldApplyLighting(pos, rd, nor, fAOfactor);
 
         //TODO: material abstraction
-        material mat    = calcMaterial(pos, sdf(pos).yzw);
-        col surfCol     = mat.col.rgb;
+        // TODO: sumcol += emmision
+        material mat     = calcMaterial(pos, sdf(pos).yzw);
+        col surfCol      = mat.col.rgb;
 
-        rd = rendererGetBRDFRay(ro, rd, nor, mat);
-        ro              = pos + nor*tol; // TODO: make better
 
-        // TODO: move these to separate file.
+        i.rd               = rendererGetBRDFRay(i.ro, i.rd, nor, mat);
+        i.ro               = pos + nor*tol*2.5; // TODO: make better
+
+        i.prodCol       *= surfCol;
     } 
-
+    i.sumCol += i.prodCol*dcol;
 }
 
 // TODO: Toggleable BRDF using material properties
-rendererGetBRDFRay(vec3 rd, vec3 nor, material mat)
+rendererGetBRDFRay(vec3 rd, vec3 nor, material mat, bool simple)
 {
-    return reflect(rd, nor);
+    if (simple) return reflect(rd, nor);
+    else return reflect(rd, nor);
 }
 
 

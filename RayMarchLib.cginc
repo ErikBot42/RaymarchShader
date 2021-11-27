@@ -553,7 +553,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 		rd = reflect(rd, nor);
 #endif
 		
-		ro = pos + nor*TOLERANCE(currentDist-startDist)*1.5; // margin to prevent hitting object again
+		ro = pos + nor*TOLERANCE(currentDist-startDist)*2.5; // margin to prevent hitting object again
 	}
 	return fixed4(sumCol,1);
 }

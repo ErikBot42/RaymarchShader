@@ -1,6 +1,8 @@
 
 #ifndef RENDERCORE_H
 #define RENDERCORE_H
+
+// TODO: move this to a "definitions" header
 typedef float3 vec3; 
 typedef fixed3 col3;
 
@@ -29,7 +31,7 @@ typedef struct rendererIterationData
     vec3 ro;         // IO
     vec3 rd;         // IO
     bool missed;     // out
-    // struct extradata
+    // ...
 } rendererIterationData_t;
 
 
