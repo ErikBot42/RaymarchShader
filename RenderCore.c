@@ -34,7 +34,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     {
         if (data.missed) break;// if the ray missed before this function.
         data = rendererIteration(data);
-        if (i == 0) out.hitPos = data.ro;
+        if (i == 0) out.hitPos = data.ro; 
     }
 
     out.col = data.sumCol;
@@ -97,8 +97,8 @@ rendererIterationData_t rendrerIteration(rendererIterationOut_t i)
         col surfCol      = mat.col.rgb;
 
 
-        i.rd               = rendererGetBRDFRay(i.ro, i.rd, nor, mat);
-        i.ro               = pos + nor*tol*2.5; // TODO: make better
+        i.rd             = rendererGetBRDFRay(i.ro, i.rd, nor, mat);
+        i.ro             = pos + nor*tol*2.5; // TODO: make better
 
         i.prodCol       *= surfCol;
     } 

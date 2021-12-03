@@ -10,6 +10,12 @@ typedef struct rayCoreCastRayOut
 } rayCoreCastRayOut_t;
 
 // runs ray cast functions depending if running in raymarch/trace mode.
-rayCoreCastRayOut_t rayCoreCastRay(vec3 ro, vec3 rd, float startDist, float maxDist);
+rayCoreCastRayOut_t rayCoreCastRay(
+        vec3 ro,
+        vec3 rd,
+        float totalDist     // current total dist from all bounces to ro
+        float startDist,    // initial dist safe to move from ro
+        float maxDist,      // max dist relative to ro
+);
 
 #endif
