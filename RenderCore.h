@@ -10,32 +10,37 @@ typedef fixed3 col3;
 //typedef float3 vec3;
 //typedef fixed3 col3;
 //
-typedef struct rendererCalculateColorOut
+
+struct rendererCalculateColorOut_t
 {
     col3 col;
     vec3 hitPos; // for z buffer
-} rendererCalculateColorOut_t;
+};
 
 // public: wrapper for psudorecursive
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels);
+
+// private:
 
 
 // iteration
 
 // input and output for render iteration
-typedef struct rendererIterationData
+struct rendererIterationData_t
 {
-    col3 sumCol;     // IO 
-    col3 prodCol;    // IO 
-    float totalDist; // IO
-    vec3 ro;         // IO
-    vec3 rd;         // IO
-    bool missed;     // out
+    col3 sumCol;       // IO 
+    col3 prodCol;      // IO 
+    float totalDist;   // IO
+    vec3 ro;           // IO
+    vec3 rd;           // IO
+    bool missed;       // out
+    bool discardOnMiss;// IO
     // ...
-} rendererIterationData_t;
+};
 
 
-rendererIterationData_t rendrerIteration(rendererIterationOut_t i);
+rendererIterationData_t rendererIteration(rendererIterationData_t i);
+rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t data, int numLevels);
 
 vec3 rendererGetBRDFRay(vec3 rd, vec3 nor, material mat);
 

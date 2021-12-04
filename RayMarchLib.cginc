@@ -34,6 +34,7 @@
 #include "Noise.cginc"
 #include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
+#include "RenderCore.h"
 
 
 v2f vert (appdata v)
@@ -90,12 +91,12 @@ fragOut frag (v2f i)
 	#endif
 
 	// writing to depth buffer is very cheap but not free
-	float4 zPoint = float4(vHitPos,1);
-	#ifndef USE_WORLD_SPACE
-	zPoint = mul(unity_ObjectToWorld, zPoint);
-	#endif 
-	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
-	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+	//float4 zPoint = float4(vHitPos,1);
+	//#ifndef USE_WORLD_SPACE
+	//zPoint = mul(unity_ObjectToWorld, zPoint);
+	//#endif 
+	//float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	//o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
    	
     return o;
 }
@@ -185,16 +186,20 @@ float vertexCastRay(in float3 vRayStart, const float3 vDir, const int iSteps, co
 	return fRayLen;
 }
 
+#define ZERO (_Time.x<0)
+
 // simplified and optimized raycast
 // should not contain any branching that isn't absolutely nessesary
 rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float startDistToleranceOffset=0, float maxDist = MAX_DIST)
 {
+
 	rayDataMinimal data;
 	int i;
 	float t = startDist;
 	float tol = 0;
-	for (i=0; i<MAX_STEPS && t<maxDist; i++)
+	[loop] for (i=0; i<(MAX_STEPS+ZERO); i++)
 	{
+        [branch] if (t>maxDist) break;
 		float3 pos = ro + rd*t;
 		float h = sdf(pos, tol);
 		t+=h;
@@ -203,11 +208,10 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 
 		data.fLastDist = h;
 		data.fLastTolerance = tol;
-
-		if (abs(h)<tol) break;
+		[branch] if (abs(h)<tol) break;
 	}
+    data.iSteps=i;
 	data.bMissed = t>maxDist;
-	data.iSteps = i;
 	data.dist = t;
 	return data;
 }
@@ -397,7 +401,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	fixed3 col = 0;
 	
 	#ifndef RENDER_WITH_GI
-	col += .2*ambientColor*.4*AOfactor;// "ambient"
+	col += .5*ambientColor*.4*AOfactor;// "ambient"
 	#endif
 	//col += 3*(1-AOfactor)*glowColor;
 
@@ -406,43 +410,43 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	col += lightToColor(l, pos, dir, nor, false);
 	return col;
 	
-	float3 reflected = reflect(dir, nor);
-	float time = _Time.z*.05;//123.543254626;
-	float3 p = float3(sin(time), 0, cos(time))*0.25;
+	//float3 reflected = reflect(dir, nor);
+	//float time = _Time.z*.05;//123.543254626;
+	//float3 p = float3(sin(time), 0, cos(time))*0.25;
 
-	float pi = 3.1415*2;
-	float amplitude = .5;//.4;
-	float innerAmplitude = .2*amplitude;
+	//float pi = 3.1415*2;
+	//float amplitude = .5;//.4;
+	//float innerAmplitude = .2*amplitude;
 
-	float brightness = 1*7;
+	//float brightness = 1*7;
 
-	
-	const int maxJ = 1;
-	const int numlights = 10;
-	brightness/=float(numlights);
-	
-	for (int i = 0; i<numlights; i++)
-	{
-		float prop = float(i)/float(numlights);
-		float t = time*4 + pi*prop;
-		//if (false || sin(6*time*i+numlights)>0) 
-		if (sin(t + 64*time)>0)
-		{
-			for (int j = 0; j<maxJ; j++)
-			{	
-				float intensity = j==0 ? 1 : .3;
-				float jProp = (float(j)+.5)/float(maxJ);
-				float totalProp = prop + jProp/float(numlights);
-				float jHeight = .8*sin(jProp*pi);
-				float propID = 2+sin(30*(prop + jProp + 1));
-				float a = .25;//amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
-				l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
-				col += lightToColor(l, pos, dir, nor, false);
-			}
-		}
-	}
-	
-	return col;
+	//
+	//const int maxJ = 1;
+	//const int numlights = 10;
+	//brightness/=float(numlights);
+	//
+	//for (int i = 0; i<numlights; i++)
+	//{
+	//	float prop = float(i)/float(numlights);
+	//	float t = time*4 + pi*prop;
+	//	//if (false || sin(6*time*i+numlights)>0) 
+	//	if (sin(t + 64*time)>0)
+	//	{
+	//		for (int j = 0; j<maxJ; j++)
+	//		{	
+	//			float intensity = j==0 ? 1 : .3;
+	//			float jProp = (float(j)+.5)/float(maxJ);
+	//			float totalProp = prop + jProp/float(numlights);
+	//			float jHeight = .8*sin(jProp*pi);
+	//			float propID = 2+sin(30*(prop + jProp + 1));
+	//			float a = .25;//amplitude * (1-pow(.5 +.5*sin(propID*time*2),4));
+	//			l = createPointLight(pos, normalize(float3(sin(t), jHeight, cos(t)))*a, HSV(prop, 1, brightness*intensity));
+	//			col += lightToColor(l, pos, dir, nor, false);
+	//		}
+	//	}
+	//}
+	//
+	//return col;
 }
 
 
@@ -455,6 +459,8 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 // Diffuse = non reflective/random reflection
 // Fresnel = more reflective at a greater angle towards the normal.
 
+#define USE_OLD_RENDERER
+
 // With ray point and dir, calc color
 // ro - ray origin
 // rd - ray direction
@@ -466,6 +472,16 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 	//numLevels = max(numLevels,4);
 	numLevels = max(numLevels,4);
 	#endif
+    
+    //#ifndef USE_OLD_RENDERER
+    if (rd.x>0)
+    {
+        rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
+        vHitPos = ro;//o.hitPos;
+        //return fixed4(worldGetBackground(rd, 0),1);
+        return fixed4(o.col, 1);
+    }
+    //#endif
 	
 
 	fixed3 sumCol = fixed3(0,0,0); // Running sum of light*color for the final color output.
@@ -538,9 +554,10 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100); // agressive AO
 
-		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
+		dcol = 1;//*worldApplyLighting(pos, rd, nor, fAOfactor);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
+        surfCol = ray.iSteps/(float)MAX_STEPS;//dot(nor, float3(0,1,0));//sin(pos*100); //!
 
 		prodCol*=surfCol;
 
@@ -578,7 +595,10 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 		startDist -= TOLERANCE(startDist);
 	}
 #endif
+    #ifdef USE_OLD_RENDERER
 	return pow(col, 1.0/2.2);//gamma correction
+    #endif
+    return col;
 	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 }
 

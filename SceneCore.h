@@ -18,6 +18,6 @@ typedef struct sceneEstimateHitOut
 
 sceneEstimateHitOut_t SceneEstimateHit(vec3 ro, vec3 rd);
 
-sceneGetBRDFRay(vec3 rd, vec3 nor, material mat);
+vec3 sceneGetBRDFRay(vec3 rd, vec3 nor, material mat);
 
 #endif
