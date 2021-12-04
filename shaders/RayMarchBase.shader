@@ -27,16 +27,16 @@
             #define DYNAMIC_QUALITY
             #define USE_REFLECTIONS
             #define MAX_REFLECTIONS 3
-            #include "../RayMarchLib.cginc"
+            //#include "../RayMarchLib.cginc"
             
-            float3 _SunPos;
+            //float3 _SunPos;
 
-			float4 sdf(float3 p) {return float4(sdfSphere(p,0.1),1,1,1);}
-			material calcMaterial(float3 p) {
-				material mat; 
-				mat.col = fixed4 (1,1,1,1);
-				return mat;
-				}
+			//float4 sdf(float3 p) {return float4(sdfSphere(p,0.1),1,1,1);}
+			//material calcMaterial(float3 p) {
+			//	material mat; 
+			//	mat.col = fixed4 (1,1,1,1);
+			//	return mat;
+			//	}
 
             //sdfData scene(float3 p)
             //{

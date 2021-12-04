@@ -1,7 +1,7 @@
 #ifndef RENDERCORE_C
 #define RENDERCORE_C
 #include "RenderCore.h"
-#include "SceneCore.c"
+#include "SceneCore.cginc"
 
 // core rendering, may only use conjunction of the syntax of h/glsl and c
 // A consequence of this is that all functions become pure.
@@ -22,20 +22,22 @@ rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float start
     data.rd = rd;
     data.missed = false;
     data.discardOnMiss = true;
-    
+
     return rendererCalculateColor_it(data, numLevels);
 }
 
 rendererIterationData_t rendererIteration(rendererIterationData_t i)
 {
     sceneEstimateHitOut_t eh = SceneEstimateHit(i.ro, i.rd);
-    //eh.startDist: distance ray can safetly start at
-    //eh.maxDist:   distance ray can safetly end at
+    float startDist = eh.startDist; //distance ray can safetly start at
+    float maxDist = eh.maxDist; //distance ray can safetly end at
+    //rayDataMinimal ray = castRayMinimal(i.ro, i.rd, startDist, i.totalDist-startDist, maxDist);
 
     rayDataMinimal ray;
     if (eh.hit)
     {
-        ray = castRayMinimal(i.ro, i.rd, eh.startDist, i.totalDist-eh.maxDist);
+        //ray = castRayMinimal(i.ro, i.rd, eh.startDist, i.totalDist-eh.maxDist);
+        ray = castRayMinimal(i.ro, i.rd, startDist, i.totalDist-startDist, maxDist);
         //TODO: ray abstraction
         //TODO: interpret when the last iteration occurs
         //if (true)
@@ -73,20 +75,20 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
 
     //TODO: ray abstraction
     float tol        = ray.fLastTolerance;
-    float3 nor         = getNormFull(pos, tol)*float3(-1,-1,-1);
-    ray.iSteps = 30;
+    float3 nor         = getNormFull(pos, tol);
+    //ray.iSteps = 30;
     //float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
     float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
 
-	dcol = 1;//saturate(dot(i.rd, nor))*(0.003/(length(pos)*length(pos)));
-    //dcol             = //worldApplyLighting(pos, i.rd, nor, fAOfactor);//ray.iSteps>10 ? 1 : 0;//0.01/length(pos);//
+	//dcol = 1;//saturate(dot(i.rd, nor))*(0.003/(length(pos)*length(pos)));
+    dcol             = worldApplyLighting(pos, i.rd, nor, fAOfactor);//ray.iSteps>10 ? 1 : 0;//0.01/length(pos);//
 
     //TODO: material abstraction
     // TODO: sumcol += emmision
     material mat      = calcMaterial(pos, sdf(pos).yzw);
     col3 surfCol      = mat.col.rgb;
 
-    surfCol = ray.iSteps/(float)MAX_STEPS;;//dot(nor, float3(0,1,0));//sin(pos*100);
+    //surfCol = 1-fAOfactor;//ray.iSteps/(float)MAX_STEPS;;//dot(nor, float3(0,1,0));//sin(pos*100);
     //surfCol.r*=2;
     //surfCol*=.5;
 
@@ -109,7 +111,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     rendererCalculateColorOut_t o;
     //o.col = worldGetBackgroundLocalSpace(data.rd);
     //return o;
-    [unroll(4)] for (int i = 0; i<numLevels; i++)
+    for (int i = 0; i<numLevels; i++)
     {
         if (data.missed) break;// if the ray missed before this function.
         data = rendererIteration(data);

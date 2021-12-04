@@ -3,7 +3,7 @@
 
 // the point of this file is to select raymarch or raytrace mode.
 
-#include "RayMarchCore.C"
+#include "RayMarchCore.cginc"
 
 //typedef struct rayCoreCastRayOut
 //{

@@ -62,7 +62,6 @@
 
         Pass
         {
-
             CGPROGRAM
 			//#define DEBUG_COLOR_MODE
 			//#define VERTEX_DEBUG_COLORS

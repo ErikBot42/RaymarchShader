@@ -7,8 +7,14 @@ sceneEstimateHitOut_t SceneEstimateHit(vec3 ro, vec3 rd)
     //eh.hit = true;
     //eh.startDist = 0;
     //eh.maxDist = 1000;
-    
-    eh.hit = RayTraceSphere(eh.startDist, eh.maxDist, ro, rd, .5, 0);
+
+    float startDist = 0;
+    float maxDist = 0;
+
+    eh.hit = RayTraceSphere(startDist, maxDist, ro, rd, .5, 0);
+
+    eh.startDist = startDist;
+    eh.maxDist = maxDist;
     return eh;
 }
 

@@ -195,11 +195,12 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 
 	rayDataMinimal data;
 	int i;
+    int st = MAX_STEPS;
 	float t = startDist;
 	float tol = 0;
 	[loop] for (i=0; i<(MAX_STEPS+ZERO); i++)
 	{
-        [branch] if (t>maxDist) break;
+        [branch] if (t>maxDist) {st = min(st, i); break;}
 		float3 pos = ro + rd*t;
 		float h = sdf(pos, tol);
 		t+=h;
@@ -208,9 +209,9 @@ rayDataMinimal castRayMinimal(float3 ro, float3 rd, float startDist=0, float sta
 
 		data.fLastDist = h;
 		data.fLastTolerance = tol;
-		[branch] if (abs(h)<tol) break;
+		[branch] if (abs(h)<tol) {st = min(st, i); break;}
 	}
-    data.iSteps=i;
+    data.iSteps=st;//i
 	data.bMissed = t>maxDist;
 	data.dist = t;
 	return data;
@@ -474,13 +475,6 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 	#endif
     
     //#ifndef USE_OLD_RENDERER
-    if (rd.x>0)
-    {
-        rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
-        vHitPos = ro;//o.hitPos;
-        //return fixed4(worldGetBackground(rd, 0),1);
-        return fixed4(o.col, 1);
-    }
     //#endif
 	
 
@@ -554,10 +548,9 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 		float fAOfactor = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100); // agressive AO
 
-		dcol = 1;//*worldApplyLighting(pos, rd, nor, fAOfactor);
+		dcol = 1*worldApplyLighting(pos, rd, nor, fAOfactor);
 
 		fixed3 surfCol = calcMaterial(pos, sdf(pos).yzw).col.rgb; // surface color
-        surfCol = ray.iSteps/(float)MAX_STEPS;//dot(nor, float3(0,1,0));//sin(pos*100); //!
 
 		prodCol*=surfCol;
 
@@ -578,7 +571,19 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
 #ifndef RENDER_WITH_GI
-	fixed4 col = rendererCalculateColor(ro, rd, vHitPos, startDist, numLevels);
+    bool useNew = rd.x>0;
+    fixed4 col;
+    if (!useNew)
+    {
+        col = rendererCalculateColor(ro, rd, vHitPos, startDist, numLevels);
+    }
+    else
+    {
+        rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
+        vHitPos = ro;//o.hitPos;
+        col = fixed4(o.col, 0);
+        //col = 0;
+    }
 #else
 	int3 q = rd*324789.789345;
     //q.x+=_Time.x*123879;
@@ -589,19 +594,27 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 	[loop] for (int i = 0; i<numSamples; i++)
 	{
 		float3 rd_new = normalize(rd+float3(frand(),frand(),frand())*TOLERANCE(.2));
-		col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
+        if (!useNew)
+        {
+            col += rendererCalculateColor(ro, rd_new, vHitPos, startDist, numLevels)/numSamples;
+        }
+        else
+        {
+            rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
+            vHitPos = ro;//o.hitPos;
+            col+=o.col;
+            col = 0;
+        }
 
 		startDist = length(ro-vHitPos);
 		startDist -= TOLERANCE(startDist);
 	}
 #endif
-    #ifdef USE_OLD_RENDERER
 	return pow(col, 1.0/2.2);//gamma correction
-    #endif
     return col;
 	//sumCol = pow(sumCol, fixed3(3.0/2.0, 4.0/5.0, 3.0/2.0)); // "matrix" colors
 }
 
-#include "RenderCore.c"
+#include "RenderCore.cginc"
 
 #endif
