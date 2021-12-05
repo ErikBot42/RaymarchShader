@@ -405,10 +405,12 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	col += .5*ambientColor*.4*AOfactor;// "ambient"
 	#endif
 	//col += 3*(1-AOfactor)*glowColor;
+	//return col;
 
 	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	l = createPointLight(pos, float3(0,0,0), sunCol);
-	col += lightToColor(l, pos, dir, nor, false);
+	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
+	//l = createPointLight(pos, float3(0,0,0), sunCol, 10);
+	col += lightToColor(l, pos, dir, nor, true);
 	return col;
 	
 	//float3 reflected = reflect(dir, nor);
@@ -570,8 +572,8 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 
 fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
+    bool useNew = true;
 #ifndef RENDER_WITH_GI
-    bool useNew = rd.x>0;
     fixed4 col;
     if (!useNew)
     {
@@ -602,8 +604,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
         {
             rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
             vHitPos = ro;//o.hitPos;
-            col+=o.col;
-            col = 0;
+            col+=fixed4(o.col,1)/numSamples;
         }
 
 		startDist = length(ro-vHitPos);

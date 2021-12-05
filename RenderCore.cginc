@@ -13,7 +13,12 @@
 // This is the public interface to the entire rendering process.
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
 {
+    #ifdef RENDER_WITH_GI
+    numLevels = 4;
+    #else
     numLevels = 1;
+    #endif
+
     rendererIterationData_t data;
     data.sumCol = 0;
     data.prodCol = 1;
@@ -80,20 +85,24 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
     //float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
     float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
 
-	//dcol = 1;//saturate(dot(i.rd, nor))*(0.003/(length(pos)*length(pos)));
-    dcol             = worldApplyLighting(pos, i.rd, nor, fAOfactor);//ray.iSteps>10 ? 1 : 0;//0.01/length(pos);//
 
     //TODO: material abstraction
     // TODO: sumcol += emmision
     material mat      = calcMaterial(pos, sdf(pos).yzw);
     col3 surfCol      = mat.col.rgb;
 
+	//dcol = 1;//saturate(dot(i.rd, nor))*(0.003/(length(pos)*length(pos)));
+    dcol             = worldApplyLighting(pos, i.rd, nor, fAOfactor);//ray.iSteps>10 ? 1 : 0;//0.01/length(pos);//
+    dcol += mat.emmision;
+
+
     //surfCol = 1-fAOfactor;//ray.iSteps/(float)MAX_STEPS;;//dot(nor, float3(0,1,0));//sin(pos*100);
     //surfCol.r*=2;
     //surfCol*=.5;
 
 
-    i.rd              = reflect(i.rd,nor);//rendererGetBRDFRay(i.rd, nor, mat);
+    //i.rd              = reflect(i.rd,nor);//rendererGetBRDFRay(i.rd, nor, mat);
+    i.rd              = rendererGetBRDFRay(i.rd, nor, mat);
     //i.ro            = pos + nor*tol*2.5; // TODO: make better
     i.ro = pos + nor*TOLERANCE(i.totalDist-eh.startDist)*2.5; 
 

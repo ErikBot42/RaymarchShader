@@ -108,17 +108,17 @@
 			#define MAX_STEPS 200
             #define RENDER_WITH_GI
             #endif
-			#if 1
+			#if 0
 			// for typical resolution:			
 			#define SURF_DIST 0.004
 			#define MAX_STEPS 200
 			//#define RENDER_WITH_GI
             #endif
-			#if 0 
+			#if 1 
 			// for absurd resolution:
 			#define SURF_DIST 0.0004
 			//#define MAX_STEPS 2000
-			#define MAX_STEPS 700
+			#define MAX_STEPS 500
 			#define RENDER_WITH_GI
 			#endif
 
@@ -189,6 +189,20 @@
 					mat.col = 1;
                     // do nothing
                 #endif
+
+
+                float q = length(p);
+                //float maxq = 0.14;
+                float maxq = 0.10;
+                #if 1
+                q = q > maxq ? (q-maxq)/maxq : 0;
+                q = q > .3 ? q : 0;
+                #else
+                q = q > maxq ? 1 : 0;
+                #endif
+                //q = sin(q*3);
+
+                mat.emmision = 20*fixed3(1,.5,.1)*q;
                 return mat;    
             }
 
@@ -296,6 +310,7 @@
 				//d = smax(d,p.y,sfac);
 				p=rotY(p, _Time.x*5);
 				d = sdfTorus(p, .25,.1);
+                d = min(d, sdfSphere(p, .13));
 				//d = min(d, sdfTorus(p.xzy, .25,.1));
 				//d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
 				t = d;
@@ -307,13 +322,18 @@
 				//int u = int(_Time.y*.3);
 				//p.xy+=u;
 				//dist = sdfFbmAdd(p, d, 0.15*1.5, /*8*/20, tol);
-				d = min(d,p.y+.1*.5);
+				
+
+                //d = min(d,p.y+.1*.5); //!
+                
 				float3 q = p ;//+ float3(0,_Time.x,0);
 				dist = d;
 
 
-				dist = sdfFbmAdd(q, d, 0.15*.5, 15, tol);
-				dist = max(dist,sdfSphere(p,.48));
+				//dist = sdfFbmAdd(q, d, 0.15*.5, 15, tol);
+				dist = sdfFbmAdd(q, d, 0.15*2, 15, tol);
+				dist = min(dist, sdfTorus(p, .25,.02));
+				//dist = max(dist,sdfSphere(p,.48)); //!
 
 
 
@@ -499,6 +519,7 @@
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
+                mat.emmision = 0;
 				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				//p*=0.4;

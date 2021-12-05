@@ -77,6 +77,7 @@ struct fragOut
 typedef struct material
 {
     fixed4 col; 		// Albedo + transparency
+    fixed3 emmision;    // Emmission
     fixed fSmoothness;  // How much light should reflect
 	fixed fMetallic;    // Something...
 } material_t;
@@ -128,7 +129,7 @@ struct sdfData // returned from distance functions, including main scene
 #define V_YZ float3(0, 1, 1)
 
 #define col(r, g, b) fixed4(r, g, b, 1)
-#define DEFMAT {fixed4(.2,.2,.2,1), 1, 0}
+#define DEFMAT {fixed4(.2,.2,.2,1), fixed3(0,0,0), 1, 0}
 
 // Implemented by shaderlab file.
 float4 vSdfConfig;

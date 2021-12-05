@@ -9,13 +9,13 @@
 
 inline material mat(float r, float g, float b, float fSmoothness=1, float fMetallic=0)
 {
-	material m = {fixed4(r, g, b, 1), fSmoothness, fMetallic};
+	material m = {fixed4(r, g, b, 1), fixed3(0,0,0), fSmoothness, fMetallic};
 	return m;
 }
 
 inline material mat(float3 rgb, float fSmoothness=1, float fMetallic=0)
 {
-    material m = {fixed4(rgb, 1), fSmoothness, fMetallic};
+    material m = {fixed4(rgb, 1), fixed3(0,0,0), fSmoothness, fMetallic};
     return m;
 }
 
