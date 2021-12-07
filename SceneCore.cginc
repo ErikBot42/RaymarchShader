@@ -24,4 +24,27 @@ vec3 sceneGetBRDFRay(vec3 rd, vec3 nor, material mat)
 }
 
 
+float fogAmountAtPos(vec3 ro)
+{
+    return 1;//max(0,-ro.y*3+.3);
+}
+
+col3 blendColor(col3 startCol, col3 endCol, float curr, float start, float end)
+{
+    if (curr < start) return startCol;
+    if (curr > end) return endCol;
+    return lerp(startCol, endCol, smoothstep(start, end, curr));
+}
+
+// rd is end POINT
+// apply fog assuming fog gradient is linear.
+col3 sceneApplyFog(vec3 ro, vec3 rd, col3 original)
+{
+    //return original;
+    float fogAmount = (fogAmountAtPos(ro) + fogAmountAtPos(rd))/2;
+    return blendColor(original, col3(1,1,1)*0.1, fogAmount*length(ro-rd), 0, 2).rgb;
+}
+
+
+
 #endif

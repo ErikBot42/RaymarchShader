@@ -2,6 +2,7 @@
 #ifndef RENDERCORE_H
 #define RENDERCORE_H
 
+
 // TODO: move this to a "definitions" header
 typedef float3 vec3; 
 typedef fixed3 col3;

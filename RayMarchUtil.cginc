@@ -119,11 +119,13 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 
 	float cutoff = 0.01;
 
-	float funge = 2.0;
+	float funge = 1.0;
 	
 	// orig: 20 <-> 2000
-	for (int i = 0; i<200 && t<maxDist; i++)
+	//for (int i = 0; i<200 && t<maxDist; i++)
+	for (int i = 0; i<64 && t<maxDist; i++)
 	{
+		//float cutoff = TOLERANCE(startDist)*3;
 		float cutoff = TOLERANCE(startDist)*3;
 		float h = sdf(ro + rd*t).x;
 		float y = (h*h)/(2.0*ph);
@@ -144,6 +146,8 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 
 
 }
+
+
 
 
 //calculate sky light
@@ -285,7 +289,22 @@ float3 cosineDirection(float3 nor)
 
 float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
 {
-	return cosineDirection(nor);	
+#if 1
+    return cosineDirection(nor);	
+#elif 0
+    if (frand()<.5)
+    {
+    return cosineDirection(nor);
+    }
+    else
+    {
+        return reflect(rd,nor);
+    }
+#elif 0
+    return reflect(rd, nor);
+#else
+    return normalize(reflect(rd, nor) + float3(frand(), frand(), frand())*0.05);
+#endif
 }
 
 

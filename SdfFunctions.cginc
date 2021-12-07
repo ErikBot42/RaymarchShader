@@ -156,6 +156,7 @@ float sdfPyramid( float3 p, float h)
 
 
 // https://iquilezles.org/www/articles/fbmsdf/fbmsdf.htm
+// sphere of random size
 float sph(int3 i, float3 p, int3 c)
 {
 	// random radius at grid vertex i+c
@@ -163,8 +164,42 @@ float sph(int3 i, float3 p, int3 c)
 	float h = fhash(i+c);
 	//float val = pow(fhash(i+c),.2);
 	float val = h;//1.6*(h*h);
-	float r = 0.5*val;
+	//float r = 0.5*val;
+	float r = 0.70*val;
 	return length(p-c)-r;
+}
+// sphere at random pos
+float sph_pos(int3 i, float3 p, int3 c)
+{
+    float radius = 0;//.2;//.09;//.09;
+    int o = 300;
+    float3 off = float3(
+        fhash(i+c+int3(o,0,0)),
+        fhash(i+c+int3(0,o,0)),
+        fhash(i+c+int3(0,0,o))
+    );
+    //off = (off + 1)/2;
+    off*=2;//0.9;//(1+_SinTime.z);
+    //off = 0;
+	return length(p-c+off)-radius;
+}
+
+
+float sdfRandBase_pos (float3 p)
+{
+	float scale = 1.5;//1;
+	p/=scale;
+    float3 i = floor(p);
+    float3 f = frac(p);
+    
+    return scale*min(min(min(sph_pos(i,f,int3(0,0,0)),
+                             sph_pos(i,f,int3(0,0,1))),
+                         min(sph_pos(i,f,int3(0,1,0)),
+                             sph_pos(i,f,int3(0,1,1)))),
+                     min(min(sph_pos(i,f,int3(1,0,0)),
+                             sph_pos(i,f,int3(1,0,1))),
+                         min(sph_pos(i,f,int3(1,1,0)),
+                             sph_pos(i,f,int3(1,1,1)))));
 }
 
 float sdfRandBase (float3 p)
@@ -211,7 +246,8 @@ float sdfFbm(float3 p, float d, int iterations = 7, float tol = 0, bool add = tr
 			d = smax(d, -n     , smoothFactor*s);
 		}
 
-		s *= .5;//.45;//.5;
+        //s *= .6+.1*_SinTime.z;
+        s *= .5;
 		if (max(d,tol)>s) break; // doubles framerate, but makes the df slightly discontious
 		//if (tol*0.001>abs(d)) break;
 		// transform to make subgrids not aligned.
@@ -380,7 +416,7 @@ float4 fracMandelbulb2(float3 p)
     float dr = 1.0;
     float r;
 
-    const int iterations = 5;//8
+    const int iterations = 9;//5;//8
 
     const float maxRThreshold = 2; //"infinity"
 

@@ -16,6 +16,8 @@ typedef struct sceneEstimateHitOut
     float maxDist;
 } sceneEstimateHitOut_t;
 
+col3 sceneApplyFog(vec3 ro, vec3 rd, col3 original);
+
 sceneEstimateHitOut_t SceneEstimateHit(vec3 ro, vec3 rd);
 
 vec3 sceneGetBRDFRay(vec3 rd, vec3 nor, material mat);

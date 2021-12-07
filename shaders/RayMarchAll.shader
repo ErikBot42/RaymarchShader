@@ -24,7 +24,7 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Asteroid, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
@@ -71,7 +71,7 @@
 			#pragma vertex vert
             #pragma fragment frag
 			
-            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER
+            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER _SDF_ASTEROID
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
@@ -174,7 +174,7 @@
 
             inline material applyColorTransform(float3 p, in material mat)
             {
-				const float saturation = .3;
+				const float saturation = .4;//.3;
 				const float len = 0.2/0.3333; // |col|
                 #ifdef _MTRANS_COLORHSV_SPHERE  
                     mat.col = fixed4(len*normalize(HSV(frac(length(p)*8 + _Time.x), saturation, 1).rgb),1);
@@ -190,19 +190,25 @@
                     // do nothing
                 #endif
 
+                //float q = length(p);
+                ////float maxq = 0.14;
+                //float maxq = 0.09;
+                ////#if 1
+                ////q = q > maxq ? (q-maxq)/maxq : 0;
+                //q = (q-maxq)/maxq;
+                ////q = q > .3 ? q : 0;
+                ////#else
+                ////q = q > maxq ? 1 : 0;
+                ////#endif
+                //
+                ////q += (snoise(p*30)-.5)*2;
 
-                float q = length(p);
-                //float maxq = 0.14;
-                float maxq = 0.10;
-                #if 1
-                q = q > maxq ? (q-maxq)/maxq : 0;
-                q = q > .3 ? q : 0;
-                #else
-                q = q > maxq ? 1 : 0;
-                #endif
-                //q = sin(q*3);
+                ////q = sin(q*3);
 
-                mat.emmision = 20*fixed3(1,.5,.1)*q;
+                //q = max(0,q);
+
+                //mat.emmision = 20*fixed3(1,.5,.1)*q;
+
                 return mat;    
             }
 
@@ -288,15 +294,22 @@
                 //////////////////////////////////////////////////////////////////////
                 #ifdef _SDF_MANDELBULB
                 //#define FUNGE_FACTOR _FoldingLimit
+                t = 0;
 
-                float scale = 0.4;
+                //t = min(0,sdfSphere(p, .3))*200;
+
+                float scale = .4;
                 p/=scale;
 				float4 v = fracMandelbulb2(p);
                 dist = v.x;
-				t = v.yzw/4;
+				//t = v.yzw/4;
+                //t = max(0,-sin(length(v.yzw)*9))*2;
+                t = max(0,sin(length(v.yzw)*6.5)-.3)*10;
+                //t = max(0,-sin(length(v.yzw)*7.3)-.9)*100;
                 dist*=scale;
 
 				#elif _SDF_MANDELBOLB
+                t = 0;
 
                 float scale = 0.4;
                 p/=scale;
@@ -304,16 +317,69 @@
                 dist*=scale;
 
 				#elif _SDF_TESTING
+
+                //float scale = 0.4;
+                //p/=scale;
+                float sc = 0.04;
+                //dist = sdfRandBase(p/sc)*sc;//sdfSphere(p,.3);
+                dist = sdfRandBase_pos(p/sc)*sc;//sdfSphere(p,.3);
+                dist = max(dist, sdfSphere(p,.4));
+                t = max(0,-length(p)+.2);
+                //dist*=scale;
+
+				#elif _SDF_ASTEROID
+                float scale = 1;
+                p/=scale;
 				//p = rotY(p,_Time.x);
 				float sfac = .3;
 				float d = p.y;//sdfSphere(p,.5*.35);
 				//d = smax(d,p.y,sfac);
 				p=rotY(p, _Time.x*5);
-				d = sdfTorus(p, .25,.1);
-                d = min(d, sdfSphere(p, .13));
+                #if 0
+                d = sdfSphere(p, .2);
+				//d = min(d, sdfTorus(p.xyz, .25*0.8, .06));
+				//d = min(d, sdfTorus(p.zxy, .25*0.8, .06));
+				//d = min(d, sdfTorus(p.yzx, .25*0.8, .06));
+                
+                float3 p_rot = p;
+                float r = 3.1415/4;
+                p_rot = rotX(p_rot, r);
+                p_rot = rotY(p_rot, r);
+				d = min(d, sdfTorus(p_rot.xyz, .25*1.5, .1));
+				d = min(d, sdfTorus(p_rot.zxy, .25*1.5, .1));
+				d = min(d, sdfTorus(p_rot.yzx, .25*1.5, .1));
+                #elif 0
+                //d = sdfSphere(p, .13);
+                d = sdfSphere(p, 0.1);
+                d = min(d,max(sdfSphere(p, .49), -sdfSphere(p, .45)));
+                d = min(d,max(sdfSphere(p, .40), -sdfSphere(p, .36)));
+                d = min(d,max(sdfSphere(p, .31), -sdfSphere(p, .27)));
+                d = min(d,max(sdfSphere(p, .22), -sdfSphere(p, .18)));
+                float d2 = max(abs(p.y)-.05, length(p)-.49);
+                d = min(d, d2);
+                #else
+                d = sdfSphere(p, 0.49);
+
+                #endif
+
+
+                //float d2 = length(p.xz)-crossRadius;
+                //d2 = min(d2, length(p.zy)-crossRadius);
+                //d2 = min(d2, length(p.xy)-crossRadius);
+                //float3 p_rot = rotY(p,PI/4);
+                //d2 = min(d2, length(p_rot.zy)-crossRadius);
+                //d2 = min(d2, length(p_rot.xy)-crossRadius);
+
+
 				//d = min(d, sdfTorus(p.xzy, .25,.1));
 				//d = min(d, sdfTorus(p-float3(0,-.2,0), .25,.1));
 				t = d;
+                
+                float sc = 0.008;
+                //t = max(0,-sdfRandBase_pos(p/sc))*10;
+                //t = max(0,-sdfRandBase_pos(p/sc)+.7*(1-1.6*length(p)))*100;
+                t = max(0,-sdfSphere(p,.1))*200;
+                //t = max(0,-sdfSphere(p,.19)*5);
 				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
 				//float d = sdfBox(p,float3(1,1,1));
 				//float dt = sdfFbm(p,d);
@@ -331,32 +397,25 @@
 
 
 				//dist = sdfFbmAdd(q, d, 0.15*.5, 15, tol);
-				dist = sdfFbmAdd(q, d, 0.15*2, 15, tol);
-				dist = min(dist, sdfTorus(p, .25,.02));
+				//dist = sdfFbmAdd(q, d, 0.15*2, 15, tol);
+				dist = sdfFbmAdd(q, d, 0.15*2, 15, tol); //!
+                dist *=scale;
+
+                //dist = min(dist, d+.08);
+
+
+				//dist = sdfFbmAdd(q+float3(30,30,30), dist, 0.15*.5, 15, tol);
+				//dist = min(dist, sdfTorus(p, .25,.02));
 				//dist = max(dist,sdfSphere(p,.48)); //!
 
 
 
-				//dist = sdfFbm(p/fbScale,d/fbScale, (2.5*tol)/fbScale)*fbScale;
-				//dist = max(dist, length(p)-0.45);
-
-				//return fracFlake(p);
-				//float d1 = sdfSphere(p+float3(0,0.3,0),0.4);
-
-				//float x1 = length(float2(p.x,p.z));
-				//float y1 = p.y;
-
-				//d1 = abs(y1 - x1*x1)/sqrt(2*x1*2*x1+1)-0.0;
-				//d1 = y1>(x1*x1) ? d1 : 0;
-
-
-				//float d2 = sdfSphere(p,0.3);
-
-				//dist = max(d1,d2)-0.01;
-				//dist = min(dist, sdfSphere(p+float3(0,-0.25,0),0.1));
 
 				#elif _SDF_MENGER
-
+                t=0;//max(0,-sdfSphere(p,.25))*200;
+                
+                //float sc = 0.01;
+                //t = max(0,-sdfRandBase_pos(p/sc)+.5*(1))*100;
                 //o.mat = applyColorTransform(p, o.mat); 
 
 				//o.dist = 50.5*log(length(p))*length(p)*p.x;
@@ -426,6 +485,9 @@
                 
                 #define COLTRANS_DONE
 				vSdfConfig.w = _SinTime.z;
+                float d = sdfSphere(p,.15);//sdfBox(p, .3);
+                t = max(0,-d);
+                //t = -0.1;//-.3;
 
                 float scaleFactor = smoothstep(-1,1,vSdfConfig.w)*6-3;
 				//float scale = 0.5;
@@ -434,7 +496,6 @@
 
 				p/=scale;
 				dist = fracMandelbox4(p, vSdfConfig.w, vSdfConfig.xyz)*scale;
-
                 //////////////////////////////////////////////////////////////////////
                 //
                 // None
@@ -519,12 +580,13 @@
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
-                mat.emmision = 0;
+                mat.emmision = fixed3(1,.5,.1)*length(t);
 				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				//p*=0.4;
 				//applyPositionTransform(p);
-				return applyColorTransform(t, mat);
+				//return applyColorTransform(p, mat);
+				return applyColorTransform(p, mat);
 			}
 
             //fixed4 lightPoint(rayData ray)

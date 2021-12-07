@@ -8,7 +8,6 @@
 // Multiple outputs are done with structs.
 // primitive values are only: int, float, bool
 
-
 // wrapper for psudorecursive (manual tail recursion and virtual stack using registers)
 // This is the public interface to the entire rendering process.
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
@@ -63,18 +62,27 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
         ray.dist     = 0;
         ray.bMissed  = true;
     }
-    i.totalDist += ray.dist + eh.startDist;
-    i.missed     = ray.bMissed;
+    i.totalDist   += ray.dist + eh.startDist;
+    i.missed       = ray.bMissed;
 
-    vec3 pos     = i.ro + ray.dist*i.rd;
+    vec3 startPos  = i.ro + i.rd*eh.startDist;
+    vec3 pos;
+    if (!ray.bMissed) pos = i.ro + ray.dist*i.rd;
+    else             pos = i.ro + maxDist*i.rd;
+
     col3 dcol; // direct incoming light for this point
 
     [flatten] if (ray.bMissed)
     {
         //i.prodCol=fixed3(.5,.5,.7);
         dcol = worldGetBackground(i.rd, 0); // missed = get background light
+
+	    dcol = pow(dcol, 2.2/1.0);//inverse gamma correction
         //dcol = 0;
         i.sumCol += i.prodCol*dcol;
+
+        // apply fog
+        i.sumCol = sceneApplyFog(startPos, pos, i.sumCol);
         return i;
     }
 
@@ -102,15 +110,17 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
 
 
     //i.rd              = reflect(i.rd,nor);//rendererGetBRDFRay(i.rd, nor, mat);
-    i.rd              = rendererGetBRDFRay(i.rd, nor, mat);
+    i.rd       = rendererGetBRDFRay(i.rd, nor, mat);
     //i.ro            = pos + nor*tol*2.5; // TODO: make better
-    i.ro = pos + nor*TOLERANCE(i.totalDist-eh.startDist)*2.5; 
+    i.ro       = pos + nor*TOLERANCE(i.totalDist-eh.startDist)*2.5;
 
-    i.prodCol       *= surfCol;
+    i.prodCol *= surfCol;
 
-    i.sumCol += i.prodCol*dcol;
-    //i.sumCol = fixed3(1,1,1);
-    //i.prodCol = fixed3(1,1,1);
+    i.sumCol  += i.prodCol*dcol;
+
+    // apply fog
+    i.sumCol   = sceneApplyFog(startPos, pos, i.sumCol);
+    i.prodCol  = sceneApplyFog(startPos, pos, i.prodCol);
     return i;
 }
 
@@ -128,7 +138,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
             o.hitPos = data.ro;
             if (data.missed)
             {
-                discard;
+                //discard;
                 o.col = data.sumCol;
                 return o;
             }

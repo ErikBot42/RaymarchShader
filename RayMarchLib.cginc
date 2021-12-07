@@ -34,8 +34,8 @@
 #include "Noise.cginc"
 #include "RayTraceFunctions.cginc"
 #include "Lighting.cginc"
-#include "RenderCore.h"
 
+#include "RenderCore.h"
 
 v2f vert (appdata v)
 {
@@ -304,7 +304,7 @@ fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
 	return worldGetBackground(rd, rough);
 }
 
-light createDirectionalLight(float3 pos, float3 dir, fixed3 col, float intensity = 1, float dist = 2, float k=20)
+light createDirectionalLight(float3 pos, float3 dir, fixed3 col, float intensity = 1, float dist = 3, float k=20)
 {
 	light l; l.dir = dir; l.col = col; l.k = k; l.intensity = intensity; l.dist = dist;
 	#ifndef USE_WORLD_SPACE
@@ -367,7 +367,7 @@ light getMainLight(float3 pos)
 
 	
 	//int i = 0;
-	//l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
+    //l.dir = float3(unity_4LightPosX0[i], unity_4LightPosY0[i], unity_4LightPosZ0[i]);
 	return l;
 }
 
@@ -380,7 +380,8 @@ fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = 
 
 	if (realLight && l.dist>0)
 	{
-		lightAmount = lightSoftShadow3(ro, l.dir, /*.01*/ 0.001, l.dist, l.k);
+		lightAmount = lightSoftShadow3(ro, l.dir, /*.01*/ 0.001*10, l.dist, l.k);
+        //lightAmount = lightSoftShadow4(ro, rd, 0.001, l.dist, 0.001);
 	}
 	lightAmount*=l.intensity*2;
 
@@ -404,11 +405,15 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	#ifndef RENDER_WITH_GI
 	col += .5*ambientColor*.4*AOfactor;// "ambient"
 	#endif
+
 	//col += 3*(1-AOfactor)*glowColor;
 	//return col;
 
+	//l = createDirectionalLight(pos, normalize(float3(0,1,.8)), sunCol, 1.3); 
+	l = createDirectionalLight(pos, normalize(float3(0.3,.5,1)), sunCol, 1.3); //side
+	//l = createDirectionalLight(pos, normalize(float3(0.2,1,.3)), sunCol, 1.3); 
 	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
+	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
 	//l = createPointLight(pos, float3(0,0,0), sunCol, 10);
 	col += lightToColor(l, pos, dir, nor, true);
 	return col;
@@ -591,7 +596,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
     //q.x+=_Time.x*123879;
 	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
 
-	int numSamples = 10;//10;
+	int numSamples = 1;//20;//10;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{
