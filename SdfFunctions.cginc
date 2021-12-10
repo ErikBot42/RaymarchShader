@@ -35,6 +35,14 @@ float sdfBox(float3 p, float3 vDim)
     float3 q = abs(p) - vDim/2.0;
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
+// alternate implementation
+float sdfBox2(float3 p, float3 v)
+{
+    float3 di = abs(p)-v;
+    float mc = max(di.x, max(di.y, di.z));
+    return min(mc, length(max(di, 0)));
+    
+}
 
 float sdfBox(float2 p, float2 vDim)
 {
@@ -165,7 +173,8 @@ float sph(int3 i, float3 p, int3 c)
 	//float val = pow(fhash(i+c),.2);
 	float val = h;//1.6*(h*h);
 	//float r = 0.5*val;
-	float r = 0.70*val;
+	//float r = 0.70*val;
+	float r = 0.65*val;
 	return length(p-c)-r;
 }
 // sphere at random pos

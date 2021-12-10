@@ -111,7 +111,7 @@ float lightSoftShadow2(float3 vStart, float3 vDir, float k, float tolerance=0.00
 
 float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, float k = 10)
 {
-	k = 4;
+	k = 10;
 
 	float res = 1;
 	float t = startDist;
@@ -119,14 +119,15 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 
 	float cutoff = 0.01;
 
-	float funge = 1.0;
+	float funge = 2;
 	
 	// orig: 20 <-> 2000
-	//for (int i = 0; i<200 && t<maxDist; i++)
-	for (int i = 0; i<64 && t<maxDist; i++)
+    int iterations = 50;
+	for (int i = 0; i<iterations && t<maxDist; i++)
+	//for (int i = 0; i<64 && t<maxDist; i++)
 	{
 		//float cutoff = TOLERANCE(startDist)*3;
-		float cutoff = TOLERANCE(startDist)*3;
+		//float cutoff = TOLERANCE(startDist+t)*3;
 		float h = sdf(ro + rd*t).x;
 		float y = (h*h)/(2.0*ph);
 		float d = sqrt(h*h-y*y);

@@ -35,7 +35,7 @@ struct rendererIterationData_t
     vec3 ro;           // IO
     vec3 rd;           // IO
     bool missed;       // out
-    bool discardOnMiss;// IO
+    bool firstBounce;  // IO
     // ...
 };
 

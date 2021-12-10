@@ -38,13 +38,35 @@ col3 blendColor(col3 startCol, col3 endCol, float curr, float start, float end)
 
 // rd is end POINT
 // apply fog assuming fog gradient is linear.
-col3 sceneApplyFog(vec3 ro, vec3 rd, col3 original)
+col3 sceneApplyFogLinear(vec3 ro, vec3 rd, col3 original, col3 fogCol)
 {
-    //return original;
-    float fogAmount = (fogAmountAtPos(ro) + fogAmountAtPos(rd))/2;
-    return blendColor(original, col3(1,1,1)*0.1, fogAmount*length(ro-rd), 0, 2).rgb;
+    float fogAmount = length(ro-rd)*(fogAmountAtPos(ro) + fogAmountAtPos(rd))/2;
+    return blendColor(original, fogCol, fogAmount, 0, 3).rgb;
 }
 
+// my random attempt at making volumetrics (will probably look bad)
+col3 sceneApplyFogVolumetric(vec3 ro, vec3 rd, col3 original, col3 fogCol)
+{
+    float fogAmount = length(ro-rd)*(fogAmountAtPos(ro) + fogAmountAtPos(rd))/2;
+
+    float3 mid = (ro+rd)/2;
+    float3 dir = normalize(rd-ro);
+
+    fogCol*=worldApplyLighting(mid, dir, -dir, 0).rgb*80;
+    return blendColor(original, fogCol, fogAmount, 0, 3).rgb;
+}
+
+col3 sceneApplyFog(vec3 ro, vec3 rd, col3 original)
+{
+    col3 fogCol = col3(1,.7,.9)*.1;
+#if 1
+    return original;
+#elif 0
+    return sceneApplyFogLinear(ro, rd, original, fogCol);
+#elif 0
+    return sceneApplyFogVolumetric(ro, rd, original, fogCol);
+#endif
+}
 
 
 #endif

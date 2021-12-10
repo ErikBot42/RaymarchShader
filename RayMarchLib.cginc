@@ -319,8 +319,8 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	light l; l.col = col; l.k = k; l.intensity = intensity;
 	l.dir = normalize(p-pos);
 
-	float maxDist = .4;//.2;//.8;//.4;
-	float innerRadius = maxDist/8.0;
+	float maxDist = 2;//.4;//.2;//.8;//.4;
+	float innerRadius = maxDist/8.0/8;
 
 
 	float dist = max(0,length(pos-p));
@@ -371,7 +371,7 @@ light getMainLight(float3 pos)
 	return l;
 }
 
-fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = false)
+fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = false, bool useNorm = false)
 {
 	float diffuse = 0;
 	float specular = 0;
@@ -386,14 +386,30 @@ fixed3 lightToColor(light l, float3 ro, float3 rd, float3 nor, bool realLight = 
 	lightAmount*=l.intensity*2;
 
 	//return l.col*lightAmount*0.2;
+    if (useNorm)
+    {
+        specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),50);
+        diffuse = lightAmount*saturate(dot(nor,l.dir));
+        return l.col * (specular*2 + diffuse);
+    }
+    else
+    {
+        return l.col*lightAmount;
+    }
+}
 
-	specular = lightAmount*pow(saturate(dot(normalize(l.dir - rd),nor)),50);
-	diffuse = lightAmount*saturate(dot(nor,l.dir));
-	return l.col * (specular*2 + diffuse);
+fixed3 severalLightToCol(const light lights[2], const int numLights, float3 pos, float3 dir, float3 nor)
+{
+    fixed3 col = 0;
+    for (int i = 0; i<numLights; i++)
+    {
+        col += lightToColor(lights[i], pos, dir, nor, true, false);
+    }
+    return col;
 }
 
 // calc the direct light a point recives (including shadows)
-fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float AOfactor = 1, float stepBack = 0.001, float tolerance=0.001)
+fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float AOfactor = 1, bool useNorm = true, float stepBack = 0.001, float tolerance=0.001)
 {
 
 	light l;
@@ -409,14 +425,42 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	//col += 3*(1-AOfactor)*glowColor;
 	//return col;
 
-	//l = createDirectionalLight(pos, normalize(float3(0,1,.8)), sunCol, 1.3); 
-	l = createDirectionalLight(pos, normalize(float3(0.3,.5,1)), sunCol, 1.3); //side
-	//l = createDirectionalLight(pos, normalize(float3(0.2,1,.3)), sunCol, 1.3); 
-	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
-	//l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
-	//l = createPointLight(pos, float3(0,0,0), sunCol, 10);
-	col += lightToColor(l, pos, dir, nor, true);
-	return col;
+#if 0
+    //float3 ldir = normalize(float3(-.5,-.5,.5));
+    //l = createDirectionalLight(pos, ldir, sunCol, 1.3); //side
+    //l = createDirectionalLight(pos, normalize(float3(-.15,1,.1)), sunCol, 1.3); //above
+    //l = createDirectionalLight(pos, normalize(float3(0,1,.8)), sunCol, 1.3); 
+    //l = createDirectionalLight(pos, normalize(float3(0.3,.5,1)), sunCol, 1.3); //side
+    //l = createDirectionalLight(pos, normalize(float3(0.2,1,.3)), sunCol, 1.3); 
+    l = createDirectionalLight(pos, normalize(float3(_SinTime.z,_SinTime.x/2+1.5,abs(_CosTime.z))), sunCol, 1.3); 
+    //l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
+    col += lightToColor(l, pos, dir, nor, true, useNorm);
+#else
+    //l = createPointLight(pos, float3(0,0,0), sunCol, 10*5);
+    const int numLights = 2;
+    float lightOffset   = .14;
+
+    light lights[numLights];
+    float time = _Time.x;
+    const float off = (PI*2.0)/3.0;
+
+    float I = 10.0*5.0;
+    float facSat = 0.05;
+    lights[0] = createPointLight(pos, float3(0,  lightOffset, 0), fixed3(1,      facSat, facSat), I);
+    lights[1] = createPointLight(pos, -float3(0, lightOffset, 0), fixed3(facSat, facSat, 1),      I);
+    //lights[0] = createPointLight(pos, lightOffset*float3(sin(time),cos(time),0), fixed3(1,   facSat, facSat), I);
+    //lights[1] = createPointLight(pos, -lightOffset*float3(sin(time), cos(time),0), fixed3(facSat, facSat, 1),   I);
+
+    //const float off = (PI*2.0)/3.0;
+    //lights[0] = createPointLight(pos, lightOffset*float3(sin(time),cos(time),0), fixed3(1,   0.2, 0.2), I);
+    //lights[1] = createPointLight(pos, lightOffset*float3(sin(time+off), cos(time+off),0), fixed3(0.2, 1,   0.2), I);
+    //lights[2] = createPointLight(pos, lightOffset*float3(sin(time+off*2), cos(time+off*2),0), fixed3(0.2, 0.2, 1),   I);
+
+    col += severalLightToCol(lights, numLights, pos, dir, nor);
+    //col += lightToColor(lights[0], pos, dir, nor, true, useNorm);
+    //col += lightToColor(lights[1], pos, dir, nor, true, useNorm);
+#endif
+    return col;
 	
 	//float3 reflected = reflect(dir, nor);
 	//float time = _Time.z*.05;//123.543254626;
@@ -475,7 +519,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 // this is a recursive algorithm in an iterative form.
 fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels)
 {
-	numLevels = 1;//4;//3;
+	numLevels = 10;//4;//3;
 	#ifdef RENDER_WITH_GI
 	//numLevels = max(numLevels,4);
 	numLevels = max(numLevels,4);
@@ -596,7 +640,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
     //q.x+=_Time.x*123879;
 	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
 
-	int numSamples = 1;//20;//10;
+	int numSamples = 10;//20;//10;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{

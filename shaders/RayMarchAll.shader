@@ -317,7 +317,123 @@
                 dist*=scale;
 
 				#elif _SDF_TESTING
+                t = 0;
 
+
+                float scale = .5;
+                p/=scale;
+                
+                #if 0
+                float d = sdfBox2(p,vec3(1.0, 1.0, 1.0));
+                float4 res = float4( d, 1.0, 0.0, 0.0 );
+
+                float ani = 0;
+                float off = 0;
+
+                float s = 1.0;
+                for( int m=0; m<4; m++ )
+                {
+                    //p = mix( p, ma*(p+off), ani );
+                    vec3 a = fmod( p*s+pow(4, m), 2.0 )-1.0;
+
+                    s *= 3.0;
+                    vec3 r = abs(1.0 - 3.0*abs(a));
+                    float da = max(r.x,r.y);
+                    float db = max(r.y,r.z);
+                    float dc = max(r.z,r.x);
+                    float c = (min(da,min(db,dc))-1.0)/s;
+
+                    if( c>d )
+                    {
+                        d = c;
+                        res = float4( d, min(res.y,0.2*da*db*dc), (1.0+float(m))/4.0, 0.0 );
+                    }
+                }
+                dist = res.x;
+                #endif
+
+                #if 0
+
+                vec3 w = p;
+                vec3 q = p;
+
+                q.xz = fmod( q.xz+1.0+200, 2.0 ) -1.0;
+
+                float d = sdfBox2(q,vec3(1.0, 1.0, 1.0));
+                float s = 1.0;
+                for( int m=0; m<7; m++ )//7
+                {
+                    // this could be *any* transformation,
+                    // since the distance field is just offset
+                    // (and rotated
+                    //p = q.yzx - 0.5*sin( 1.5*p.x + 6.0 + p.y*3.0 + float(m)*5.0 + vec3(1.0,0.0,0.0));
+                    //p = q.yzx - 0.5*cos(5 + p.x + 2*p.y + m*6);
+                    //p = q.yzx;
+
+                    vec3 a = fmod( p*s+pow(16, m), 2.0 )-1.0;
+                    s *= 3.0;
+                    vec3 r = abs(1.0 - 3.0*abs(a));
+
+                    float da = max(r.x,r.y);
+                    float db = max(r.y,r.z);
+                    float dc = max(r.z,r.x);
+                    float c = (min(da,min(db,dc))-1.0)/s;
+                    d = max( c, d );
+                }
+                d*=.5;
+                d*=.5;
+                d*=.5;
+
+                dist = d;
+                //d = min(d, sdfSphere(w+vec3(-.2,0,0), .1));
+                p = w;
+                #endif
+
+                #if 1
+
+                float d;
+                d = sdfSphere(p*scale, .49);
+
+                float s = 1;
+                const int iterations = 7;
+                const float fac = pow(4, iterations);
+                vec3 q = p;
+                q.xz = fmod(q.xz+1+fac, 2.0)-1.0;
+                for (int m=0; m<iterations; m++)
+                {
+                    //p = q.yzx - 0.5*cos(5 + p.x + p.z + 2*p.y + m*6);
+                    p = q.yzx+sin(
+                        p.y*.4
+                        +p.z*.5
+                        +0.0
+                        +m*8
+                        //+p.zxy*vec3(4.234,3.12,8.43)
+                        //+vec3(3.4365,5.324,8.435)
+                    );
+                    vec3 a = fmod(p*s+fac, 2.0)-1.0;
+                    s*=3.0;
+                    vec3 r = abs(1-3.0*abs(a));
+                    #if 1
+		            float c = sdfCross(r)/(s);
+                    #else
+                    float da = max(r.x,r.y);
+                    float db = max(r.y,r.z);
+                    float dc = max(r.z,r.x);
+                    float c = (min(da,min(db,dc))-1.0)/s;
+                    #endif
+                    d = max(d, c);
+                }
+                //d*=.5;
+
+                dist = d;
+
+                #endif
+
+                dist*=scale;
+                //dist = max(dist, sdfSphere(p*scale, .49));
+                //dist = max(dist, -sdfSphere(p*scale, .3));
+
+                #if 0
                 //float scale = 0.4;
                 //p/=scale;
                 float sc = 0.04;
@@ -326,6 +442,7 @@
                 dist = max(dist, sdfSphere(p,.4));
                 t = max(0,-length(p)+.2);
                 //dist*=scale;
+                #endif
 
 				#elif _SDF_ASTEROID
                 float scale = 1;
@@ -359,6 +476,11 @@
                 d = min(d, d2);
                 #else
                 d = sdfSphere(p, 0.49);
+                //d = max(d, -sdfSphere(p, 0.05));
+                float rrr = .1;
+                float rroff = 0.14;
+                d = max(d, -sdfSphere(p+float3(0,rroff,0), rrr));
+                d = max(d, -sdfSphere(p-float3(0,rroff,0), rrr));
 
                 #endif
 
@@ -378,7 +500,7 @@
                 float sc = 0.008;
                 //t = max(0,-sdfRandBase_pos(p/sc))*10;
                 //t = max(0,-sdfRandBase_pos(p/sc)+.7*(1-1.6*length(p)))*100;
-                t = max(0,-sdfSphere(p,.1))*200;
+                t = 0;//max(0,-sdfSphere(p,.1))*200;
                 //t = max(0,-sdfSphere(p,.19)*5);
 				//d = smax(d,-sdfSphere(p-float3(0,0,0),.4),sfac);
 				//float d = sdfBox(p,float3(1,1,1));
@@ -392,7 +514,7 @@
 
                 //d = min(d,p.y+.1*.5); //!
                 
-				float3 q = p ;//+ float3(0,_Time.x,0);
+				float3 q = p + float3(0,_Time.x,0);
 				dist = d;
 
 
@@ -432,6 +554,8 @@
                 //dist = max(dist, -(length(p.yx)-.4));
                 //dist = smax(dist, -sdfCross(p*3)/3, .5);
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
+
+				//dist = sdfFbmAdd(p, dist, 0.15*2, 3, tol); //!
 				//dist = sdfFbmAdd(p, dist, 0.25, 14, tol);
 				//dist = sdfFbmAdd(p, dist, 0.25, 3, tol);
 				//dist = sdfFbmAdd(p, dist, 0.25*5, 15, tol);
@@ -471,6 +595,7 @@
                 //
                 //////////////////////////////////////////////////////////////////////
 				#elif _SDF_JULIABULB
+                t = 0;
                 float scale = 0.44;
                 p/=scale;
                 dist = fracJuliabulb2(p, vSdfConfig.xyz*1.3);//, vSdfConfig.w*3+6);
@@ -494,8 +619,10 @@
 				float scale = 0.15;
 				//_SurfDist = 0.0001;
 
+
 				p/=scale;
 				dist = fracMandelbox4(p, vSdfConfig.w, vSdfConfig.xyz)*scale;
+                dist = max(dist, -sdfSphere(p,.5));
                 //////////////////////////////////////////////////////////////////////
                 //
                 // None
