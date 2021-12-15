@@ -638,9 +638,10 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
 #else
 	int3 q = rd*324789.789345;
     //q.x+=_Time.x*123879;
-	srand(ihash(q.x + ihash(q.y + ihash(q.x))));
+    int off = ihash(_Time.x*234.34798);
+	srand(ihash(q.x + ihash(q.y + ihash(q.x+off))));
 
-	int numSamples = 10;//20;//10;
+	int numSamples = 1;//20;//10;
 	fixed4 col = 0;
 	[loop] for (int i = 0; i<numSamples; i++)
 	{

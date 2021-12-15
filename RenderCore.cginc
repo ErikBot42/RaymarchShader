@@ -13,7 +13,7 @@
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
 {
     #ifdef RENDER_WITH_GI
-    numLevels = 4;
+    numLevels = 2;
     #else
     numLevels = 1;
     #endif
@@ -171,10 +171,10 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
 
     
     // volumetrics
-    #if 1
+    #if 0
     col3 acc = 0;
     int samples = 10;
-    float fogStrength = 1*.3;//*.1;
+    float fogStrength = 1*.8;//.3;//*.1;
     for (int i = 0; i<samples; i++)
     {
         // random point along ray path
@@ -196,7 +196,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     
     acc/=samples;
     //acc-=sunCol*.025;
-    acc-=normalize(acc)*0.02/fogStrength;
+    acc-=normalize(acc)*0.06/fogStrength;
     acc.x = max(acc.x,0);
     acc.y = max(acc.y,0);
     acc.z = max(acc.z,0);
