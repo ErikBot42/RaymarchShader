@@ -24,7 +24,7 @@
         // toggles TEST_A_ON
         //[Toggle(TEST_A_ON)] _TestA("Test a?", Int) = 0
 
-        [KeywordEnum(None, Asteroid, Menger, Testing, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
+        [KeywordEnum(None, Asteroid, Menger, Testing, Testing_alt, Testing_alt2, Juliabulb, Mandelbulb, Mandelbolb, Mandelbox, Feather, Demoscene)] _SDF ("SDF", Float) = 0
         [KeywordEnum(None, ColorXYZ, ColorHSV_sphere, ColorHSV_cube)] _MTRANS ("Material transform", Float) = 0
         [KeywordEnum(None, Twist, Rotate, Repeat, MengerFold)] _PTRANS ("Position transform", Float) = 0
         [KeywordEnum(World, Object)] _SPACE ("Space", Float) = 0
@@ -71,7 +71,7 @@
 			#pragma vertex vert
             #pragma fragment frag
 			
-            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER _SDF_ASTEROID
+            #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING_ALT _SDF_TESTING_ALT2 _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER _SDF_ASTEROID
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
             #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
@@ -104,17 +104,19 @@
 
 			#if 0
             // absurd testing
-			#define SURF_DIST 0.004
+			#define SURF_DIST 0.0006
 			#define MAX_STEPS 200
             #define RENDER_WITH_GI
             #endif
-			#if 0
+			#if 1
 			// for typical resolution:			
-			#define SURF_DIST 0.004
+			//#define SURF_DIST 0.004
+			#define SURF_DIST 0.0004
+			//#define MAX_STEPS 200
 			#define MAX_STEPS 200
 			//#define RENDER_WITH_GI
             #endif
-			#if 1 
+			#if 0 
 			// for absurd resolution:
 			#define SURF_DIST 0.0004
 			//#define MAX_STEPS 2000
@@ -300,8 +302,13 @@
 
                 float scale = .4;
                 p/=scale;
+                
+
+
+
 				float4 v = fracMandelbulb2(p);
                 dist = v.x;
+
 				//t = v.yzw/4;
                 //t = max(0,-sin(length(v.yzw)*9))*2;
                 t = max(0,sin(length(v.yzw)*6.5)-.3)*10;
@@ -314,6 +321,227 @@
                 float scale = 0.4;
                 p/=scale;
                 dist = fracMandelbolb(p);
+                dist*=scale;
+
+				#elif _SDF_TESTING_ALT2
+
+                static bool use_big = true;
+
+                float d_sel = sdfBox(p,float3(.8,.8,1.8)*0.3);
+
+                if (d_sel < 0) use_big = false;
+                
+                float d1_out = sdfBox(p,float3(1,1,2)*0.3);
+                float d1_in = sdfBox(p,float3(.8,.8,3)*0.3);
+                float d1 = max(d1_out, -d1_in);
+                
+                float w = .5 + .5*_SinTime.z;
+
+                float d2_out = sdfBox(p,float3(1+w,1+w,2)*0.3);
+                float d2_in = sdfBox(p,float3(0.8+w,0.8+w,1.8)*0.3);
+                float d2 = max(d2_out, -d2_in);
+                d2 = max(d2, -d1_in);
+
+                if (use_big) 
+                {
+                    dist = d1;
+                }
+                else
+                {
+                    dist = d2;
+                    //dist = sdfBox(p,float3(2,.5,.5)*0.3);
+                }
+
+
+				#elif _SDF_TESTING_ALT
+                float scale = .3;
+                p/=scale;
+                t = 0;
+				//dist = mengerSponge(p, 0, 0);
+                
+
+                float amp = 0.03*4*4;//*(1+sin(_Time.x*10))*.5;
+
+
+                vec3 s = vec3(1,1,1);
+                vec3 h;
+                
+                float pw = 6;
+
+
+                float time; 
+
+                float d2 = 1.0/0.0;
+                
+                vec3 q = p;
+                //q = repXYZLimited(q, 4, vec3(1,1,1));
+                //planeFold(q, vec3(1,0,0), -2);
+                //planeFold(q, vec3(0,1,0), -2);
+
+                float timee0 = .5;//_Time.y/4;
+                time = 0;//2.23478+int(timee0);
+                q = rotZ(q,time);
+                q = rotY(q,time*0.83249);
+                q = rotX(q,time*1.3278);
+
+                vec3 o = vec3(1,1,1)*.5*.5;//*.5*.5;
+                vec3 off;
+
+                float w = .04*0;
+                float timee1 = timee0+w;
+                float timee2 = timee1+w;
+
+                float timeen1 = timee0-w;
+                float timeen2 = timeen1-w;
+
+                
+                // the centered
+                h = s*amp*.5*pow((1-cos(timee0 *PI*2))*.5,pw);
+                
+                d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                #if 1
+                for (int i = 1; i<4; i++)
+                {
+                    timeen1 = timee0 - w*i;
+
+                    h = s*amp*.5*pow((1-cos(timeen1*PI*2))*.5,pw);
+                    off = o*i;
+                    q += off+h;
+                    d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                    timeen1 = timee0 + w*i;
+                    q -= off;
+
+                    h = s*amp*.5*pow((1-cos(timeen1*PI*2))*.5,pw);
+                    off = -o*i;
+                    q += (off-h);
+                    d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                    q -= off;
+                }
+                #else
+                
+                // +- 1
+                h = s*amp*.5*pow((1-cos(timeen1*PI*2))*.5,pw);
+                off = o*1;
+                q += off+h;
+                d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                q -= off;
+
+                h = s*amp*.5*pow((1-cos(timeen1*PI*2))*.5,pw);
+                off = -o*1;
+                q += (off-h);
+                d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                q -= off;
+
+                // +- 2
+
+                h = s*amp*.5*pow((1-cos(timeen2*PI*2))*.5,pw);
+                off = o*2;
+                q += off+h;
+                d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                q -= off;
+                
+                h = s*amp*.5*pow((1-cos(timeen2*PI*2))*.5,pw);
+                off = -o*2;
+                q += (off-h);
+                d2 = min(d2,sdfXYZPlane(q,h));q = elongate(q, h);
+                q -= off;
+                #endif
+
+                q = rotX(q,-time*1.3278);
+                q = rotY(q,-time*0.83249);
+                q = rotZ(q,-time);
+
+                //time = 2.893289+int(timee2);
+                //h=h2;
+                //q = rotZ(q,time);
+                //q = rotX(q,time);
+                //d2 = min(d2,sdfXYZPlane(q,h));
+                //q = elongate(q, h);
+                //q = rotX(q,-time);
+                //q = rotZ(q,-time);
+
+                //time = 2.123542+int(timee3);
+                //h=h3;
+                //q = rotZ(q,time);
+                //q = rotX(q,time);
+                //d2 = min(d2,sdfXYZPlane(q,h));
+                //q = elongate(q, h);
+                //q = rotX(q,-time);
+                //q = rotZ(q,-time);
+
+
+
+
+
+                //q = p;
+                //time = 1.894358+int(timee2);
+                //h = h2;
+                //q = rotZ(q,time);
+                //q = rotX(q,time);
+                //d2 = min(d2,min(min(max(q.x-h.x, -h.x-q.x),
+                //                   max(q.y-h.y, -h.y-q.y)),
+                //                   max(q.z-h.z, -h.z-q.z)));
+                //q = q - clamp( q, -h, h );
+                //q = rotX(q,-time);
+                //q = rotZ(q,-time);
+
+                //time = 4.5463219+int(timee3);
+                //h = h3;
+                //q = rotZ(q,time);
+                //q = rotX(q,time);
+                //d2 = min(d2,min(min(max(q.x-h.x, -h.x-q.x),
+                //                   max(q.y-h.y, -h.y-q.y)),
+                //                   max(q.z-h.z, -h.z-q.z)));
+                //q = q - clamp( q, -h, h );
+                //q = rotX(q,-time);
+                //q = rotZ(q,-time);
+
+                vec3 u = vec3(1,1,1);
+
+                dist = sdfBox2(q,u);
+                //dist = abs(dist)-0.05;
+                float rad = .5;
+                //dist = min(dist, sdfSphere(q+vec3(0,1,0), rad));
+                //dist = min(dist, sdfSphere(q+vec3(0,-1-rad,0), rad));
+                //dist = min(dist, sdfTorus(q+vec3(0,-1-rad,0), 1, rad/4));
+
+                //dist = min(dist, sdfSphere(q+vec3(1,0,0), rad));
+                //dist = min(dist, sdfSphere(q+vec3(-1,0,0), rad));
+                //dist = min(dist, sdfSphere(q+vec3(0,0,1), rad));
+                //dist = min(dist, sdfSphere(q+vec3(0,0,-1), rad));
+
+
+                //dist = max(dist, -sdfBox2(q,u*.7));
+                float acc= .5;//.05;
+
+                //float fac = 2.2;
+
+                //dist = abs(dist)-0.1;
+                
+                //float fac = 2.6;
+                //for (int i = 0; i<6; i++)
+                //{
+                //    dist = abs(dist)-acc;acc/=fac;
+                //}
+
+
+                //t = max(0,-dist)*0.5;
+                t = 0;//max(0,-d2+0.05)*10*h_i;
+				//dist = sdfFbmAdd(q, dist, 0.15*5, 2, tol); //!
+                //t = max(0,-dist-.3)*2;
+                //dist = min(dist, sdfTorus(q.xyz,2.5,.3));
+                //dist = min(dist, sdfTorus(q.yzx,2.5,.3));
+                //dist = min(dist, sdfTorus(q.zxy,2.5,.3));
+
+
+
+				//dist = mengerSponge(q, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
+                
+                //d2 = max(d2,sdfSphere(p,2));
+                
+                //dist = min(dist, d2);
+
+                dist = max(dist, -d2);
                 dist*=scale;
 
 				#elif _SDF_TESTING
@@ -553,7 +781,35 @@
                 //dist = sdfSphere(p, 1);
                 //dist = max(dist, -(length(p.yx)-.4));
                 //dist = smax(dist, -sdfCross(p*3)/3, .5);
+                vec3 h = normalize(sin(vec3(3,4,5)*_Time.x)+vec3(1,1,1));//normalize(vec3(1,1,.5))*.5*(1+_SinTime.z);
+
+                float time = 2.23478;//_Time.y;
+
+                //p = rotZ(p,time);
+                //p = rotX(p,time);
+                //vec3 q = p - clamp( p, -h, h );
+                //vec3 v = h;
+                //float d2 = min(min(max(p.x-h.x, -h.x-p.x),
+                //                   max(p.y-h.y, -h.y-p.y)),
+                //                   max(p.z-h.z, -h.z-p.z));
+                ////float d2 = max(p.x-h.x, -h.x-p.x);
+                //q = rotX(q,-time);
+                //q = rotZ(q,-time);
+
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
+                t = sdfSphere(p, 0.1*(1+_SinTime.y));
+                dist = min(dist, t.x);
+
+                //float3 q = float3(1,0,0)*0.4;
+                //q = rotY(q,_Time.y);
+                //dist = min(dist, sdfSphere(p+q,.2));
+                //dist = min(dist, sdfSphere(p-q,.2));
+                
+                //d2 = max(d2,sdfSphere(p,.5/scale));
+                //dist = min(dist, d2);
+                //dist = max(dist, -d2);
+
+				//dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
 
 				//dist = sdfFbmAdd(p, dist, 0.15*2, 3, tol); //!
 				//dist = sdfFbmAdd(p, dist, 0.25, 14, tol);
@@ -598,6 +854,9 @@
                 t = 0;
                 float scale = 0.44;
                 p/=scale;
+
+
+
                 dist = fracJuliabulb2(p, vSdfConfig.xyz*1.3);//, vSdfConfig.w*3+6);
                 dist*=scale;
 
@@ -707,13 +966,16 @@
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
 				mat.col.w = 1;
-                mat.emmision = fixed3(1,.5,.1)*length(t);
+                //mat.emmision = fixed3(1,.5,.1)*length(t);
 				mat.fSmoothness = 1;//0.5+0.5*sin(5*max(p.x,max(p.y,p.z)));
 				//mat.fSmoothness = p.x>0 ? 0.3 : 0.7;//pow(sin(p.x+p.y+p.z),2);
 				//p*=0.4;
 				//applyPositionTransform(p);
 				//return applyColorTransform(p, mat);
-				return applyColorTransform(p, mat);
+				mat = applyColorTransform(p, mat);
+
+                if (t.x<0) {mat.col=0;}
+                return mat;
 			}
 
             //fixed4 lightPoint(rayData ray)

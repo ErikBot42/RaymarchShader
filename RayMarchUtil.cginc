@@ -122,7 +122,7 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 	float funge = 2;
 	
 	// orig: 20 <-> 2000
-    int iterations = 50;
+    int iterations = 100;//50;
 	for (int i = 0; i<iterations && t<maxDist; i++)
 	//for (int i = 0; i<64 && t<maxDist; i++)
 	{
@@ -290,7 +290,7 @@ float3 cosineDirection(float3 nor)
 
 float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
 {
-#if 1
+#if 0
     return cosineDirection(nor);	
 #elif 0
     if (frand()<.5)
@@ -301,7 +301,7 @@ float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
     {
         return reflect(rd,nor);
     }
-#elif 0
+#elif 1
     return reflect(rd, nor);
 #else
     return normalize(reflect(rd, nor) + float3(frand(), frand(), frand())*0.05);

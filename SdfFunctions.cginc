@@ -23,6 +23,14 @@ float sdfPlane(float3 p, float fHeight)
     return p.y - fHeight;
 }
 
+// create XYZ "blocks"
+float sdfXYZPlane(float3 p, float3 h)
+{
+    return min(min(max(p.x-h.x, -h.x-p.x),
+                   max(p.y-h.y, -h.y-p.y)),
+                   max(p.z-h.z, -h.z-p.z));
+}
+
 //create plane with normal
 float sdfPlane(float3 p, float3 vNorm, float fHeight)
 {

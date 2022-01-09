@@ -49,6 +49,11 @@ inline float3 repXZ(float3 p, float x, float z)
     return o;
 }
 
+
+inline float3 repXYZLimited(float3 p, float c, float3 l)
+{
+    return p-c*clamp(round(p/c),-l,l);
+}
 // Reflect point if inside/outside sphere
 void sphereFold(
     inout float3 p, 
@@ -199,5 +204,10 @@ void scaleTranslate(inout float3 p, const float scale, const float3 delta)
 	p+=delta;
 }
 
+// tranform space to elongate object
+float3 elongate(float3 p, float3 h)
+{
+    return p - clamp( p, -h, h );
+}
 
 #endif

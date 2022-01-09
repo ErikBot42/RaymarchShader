@@ -2,21 +2,25 @@
 #define RENDERCORE_C
 #include "RenderCore.h"
 #include "SceneCore.cginc"
+#include "RayCore.cginc"
 
 // core rendering, may only use conjunction of the syntax of h/glsl and c
 // A consequence of this is that all functions become pure.
 // Multiple outputs are done with structs.
 // primitive values are only: int, float, bool
-
 // wrapper for psudorecursive (manual tail recursion and virtual stack using registers)
 // This is the public interface to the entire rendering process.
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
 {
     #ifdef RENDER_WITH_GI
-    numLevels = 2;
+    numLevels = 3;
     #else
-    numLevels = 1;
+    numLevels = 2;
     #endif
+    
+    sceneTransformCameraOut_t cam = sceneTransformCamera(ro, rd);
+    ro = cam.ro;
+    rd = cam.rd;
 
     rendererIterationData_t data;
     data.sumCol = 0;
@@ -33,49 +37,37 @@ rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float start
 rendererIterationData_t rendererIteration(rendererIterationData_t i)
 {
     sceneEstimateHitOut_t eh = SceneEstimateHit(i.ro, i.rd);
-    float startDist = eh.startDist; //distance ray can safetly start at
-    float maxDist = eh.maxDist; //distance ray can safetly end at
-    //rayDataMinimal ray = castRayMinimal(i.ro, i.rd, startDist, i.totalDist-startDist, maxDist);
+    eh.startDist = 0;
+    eh.maxDist = 5;
+    //float startDist = eh.startDist; //distance ray can safetly start at
+    //float maxDist = eh.maxDist; //distance ray can safetly end at
 
-    rayDataMinimal ray;
+    rayCoreCastRayOut_t ray;
     if (eh.hit)
     {
-        //ray = castRayMinimal(i.ro, i.rd, eh.startDist, i.totalDist-eh.maxDist);
-        ray = castRayMinimal(i.ro, i.rd, startDist, i.totalDist-startDist, maxDist);
-        //TODO: ray abstraction
-        //TODO: interpret when the last iteration occurs
-        //if (true)
-        //{
-        // Actual raymarch
-        //}
-        //else
-        //{
-        //    // Fake last reflection
-        //    //i.prodCol   *= .5;
-        //    ray.dist     = 0;
-        //    ray.bMissed  = true;
-        //}
+        ray = rayCoreCastRay(i.ro, i.rd, i.totalDist, eh.startDist, eh.maxDist);
+        //TODO: fake last reflection
     }
     else
     {
         i.prodCol   *= .5;
         ray.dist     = 0;
-        ray.bMissed  = true;
+        ray.missed  = true;
     }
     i.totalDist   += ray.dist + eh.startDist;
-    i.missed       = ray.bMissed;
+    i.missed       = ray.missed;
 
     vec3 startPos  = i.ro + i.rd*eh.startDist;
     vec3 pos;
-    if (!ray.bMissed) pos = i.ro + ray.dist*i.rd;
-    else             pos = i.ro + maxDist*i.rd;
+    if (!ray.missed) pos = ray.ro;
+    else             pos = i.ro + eh.maxDist*i.rd;
 
     col3 dcol; // direct incoming light for this point
 
-    [flatten] if (ray.bMissed)
+    [flatten] if (ray.missed)
     {
         //i.prodCol=fixed3(.5,.5,.7);
-        dcol = worldGetBackground(i.rd, 0); // missed = get background light
+        dcol = worldGetBackground(ray.rd, 0); // missed = get background light
         if (i.firstBounce) dcol = pow(dcol, 2.2/1.0);//inverse gamma correction
         i.ro = pos;
         //dcol = 0;
@@ -89,32 +81,21 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
     {
 
         //TODO: ray abstraction
-        float tol        = ray.fLastTolerance;
-        float3 nor         = getNormFull(pos, tol);
-        //ray.iSteps = 30;
-        //float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
-        float fAOfactor  = smoothSSAO(ray.iSteps, MAX_STEPS, ray.fLastDist, ray.fLastTolerance, 100);
+        float tol       = ray.tol;
+        float3 nor      = ray.nor;
+        float fAOfactor = ray.AOfactor;
 
 
         //TODO: material abstraction
-        // TODO: sumcol += emmision
-        material mat      = calcMaterial(pos, sdf(pos).yzw);
-        col3 surfCol      = mat.col.rgb;
+        material mat = calcMaterial(pos, sdf(pos).yzw);
+        col3 surfCol = mat.col.rgb;
 
-        //dcol = 1;//saturate(dot(i.rd, nor))*(0.003/(length(pos)*length(pos)));
-        dcol             = worldApplyLighting(pos, i.rd, nor, fAOfactor);//ray.iSteps>10 ? 1 : 0;//0.01/length(pos);//
+        dcol  = worldApplyLighting(pos, i.rd, nor, fAOfactor);
         dcol += mat.emmision;
 
 
-        //surfCol = 1-fAOfactor;//ray.iSteps/(float)MAX_STEPS;;//dot(nor, float3(0,1,0));//sin(pos*100);
-        //surfCol.r*=2;
-        //surfCol*=.5;
-
-
-        //i.rd              = reflect(i.rd,nor);//rendererGetBRDFRay(i.rd, nor, mat);
-        i.rd       = rendererGetBRDFRay(i.rd, nor, mat);
-        //i.ro            = pos + nor*tol*2.5; // TODO: make better
-        i.ro       = pos + nor*TOLERANCE(i.totalDist-eh.startDist)*2.5;
+        i.rd = rendererGetBRDFRay(i.rd, nor, mat);
+        i.ro = pos + nor*TOLERANCE(i.totalDist-eh.startDist)*2.5;
 
         i.prodCol *= surfCol;
     }
@@ -164,17 +145,20 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     return o;
     #endif
 
-    // extinction (.1)
-    o.col*=exp(-.5*distFirstBounce);
 
     //o.col = distFirstBounce/10;
 
     
     // volumetrics
     #if 0
+    // extinction (.1)
+    o.col*=exp(-.5*distFirstBounce);
+
+
     col3 acc = 0;
     int samples = 10;
-    float fogStrength = 1*.8;//.3;//*.1;
+    float fogStrength = 1*.4;//.3;//*.1;
+    //float fogStrength = 0.7/length(oro+ord*distFirstBounce);
     for (int i = 0; i<samples; i++)
     {
         // random point along ray path
@@ -197,6 +181,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     acc/=samples;
     //acc-=sunCol*.025;
     acc-=normalize(acc)*0.06/fogStrength;
+    //acc-=normalize(acc)*0.1/fogStrength;
     acc.x = max(acc.x,0);
     acc.y = max(acc.y,0);
     acc.z = max(acc.z,0);

@@ -403,7 +403,7 @@ fixed3 severalLightToCol(const light lights[2], const int numLights, float3 pos,
     fixed3 col = 0;
     for (int i = 0; i<numLights; i++)
     {
-        col += lightToColor(lights[i], pos, dir, nor, true, false);
+        col += lightToColor(lights[i], pos, dir, nor, true, true);
     }
     return col;
 }
@@ -432,10 +432,11 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
     //l = createDirectionalLight(pos, normalize(float3(0,1,.8)), sunCol, 1.3); 
     //l = createDirectionalLight(pos, normalize(float3(0.3,.5,1)), sunCol, 1.3); //side
     //l = createDirectionalLight(pos, normalize(float3(0.2,1,.3)), sunCol, 1.3); 
+    
     l = createDirectionalLight(pos, normalize(float3(_SinTime.z,_SinTime.x/2+1.5,abs(_CosTime.z))), sunCol, 1.3); 
-    //l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, .01); 
+    //l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
     col += lightToColor(l, pos, dir, nor, true, useNorm);
-#else
+#elif 1
     //l = createPointLight(pos, float3(0,0,0), sunCol, 10*5);
     const int numLights = 2;
     float lightOffset   = .14;
@@ -459,6 +460,9 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
     col += severalLightToCol(lights, numLights, pos, dir, nor);
     //col += lightToColor(lights[0], pos, dir, nor, true, useNorm);
     //col += lightToColor(lights[1], pos, dir, nor, true, useNorm);
+#elif 1
+    l = createPointLight(pos, float3(0,0,0), sunCol, 10*5);
+    col += lightToColor(l, pos, dir, nor, true, useNorm);
 #endif
     return col;
 	
