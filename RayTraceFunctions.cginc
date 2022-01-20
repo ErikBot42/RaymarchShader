@@ -26,4 +26,28 @@ bool RayTraceSphere(out float dist, out float maxDist, float3 s, float3 d, float
 	return true;
 }
 
+
+bool RayTraceCube(out float dist, out float maxDist, float3 ro, float3 rd, float3 boxSize)
+{
+    dist = 0; maxDist = 0;
+
+    float3 m = 1/rd;
+    float3 n = m*ro;
+
+    float3 k = abs(m)*boxSize;
+
+    float3 t1 = -n-k;
+    float3 t2 = -n+k;
+
+    float tN = max( max( t1.x, t1.y ), t1.z );
+    float tF = min( min( t2.x, t2.y ), t2.z );
+
+    if( tN>tF || tF<0.0) return false;
+    dist = max(dist, min(tN, tF));
+    maxDist = max(tN, tF);
+    return true;
+
+}
+
+
 #endif // RAYTRACEFUNCTIONS_CGINC

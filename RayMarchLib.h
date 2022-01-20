@@ -134,7 +134,7 @@ struct sdfData // returned from distance functions, including main scene
 // Implemented by shaderlab file.
 float4 vSdfConfig;
 inline float4 sdf(float3 p, float tol = 0);
-material calcMaterial(float3 p, float3 t = 0);
+material calcMaterial(float3 p, float3 t = 0, float tol = 0.000001);
 fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float startDist, int numLevels);
 fixed4 rendererCalculateColor(float3 vStart, float3 vDir, out float3 vHitPos, float startDist=0, int numLevels=2);
 //sdfData scene(float3 p)

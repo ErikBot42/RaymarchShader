@@ -433,9 +433,9 @@ float4 fracMandelbulb2(float3 p)
     float dr = 1.0;
     float r;
 
-    const int iterations = 9;//5;//8
+    const int iterations = 7;//9;//5;//8
 
-    const float maxRThreshold = 2; //"infinity"
+    const float maxRThreshold = 20; //"infinity"
 
     float Power = 8; // Z_(n+1) = Z(n)^? + c
 
@@ -452,7 +452,8 @@ float4 fracMandelbulb2(float3 p)
 		
 		pow3D(p, Power, r);
         p += c;
-
+        
+        //closest = max(p, closest);
 		if (length(p)<minDist) {minDist = length(p); closest = p;}
     }
     return float4(0.5*log(r)*r/dr, closest);
@@ -567,6 +568,12 @@ float fracMandelbox(float3 p, float scaleFactor)
 float fracMandelbox3(float3 p, float scaleFactor)
 {
 
+	float scale = 1;
+	if (scaleFactor>0) {scaleFactor+=2; scale/=(scaleFactor+1)/(scaleFactor-1);}
+	else {scaleFactor-=1;}
+	p/=scale;
+
+
     float3 offset3 = p;
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
@@ -582,7 +589,7 @@ float fracMandelbox3(float3 p, float scaleFactor)
         pdr.w = pdr.w*abs(scaleFactor)+1;
     }
     float r = length(pdr.xyz);
-    return r/abs(pdr.w);
+    return r/abs(pdr.w)*scale;
 }
 
 // Testing, definetly has things wrong about it.
@@ -596,13 +603,13 @@ float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
 	else {scaleFactor-=1;}
 	p/=scale;
 
-    float3 offset3 = p;//+sdfConfig;
+    float3 offset3 = float3(sdfConfig.x, sdfConfig.x, sdfConfig.x)+(1+sdfConfig.y)*p; //p
 	
 
     //float dr = 1.0;
 	float4 pdr = float4(p,1);
-    int iterations = 10;//10;
-	int iterationsPre = 5;
+    int iterations = 0;//10;
+	int iterationsPre = 10;
     //float fixedRadius = 1.0;
     //float minRadius = 1 + _SinTime.z*0.5-0.5;//0.5;
     //sphereFold2(pdr, minRadius*minRadius, fixedRadius*fixedRadius);
@@ -610,13 +617,16 @@ float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
     for(int i=0; i<iterationsPre; i++)
     {
         boxFold2(pdr, 1);
-    	sphereFold2(pdr, minRadius*(1+.5*sdfConfig.x));
+    	sphereFold2(pdr, minRadius*(1+.5*0));//sdfConfig.x
 
         pdr.xyz = scaleFactor*pdr.xyz + offset3;
         pdr.w = pdr.w*abs(scaleFactor)+1;
+
+        //pdr.xyz = rotZ(pdr.xyz, .5*_SinTime.y);
+        //pdr.xyz = rotX(pdr.xyz, .5*_SinTime.x);
     }
 	float dist = length(pdr.xyz)/abs(pdr.w);
-	[branch] if (dist>0.019) return dist*scale;//0.02
+	[branch] if (dist>0.019) return (dist*scale);//0.02
     for(int i=0; i<iterations-iterationsPre; i++)
     {
         boxFold2(pdr, 1);
@@ -626,7 +636,7 @@ float fracMandelbox4(float3 p, float scaleFactor, float3 sdfConfig = 0)
         pdr.w = pdr.w*abs(scaleFactor)+1;
     }
     
-    return (length(pdr.xyz)/abs(pdr.w)-0.0001*1)*scale;
+    return (length(pdr.xyz)/abs(pdr.w)-0.00001*0)*scale;
 }
 
 // Mandelbox alternate implementation, possibly faster

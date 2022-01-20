@@ -23,7 +23,7 @@ struct light_t
     col3 col;
     vec3 dir;
     float dist; // dist to light
-    float intensity; // intensity fac
+    float intensity; // intensity fac, negative will disable
     bool real; // use actual calc instead of estimate
 };
 
@@ -46,5 +46,8 @@ typedef struct sceneTransformCameraOut
 
 
 sceneTransformCameraOut_t sceneTransformCamera(vec3 ro, vec3 rd);
+sceneTransformCameraOut_t sceneInverseTransformCamera(vec3 ro, vec3 rd);
+
+light_t[NUM_LIGHTS] sceneGetLights();
 
 #endif

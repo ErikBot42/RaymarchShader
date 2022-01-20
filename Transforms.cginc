@@ -50,6 +50,19 @@ inline float3 repXZ(float3 p, float x, float z)
 }
 
 
+inline float3 repXYZ(float3 p, float x, float y, float z)
+{
+    float3 o = p;
+    o.x = fmod(abs(p.x) + x/2.0, x) - x/2.0;
+    o.x *= sign(p.x);
+    o.y = fmod(abs(p.y) + y/2.0, y) - y/2.0;
+    o.y *= sign(p.y);
+    o.z = fmod(abs(p.z) + z/2.0, z) - z/2.0;
+    o.z *= sign(p.z);
+    return o;
+}
+
+
 inline float3 repXYZLimited(float3 p, float c, float3 l)
 {
     return p-c*clamp(round(p/c),-l,l);
@@ -121,6 +134,20 @@ void sphereFold2(
 	//}
 }
 
+void sphereFold3(
+	inout float3 p,
+	const float R
+)
+{
+	float r = length(p.xyz);
+	float R2 = R*R;
+	if (r<R)
+	{
+		float factor = R2/(r*r);
+		p *= factor;
+	}
+}
+
 void mengerFold(inout float3 p)
 {
 	float a = min(p.x-p.y,0.0);
@@ -164,6 +191,13 @@ void mengerFold(inout float3 p)
 // Reflect if outside box
 void boxFold(inout float3 p, 
     float dz, 
+    float foldingLimit)
+{
+    p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;
+}
+
+
+void boxFold(inout float3 p, 
     float foldingLimit)
 {
     p = clamp(p, -foldingLimit, foldingLimit) * 2.0 - p;

@@ -36,6 +36,11 @@
 #include "Lighting.cginc"
 
 #include "RenderCore.h"
+#include "SceneCore.h"
+
+//HACK: TODO FIX
+
+
 
 v2f vert (appdata v)
 {
@@ -60,7 +65,7 @@ v2f vert (appdata v)
 	o.vCamPos *=1;
 
 	// Random vector calc
-	o.vSdfConfig = getNoise4(_Time.x*1);
+	o.vSdfConfig = getNoise4(_Time.x*.1*20);
 
 	return o;
 }
@@ -97,7 +102,24 @@ fragOut frag (v2f i)
 	//#endif 
 	//float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
 	//o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
-   	
+    
+
+    sceneTransformCameraOut_t trans = sceneInverseTransformCamera(vHitPos, vHitPos);
+
+    vHitPos = trans.ro;
+    o.depth = 0;
+    
+
+    #if 1
+	float4 zPoint = float4(vHitPos,1);
+	#ifndef USE_WORLD_SPACE
+	zPoint = mul(unity_ObjectToWorld, zPoint);
+	#endif 
+	float4 vClipPos = mul(UNITY_MATRIX_VP, zPoint);
+	o.depth = (vClipPos.z / vClipPos.w + 1.0) * 0.5;
+    #elif 0
+    o.depth = 0.99999;
+    #endif
     return o;
 }
 
@@ -298,6 +320,7 @@ fixed3 worldGetBackground( in float3 dir, in float rough = 0.0)
 // get background light, transformed
 fixed3 worldGetBackgroundLocalSpace( in float3 rd, in float rough = 0.0)
 {
+
 	#ifndef USE_WORLD_SPACE
 	rd = mul(unity_ObjectToWorld, rd);
 	#endif
@@ -319,7 +342,7 @@ light createPointLight(float3 pos, float3 p, fixed3 col, float intensity = 1, fl
 	light l; l.col = col; l.k = k; l.intensity = intensity;
 	l.dir = normalize(p-pos);
 
-	float maxDist = 2;//.4;//.2;//.8;//.4;
+	float maxDist = .5;//.4;//.2;//.8;//.4;
 	float innerRadius = maxDist/8.0/8;
 
 
@@ -415,17 +438,20 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 	light l;
     fixed3 sunCol = fixed3(237.0/255.0, 213.0/255.0, 158.0/255.0);
 	fixed3 ambientColor = fixed3(135.0/255.0, 206.0/255.0, 235/255.0);
+	//fixed3 ambientColor = fixed3(1,0.05,1);
 	fixed3 glowColor = HSV(length(pos)*2,1,1);
 	fixed3 col = 0;
 	
 	#ifndef RENDER_WITH_GI
-	col += .5*ambientColor*.4*AOfactor;// "ambient"
+	col += .5*.5*.5*.5*.5*.5*ambientColor*.4*AOfactor;// "ambient"
 	#endif
 
-	//col += 3*(1-AOfactor)*glowColor;
-	//return col;
+    //return 8*col;
+    
+    float rep = 1;
+    //pos = repXYZ(pos,rep,rep,rep);
 
-#if 0
+#if 1
     //float3 ldir = normalize(float3(-.5,-.5,.5));
     //l = createDirectionalLight(pos, ldir, sunCol, 1.3); //side
     //l = createDirectionalLight(pos, normalize(float3(-.15,1,.1)), sunCol, 1.3); //above
@@ -433,13 +459,38 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
     //l = createDirectionalLight(pos, normalize(float3(0.3,.5,1)), sunCol, 1.3); //side
     //l = createDirectionalLight(pos, normalize(float3(0.2,1,.3)), sunCol, 1.3); 
     
-    l = createDirectionalLight(pos, normalize(float3(_SinTime.z,_SinTime.x/2+1.5,abs(_CosTime.z))), sunCol, 1.3); 
     //l = createDirectionalLight(pos, normalize(float3(_SinTime.z,1,_CosTime.z)), sunCol, 1.3); 
+    
+    float3 light_dir = normalize(float3(1,.7,1));
+    //float3 light_dir = normalize(float3(_SinTime.x,1,_SinTime.z));
+
+    //float3 light_dir = normalize(float3(_SinTime.z,_SinTime.x/2+1.5,abs(_CosTime.z)));
+
+    pos = repXYZ(pos,rep,rep,rep);
+    
+    #if 1
+    float dist;
+    float maxDist;
+    bool cubeHit = RayTraceCube(dist, maxDist, pos, light_dir, .5*float3(1,1,1));
+    #else
+    float dist = 0;
+    float maxDist = .1;
+    #endif
+    //maxDist = cubeHit ? maxDist : 9;
+
+    //col.r += !cubeHit;
+    
+
+
+    l = createDirectionalLight(pos, light_dir, sunCol, .8, maxDist); 
     col += lightToColor(l, pos, dir, nor, true, useNorm);
 #elif 1
     //l = createPointLight(pos, float3(0,0,0), sunCol, 10*5);
     const int numLights = 2;
-    float lightOffset   = .14;
+
+    float tm = _Time.x;
+
+    float lightOffset   = .2+tm;//.14;
 
     light lights[numLights];
     float time = _Time.x;
@@ -447,8 +498,18 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
 
     float I = 10.0*5.0;
     float facSat = 0.05;
-    lights[0] = createPointLight(pos, float3(0,  lightOffset, 0), fixed3(1,      facSat, facSat), I);
-    lights[1] = createPointLight(pos, -float3(0, lightOffset, 0), fixed3(facSat, facSat, 1),      I);
+
+    float3 lightPos;
+
+    lightPos = float3(0,  lightOffset, .5);
+    lights[0] = createPointLight(repXYZ(pos-lightPos,rep,rep,rep)+lightPos, lightPos, fixed3(1,      facSat, facSat), I);
+    //lights[0] = createPointLight(pos, lightPos, fixed3(1,      facSat, facSat), I);
+    
+    lightOffset*=0.95;
+
+    lightPos = float3(0, 0, lightOffset)*0;
+    lights[1] = createPointLight(repXYZ(pos-lightPos,rep,rep,rep)+lightPos, lightPos, fixed3(facSat, facSat, 1),      I);
+    //lights[1] = createPointLight(pos, lightPos, 0*fixed3(facSat, facSat, 1),      I);
     //lights[0] = createPointLight(pos, lightOffset*float3(sin(time),cos(time),0), fixed3(1,   facSat, facSat), I);
     //lights[1] = createPointLight(pos, -lightOffset*float3(sin(time), cos(time),0), fixed3(facSat, facSat, 1),   I);
 
@@ -460,7 +521,7 @@ fixed3 worldApplyLighting(in float3 pos, in float3 dir, in float3 nor, in float 
     col += severalLightToCol(lights, numLights, pos, dir, nor);
     //col += lightToColor(lights[0], pos, dir, nor, true, useNorm);
     //col += lightToColor(lights[1], pos, dir, nor, true, useNorm);
-#elif 1
+#elif 0
     l = createPointLight(pos, float3(0,0,0), sunCol, 10*5);
     col += lightToColor(l, pos, dir, nor, true, useNorm);
 #endif
@@ -587,7 +648,7 @@ fixed4 rendererCalculateColor(float3 ro, float3 rd, out float3 vHitPos, float st
 			if (i==0) // never interacted with object
 			{
 				dcol = pow(fixed4(worldGetBackground(rd),1),2.2/1.0); 
-				discard; // optional
+				//discard; // optional
 			}
 			else
 			{
@@ -635,7 +696,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
     else
     {
         rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
-        vHitPos = ro;//o.hitPos;
+        vHitPos = o.hitPos;
         col = fixed4(o.col, 0);
         //col = 0;
     }
@@ -657,7 +718,7 @@ fixed4 multiSampledRendererCalculateColor(float3 ro, float3 rd, out float3 vHitP
         else
         {
             rendererCalculateColorOut_t o = rendererCalculateColor(ro, rd, startDist, numLevels);
-            vHitPos = ro;//o.hitPos;
+            vHitPos o.hitPos;
             col+=fixed4(o.col,1)/numSamples;
         }
 

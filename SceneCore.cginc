@@ -68,15 +68,24 @@ col3 sceneApplyFog(vec3 ro, vec3 rd, col3 original)
 #endif
 }
 
+#ifndef OVERRIDE_TRANSFORM_CAMERA
 // function to transform the camera.
 sceneTransformCameraOut_t sceneTransformCamera(vec3 ro, vec3 rd)
 {
     sceneTransformCameraOut_t o;
-    //o.ro = rotZ(ro,_Time.x)+_SinTime.x/10;
-    //o.rd = rotZ(rd,_Time.x);
-    o.ro = rotY(ro, _Time.x*2);
-    o.rd = rotY(rd, _Time.x*2);
+    o.ro = ro;//rotY(ro, _Time.x*2);
+    o.rd = rd;//rotY(rd, _Time.x*2);
     return o;
 }
+
+sceneTransformCameraOut_t sceneInverseTransformCamera(vec3 ro, vec3 rd)
+{
+    sceneTransformCameraOut_t o;
+    o.ro = ro;//rotY(ro, _Time.x*2);
+    o.rd = rd;//rotY(rd, _Time.x*2);
+    return o;
+}
+
+#endif
 
 #endif

@@ -13,9 +13,9 @@
 rendererCalculateColorOut_t rendererCalculateColor(vec3 ro, vec3 rd, float startDist, int numLevels)
 {
     #ifdef RENDER_WITH_GI
-    numLevels = 3;
+    numLevels = 5;
     #else
-    numLevels = 2;
+    numLevels = 1;
     #endif
     
     sceneTransformCameraOut_t cam = sceneTransformCamera(ro, rd);
@@ -38,7 +38,8 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
 {
     sceneEstimateHitOut_t eh = SceneEstimateHit(i.ro, i.rd);
     eh.startDist = 0;
-    eh.maxDist = 5;
+    eh.maxDist = MAX_DIST;
+    eh.hit = true;
     //float startDist = eh.startDist; //distance ray can safetly start at
     //float maxDist = eh.maxDist; //distance ray can safetly end at
 
@@ -87,7 +88,7 @@ rendererIterationData_t rendererIteration(rendererIterationData_t i)
 
 
         //TODO: material abstraction
-        material mat = calcMaterial(pos, sdf(pos).yzw);
+        material mat = calcMaterial(pos, sdf(pos).yzw, tol/*dot(nor, i.rd)*/);
         col3 surfCol = mat.col.rgb;
 
         dcol  = worldApplyLighting(pos, i.rd, nor, fAOfactor);
@@ -114,7 +115,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     rendererCalculateColorOut_t o;
     //o.col = worldGetBackgroundLocalSpace(data.rd);
     //return o;
-    sceneEstimateHitOut_t eh = SceneEstimateHit(data.ro, data.rd);
+    //sceneEstimateHitOut_t eh = SceneEstimateHit(data.ro, data.rd);
     vec3 oro = data.ro;// + eh.startDist*data.rd;
     vec3 ord = data.rd;
 
@@ -126,7 +127,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
             o.hitPos = data.ro;
             if (data.missed)
             {
-                //discard;
+                discard;
                 break;
             }
 
@@ -135,19 +136,12 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
 
     o.col = data.sumCol;
 
-    //return o;
 
     float distFirstBounce = length(o.hitPos-oro);
-    #if 0
-    o.col = worldApplyLighting(o.hitPos, ord, ord, 0);
-    o.col = worldApplyLighting(oro+distFirstBounce*ord, ord, ord, 0);
-    //o.col = distFirstBounce/10;
-    return o;
-    #endif
 
-
-    //o.col = distFirstBounce/10;
-
+    
+    //fixed4 fogCol = fixed4(1,0.05,1,1)*0.0;
+    //o.col = lightFog(fixed4(o.col,1), fogCol, distFirstBounce, 0, MAX_DIST).xyz;
     
     // volumetrics
     #if 0
@@ -157,7 +151,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
 
     col3 acc = 0;
     int samples = 10;
-    float fogStrength = 1*.4;//.3;//*.1;
+    float fogStrength = 2*16*1*.4;//.3;//*.1;
     //float fogStrength = 0.7/length(oro+ord*distFirstBounce);
     for (int i = 0; i<samples; i++)
     {
@@ -188,6 +182,7 @@ rendererCalculateColorOut_t rendererCalculateColor_it(rendererIterationData_t da
     //acc*=fogCol;
     o.col += 1*acc*distFirstBounce;
     #endif
+
 	//o.col = pow(o.col, 1.0/2.2);//gamma correction
     //o.col = frand()*distFirstBounce;
     return o;

@@ -18,6 +18,13 @@
         _FixedRadius ("FixedRadius", Range(0.03, 2)) = 0.2 
         _ScaleFactor ("ScaleFactor", Range(-2, 0.03)) = -0.8 
 
+        [Header(Transform)]
+
+        _Transform_X ("Transform vector X", Vector) = (1,0,0,1)
+        _Transform_Y ("Transform vector Y", Vector) = (0,1,0,1)
+        _Transform_Z ("Transform vector Z", Vector) = (0,0,1,1)
+        _Transform_W ("Transform vector W", Vector) = (0,0,0,1)
+
         //https://docs.unity3d.com/ScriptReference/MaterialPropertyDrawer.html
        
         [Header(Variant toggles)]
@@ -63,6 +70,12 @@
         Pass
         {
             CGPROGRAM
+
+            float4 _Transform_X;
+            float4 _Transform_Y;
+            float4 _Transform_Z;
+            float4 _Transform_W;
+
 			//#define DEBUG_COLOR_MODE
 			//#define VERTEX_DEBUG_COLORS
 			//#define ENABLE_TRANSPARENCY
@@ -73,8 +86,13 @@
 			
             #pragma multi_compile _SDF_NONE _SDF_MENGER _SDF_TESTING_ALT _SDF_TESTING_ALT2 _SDF_TESTING _SDF_JULIABULB _SDF_MANDELBULB _SDF_MANDELBOLB _SDF_MANDELBOX _SDF_DEMOSCENE _SDF_FEATHER _SDF_ASTEROID
             #pragma multi_compile _MTRANS_NONE _MTRANS_COLORXYZ _MTRANS_COLORHSV_SPHERE _MTRANS_COLORHSV_CUBE
+            //#define _MTRANS_NONE
             #pragma multi_compile _PTRANS_NONE _PTRANS_TWIST _PTRANS_ROTATE _PTRANS_REPEAT _PTRANS_MENGERFOLD
-            #pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
+            //#define _PTRANS_REPEAT
+            
+            //#pragma multi_compile _SPACE_WORLD _SPACE_OBJECT
+            #define _SPACE_WORLD
+
             //#pragma multi_compile _ANIMATE_ON _ANIMATE_OFF
 			//#define _MTRANS_COLORHSV_SPHERE
 			//#define _PTRANS_NONE
@@ -83,7 +101,7 @@
 
             #ifdef _SPACE_WORLD
                 #define USE_WORLD_SPACE
-                #define REPEAT_SPACE
+                //#define REPEAT_SPACE
             #endif
 
 				
@@ -112,8 +130,12 @@
 			// for typical resolution:			
 			//#define SURF_DIST 0.004
 			#define SURF_DIST 0.0004
+			//#define SURF_DIST 0.0016
+			//#define SURF_DIST 0.004
 			//#define MAX_STEPS 200
-			#define MAX_STEPS 200
+			//#define MAX_STEPS 80
+			#define MAX_STEPS 120
+			#define MAX_STEPS 400
 			//#define RENDER_WITH_GI
             #endif
 			#if 0 
@@ -124,41 +146,43 @@
 			#define RENDER_WITH_GI
 			#endif
 
-            #if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
-				#define FUNGE_FACTOR 0.8
-                #define MAX_STEPS 100
-                #define MAX_STEPS 200
+            //#if defined(_SDF_MANDELBULB) || defined(_SDF_MANDELBOLB) || defined(_SDF_JULIABULB)
+			//	#define FUNGE_FACTOR 0.8
+            //    #define MAX_STEPS 100
+            //    #define MAX_STEPS 200
 
 
-            #elif _SDF_MANDELBOX
-                //#define MAX_STEPS 50
-                //#define MAX_STEPS 30
-                #define MAX_STEPS 140
-                //#define FUNGE_FACTOR 1
-				//#define SURF_DIST 0.0001
-				//#define SURF_DIST 0.00005
-				//#define SURF_DIST 0.0002
-				//#define SURF_DIST 0.0002
-				//#define MAX_DIST 2000
+            //#elif _SDF_MANDELBOX
+            //    //#define MAX_STEPS 50
+            //    //#define MAX_STEPS 30
+            //    #define MAX_STEPS 140
+            //    //#define FUNGE_FACTOR 1
+			//	//#define SURF_DIST 0.0001
+			//	//#define SURF_DIST 0.00005
+			//	//#define SURF_DIST 0.0002
+			//	//#define SURF_DIST 0.0002
+			//	//#define MAX_DIST 2000
 
-                #define CONSTRAIN_TO_MESH
-                //#define STEP_FACTOR 1
-			#elif _SDF_FEATHER
-				//#define MAX_STEPS 70
-				#define MAX_STEPS 30
-				//#define MAX_STEPS 30
-				#define CONSTRAIN_TO_MESH
-				#define FUNGE_FACTOR 0.9
-			#elif defined(_SDF_TESTING) || defined(_SDF_MENGER)
-				//#define MAX_STEPS 100
-                //#define CONSTRAIN_TO_MESH
-            #endif
+            //    //#define CONSTRAIN_TO_MESH
+            //    //#define STEP_FACTOR 1
+			//#elif _SDF_FEATHER
+			//	//#define MAX_STEPS 70
+			//	#define MAX_STEPS 30
+			//	//#define MAX_STEPS 30
+			//	//#define CONSTRAIN_TO_MESH
+			//	#define FUNGE_FACTOR 0.9
+			//#elif defined(_SDF_TESTING) || defined(_SDF_MENGER)
+			//	//#define MAX_STEPS 100
+            //    //#define CONSTRAIN_TO_MESH
+            //#endif
 
             #ifndef MAX_DIST
                 #define MAX_DIST 20
             #endif 
 
             float _FoldingLimit;
+
+            //#define OVERRIDE_TRANSFORM_CAMERA
 
             #include "../RayMarchLib.cginc"
 
@@ -173,6 +197,28 @@
             float _Slider_SDF;
 
             float _Slider_Transform;
+
+
+            //sceneTransformCameraOut_t sceneTransformCamera(vec3 ro, vec3 rd)
+            //{
+            //    sceneTransformCameraOut_t o;
+            //    float4x4 mat = {_Transform_X,_Transform_Y,_Transform_Z,_Transform_W};
+            //    float3 trans = {mat[0][3],mat[1][3],mat[2][3]};
+            //    o.ro = mul(mat, ro)-trans;
+            //    o.rd = normalize(mul(mat, rd));//mul(mat, rd+ro)-mul(mat, ro);
+            //    return o;
+            //}
+
+            //sceneTransformCameraOut_t sceneInverseTransformCamera(vec3 ro, vec3 rd)
+            //{
+            //    sceneTransformCameraOut_t o;
+            //    float4x4 mat = {_Transform_X,_Transform_Y,_Transform_Z,_Transform_W};
+            //    float3 trans = {mat[0][3],mat[1][3],mat[2][3]};
+            //    mat = transpose(mat); 
+            //    o.ro = mul(mat, ro+trans);
+            //    o.rd = normalize(mul(mat, rd));//mul(mat, rd+ro)-mul(mat, ro);
+            //    return o;
+            //}
 
             inline material applyColorTransform(float3 p, in material mat)
             {
@@ -224,7 +270,7 @@
                     //p.z = fmod(abs(p.z + 4), 8) - 4;
 
                     //p = repXYZUnsigned(p,r);
-                    p = repXYZ(p,2);
+                    p = repXYZ(p,1);
                 #endif
                 #ifdef _PTRANS_TWIST 
                     //p = rotZ(p, p.z*_Slider_Transform*2);
@@ -261,6 +307,7 @@
 
             float4 sdf(float3 p, float tol)
             {
+                
 
                 #ifdef _ANIMATE_OFF
                 float sdfSlider = _Slider_SDF;
@@ -268,6 +315,7 @@
                 //float sdfSlider = sin(_Time.x*0.5);
                 float sdfSlider = pingPong(_Time.x,.125);
                 #endif
+
 
                 //sdfData o = {0,DEFMAT};
 
@@ -311,7 +359,7 @@
 
 				//t = v.yzw/4;
                 //t = max(0,-sin(length(v.yzw)*9))*2;
-                t = max(0,sin(length(v.yzw)*6.5)-.3)*10;
+                t = v.yzw;//max(0,sin(length(v.yzw)*6.5)-.3)*10;
                 //t = max(0,-sin(length(v.yzw)*7.3)-.9)*100;
                 dist*=scale;
 
@@ -324,43 +372,76 @@
                 dist*=scale;
 
 				#elif _SDF_TESTING_ALT2
-
-                static bool use_big = true;
-
-                float d_sel = sdfBox(p,float3(.8,.8,1.8)*0.3);
-
-                if (d_sel < 0) use_big = false;
                 
-                float d1_out = sdfBox(p,float3(1,1,2)*0.3);
-                float d1_in = sdfBox(p,float3(.8,.8,3)*0.3);
-                float d1 = max(d1_out, -d1_in);
+
+
+                float sc = 1;
+
+
+                float scaleDown = 5;
+                float3 shift = -1*float3(.1,.0,.2);
+
+                float st = 1;
+                t = 0;
+                for (int i = 0; i<6; i++)
+                {
+                    p.xyz = abs(p.xyz);
+                    st*=.5;
+                    mengerFold(p);
+                    //planeFold(p, -normalize(float3(1,-2,1)), -0.3*st);
+                    p = rotZ(p,-0.8);
+                    boxFold(p,0.5);
+                    p = rotX(p,0.5);
+
+
+                    p*=scaleDown; 
+                    sc/=scaleDown;
+                    p.xyz-=shift;
+                    t = max(t, p.xyz);
+
+                }
+                //planeFold(p, normalize(float3(1,1,0)), 0);
+
                 
-                float w = .5 + .5*_SinTime.z;
+                dist = sdfBox(p, float3(1,1,1)*8)*sc;
+                
+                //dist = sdfSphere(p,.1)*sc;
+                
+                //static bool use_big = true;
 
-                float d2_out = sdfBox(p,float3(1+w,1+w,2)*0.3);
-                float d2_in = sdfBox(p,float3(0.8+w,0.8+w,1.8)*0.3);
-                float d2 = max(d2_out, -d2_in);
-                d2 = max(d2, -d1_in);
+                //float d_sel = sdfBox(p,float3(.8,.8,1.8)*0.3);
 
-                if (use_big) 
-                {
-                    dist = d1;
-                }
-                else
-                {
-                    dist = d2;
-                    //dist = sdfBox(p,float3(2,.5,.5)*0.3);
-                }
+                //if (d_sel < 0) use_big = false;
+                //
+                //float d1_out = sdfBox(p,float3(1,1,2)*0.3);
+                //float d1_in = sdfBox(p,float3(.8,.8,3)*0.3);
+                //float d1 = max(d1_out, -d1_in);
+                //
+                //float w = .5 + .5*_SinTime.z;
+
+                //float d2_out = sdfBox(p,float3(1+w,1+w,2)*0.3);
+                //float d2_in = sdfBox(p,float3(0.8+w,0.8+w,1.8)*0.3);
+                //float d2 = max(d2_out, -d2_in);
+                //d2 = max(d2, -d1_in);
+
+                //if (use_big) 
+                //{
+                //    dist = d1;
+                //}
+                //else
+                //{
+                //    dist = d2;
+                //    //dist = sdfBox(p,float3(2,.5,.5)*0.3);
+                //}
 
 
 				#elif _SDF_TESTING_ALT
-                float scale = .3;
+                float scale = .2;
                 p/=scale;
-                t = 0;
 				//dist = mengerSponge(p, 0, 0);
                 
 
-                float amp = 0.03*4*4;//*(1+sin(_Time.x*10))*.5;
+                float amp = 0.01*4*4;//*(1+sin(_Time.x*10))*.5;
 
 
                 vec3 s = vec3(1,1,1);
@@ -378,8 +459,8 @@
                 //planeFold(q, vec3(1,0,0), -2);
                 //planeFold(q, vec3(0,1,0), -2);
 
-                float timee0 = .5;//_Time.y/4;
-                time = 0;//2.23478+int(timee0);
+                float timee0 = _Time.x/4;
+                time = 2.23478+int(timee0);
                 q = rotZ(q,time);
                 q = rotY(q,time*0.83249);
                 q = rotX(q,time*1.3278);
@@ -499,6 +580,7 @@
                 vec3 u = vec3(1,1,1);
 
                 dist = sdfBox2(q,u);
+                t = q*scale;
                 //dist = abs(dist)-0.05;
                 float rad = .5;
                 //dist = min(dist, sdfSphere(q+vec3(0,1,0), rad));
@@ -526,7 +608,7 @@
 
 
                 //t = max(0,-dist)*0.5;
-                t = 0;//max(0,-d2+0.05)*10*h_i;
+                //max(0,-d2+0.05)*10*h_i;
 				//dist = sdfFbmAdd(q, dist, 0.15*5, 2, tol); //!
                 //t = max(0,-dist-.3)*2;
                 //dist = min(dist, sdfTorus(q.xyz,2.5,.3));
@@ -797,7 +879,7 @@
                 //q = rotZ(q,-time);
 
 				dist = mengerSponge(p, vSdfConfig.xyz, _Slider_SDF);//-0.01*(1+_SinTime.z);
-                t = sdfSphere(p, 0.1*(1+_SinTime.y));
+                t = 1;//t = sdfSphere(p, 0.1*(_SinTime.y));
                 dist = min(dist, t.x);
 
                 //float3 q = float3(1,0,0)*0.4;
@@ -868,7 +950,8 @@
                 #elif _SDF_MANDELBOX
                 
                 #define COLTRANS_DONE
-				vSdfConfig.w = _SinTime.z;
+                //vSdfConfig = 0;
+				vSdfConfig.w = 1+vSdfConfig.z*0.5;//+0.5;//*_SinTime.x;
                 float d = sdfSphere(p,.15);//sdfBox(p, .3);
                 t = max(0,-d);
                 //t = -0.1;//-.3;
@@ -881,7 +964,8 @@
 
 				p/=scale;
 				dist = fracMandelbox4(p, vSdfConfig.w, vSdfConfig.xyz)*scale;
-                dist = max(dist, -sdfSphere(p,.5));
+				//dist = fracMandelbox3(p, vSdfConfig.w)*scale;
+                //dist = max(dist, -sdfSphere(p,.2/scale));
                 //////////////////////////////////////////////////////////////////////
                 //
                 // None
@@ -961,7 +1045,7 @@
                 return float4(dist,t);
             }
 
-			material calcMaterial(float3 p, float3 t)
+			material calcMaterial(float3 p, float3 t, float tol)
 			{
 				material mat = DEFMAT;
 				mat.col = fixed4(1,1,1,1)*0.6;
@@ -973,8 +1057,32 @@
 				//applyPositionTransform(p);
 				//return applyColorTransform(p, mat);
 				mat = applyColorTransform(p, mat);
+                
+                float3 colFac;
+                colFac = 50*float3(10,20,30);
+                //mat.col = float4(abs(t.x)*5,0.5,0,1);
+                //t = t.x+t.y+t.z;//max(t.x,t.y)+max(t.y,t.z)+max(t.y,t.z);
+                ////t.x+t.y+t.z;
+                //t.y = t.x;
+                //t.z = t.x;
+                //t = (1+sin(t*colFac)
+                //    *float3(1,1,1));
+                
+                float bfac = .2;
+                float ifac = 1-bfac;
 
-                if (t.x<0) {mat.col=0;}
+                //t.x = int(t.x)*ifac + bfac;
+                //t.y = int(t.y)*ifac + bfac;
+                //t.z = int(t.z)*ifac + bfac;
+                //mat.col = float4(t,1); 
+                
+                //t *= 100;
+                //t = (1+int(t.x)+int(t.y)+int(t.z))%2;
+                //mat.col = float4(t,1);
+                //colFac = float3(0.1,.2,.2);
+                //mat.emmision = float4((.5+.5*sin(t*colFac)
+                //    *float3(1,1,1)*0.05
+                //),1);
                 return mat;
 			}
 

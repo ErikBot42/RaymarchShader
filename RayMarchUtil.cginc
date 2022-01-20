@@ -119,10 +119,10 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 
 	float cutoff = 0.01;
 
-	float funge = 2;
+	float funge = 1;
 	
 	// orig: 20 <-> 2000
-    int iterations = 100;//50;
+    int iterations = 200;//20;//50;
 	for (int i = 0; i<iterations && t<maxDist; i++)
 	//for (int i = 0; i<64 && t<maxDist; i++)
 	{
@@ -141,7 +141,12 @@ float lightSoftShadow3(float3 ro, float3 rd, float startDist, float maxDist, flo
 	}
 	res = saturate(res-cutoff)/(1-cutoff);
 	//res = smoothstep(0,1,res);
+	//return res;
+    #if 1
 	return res;
+    #else
+    return 1;
+    #endif
 	//res*=.5;
 	//return saturate((res*res*(2.0-res))*2);
 
@@ -290,7 +295,7 @@ float3 cosineDirection(float3 nor)
 
 float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
 {
-#if 0
+#if 1
     return cosineDirection(nor);	
 #elif 0
     if (frand()<.5)
@@ -301,7 +306,7 @@ float3 worldGetBRDFRay(float3 ro, float3 rd, float3 nor)
     {
         return reflect(rd,nor);
     }
-#elif 1
+#elif 0
     return reflect(rd, nor);
 #else
     return normalize(reflect(rd, nor) + float3(frand(), frand(), frand())*0.05);
